@@ -58,7 +58,16 @@ void Node::removeChildByName(const std::string &name) {
 void Node::removeFromParent() {
   auto p = parent_.lock();
   if (p) {
-    p->removeChild(shared_from_this());
+    // 安全获取 shared_ptr，避免在对象未由 shared_ptr 管理时崩溃
+    Ptr<Node> self;
+    try {
+      self = shared_from_this();
+    } catch (const std::bad_weak_ptr &) {
+      // 对象不是由 shared_ptr 管理的，直接重置父节点引用
+      parent_.reset();
+      return;
+    }
+    p->removeChild(self);
   }
 }
 
@@ -93,7 +102,7 @@ Ptr<Node> Node::getChildByTag(int tag) const {
 
 void Node::setPosition(const Vec2 &pos) {
   position_ = pos;
-  transformDirty_ = true;
+  markTransformDirty();
   updateSpatialIndex();
 }
 
@@ -101,13 +110,13 @@ void Node::setPosition(float x, float y) { setPosition(Vec2(x, y)); }
 
 void Node::setRotation(float degrees) {
   rotation_ = degrees;
-  transformDirty_ = true;
+  markTransformDirty();
   updateSpatialIndex();
 }
 
 void Node::setScale(const Vec2 &scale) {
   scale_ = scale;
-  transformDirty_ = true;
+  markTransformDirty();
   updateSpatialIndex();
 }
 
@@ -117,14 +126,14 @@ void Node::setScale(float x, float y) { setScale(Vec2(x, y)); }
 
 void Node::setAnchor(const Vec2 &anchor) {
   anchor_ = anchor;
-  transformDirty_ = true;
+  markTransformDirty();
 }
 
 void Node::setAnchor(float x, float y) { setAnchor(Vec2(x, y)); }
 
 void Node::setSkew(const Vec2 &skew) {
   skew_ = skew;
-  transformDirty_ = true;
+  markTransformDirty();
 }
 
 void Node::setSkew(float x, float y) { setSkew(Vec2(x, y)); }
@@ -187,15 +196,29 @@ glm::mat4 Node::getLocalTransform() const {
 }
 
 glm::mat4 Node::getWorldTransform() const {
-  if (transformDirty_) {
+  if (worldTransformDirty_) {
     worldTransform_ = getLocalTransform();
 
     auto p = parent_.lock();
     if (p) {
       worldTransform_ = p->getWorldTransform() * worldTransform_;
     }
+    worldTransformDirty_ = false;
   }
   return worldTransform_;
+}
+
+void Node::markTransformDirty() {
+  // 避免重复标记，提高性能
+  if (!transformDirty_ || !worldTransformDirty_) {
+    transformDirty_ = true;
+    worldTransformDirty_ = true;
+
+    // 递归标记所有子节点
+    for (auto &child : children_) {
+      child->markTransformDirty();
+    }
+  }
 }
 
 void Node::onEnter() {
@@ -331,10 +354,36 @@ void Node::render(RenderBackend &renderer) {
 }
 
 void Node::sortChildren() {
-  std::sort(children_.begin(), children_.end(),
-            [](const Ptr<Node> &a, const Ptr<Node> &b) {
-              return a->getZOrder() < b->getZOrder();
-            });
+  // 使用插入排序优化小范围更新场景
+  // 插入排序在大部分已有序的情况下性能接近O(n)
+  size_t n = children_.size();
+  if (n <= 1) {
+    childrenOrderDirty_ = false;
+    return;
+  }
+
+  // 小数组使用插入排序，大数组使用std::sort
+  if (n < 32) {
+    // 插入排序
+    for (size_t i = 1; i < n; ++i) {
+      auto key = children_[i];
+      int keyZOrder = key->getZOrder();
+      int j = static_cast<int>(i) - 1;
+
+      while (j >= 0 && children_[j]->getZOrder() > keyZOrder) {
+        children_[j + 1] = children_[j];
+        --j;
+      }
+      children_[j + 1] = key;
+    }
+  } else {
+    // 大数组使用标准排序
+    std::sort(children_.begin(), children_.end(),
+              [](const Ptr<Node> &a, const Ptr<Node> &b) {
+                return a->getZOrder() < b->getZOrder();
+              });
+  }
+
   childrenOrderDirty_ = false;
 }
 

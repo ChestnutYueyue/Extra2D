@@ -142,25 +142,34 @@ private:
   TexturePool(const TexturePool &) = delete;
   TexturePool &operator=(const TexturePool &) = delete;
 
-  // 缓存项
+  // 侵入式LRU节点 - 减少内存分配和指针跳转
+  struct LRUNode {
+    std::string key;
+    uint32_t prev;  // 数组索引，0表示无效
+    uint32_t next;  // 数组索引，0表示无效
+    bool valid = false;
+  };
+
+  // 缓存项 - 紧凑存储
   struct CacheEntry {
     Ptr<Texture> texture;
     size_t size;          // 纹理大小（字节）
     float lastAccessTime; // 最后访问时间
     uint32_t accessCount; // 访问次数
+    uint32_t lruIndex;    // LRU节点索引
   };
-
-  // LRU列表（最近使用的在前面）
-  using LRUList = std::list<std::string>;
-  using LRUIterator = LRUList::iterator;
 
   mutable std::mutex mutex_;
   TexturePoolConfig config_;
 
   // 缓存存储
   std::unordered_map<std::string, CacheEntry> cache_;
-  std::unordered_map<std::string, LRUIterator> lruMap_;
-  LRUList lruList_;
+
+  // 侵入式LRU链表 - 使用数组索引代替指针，提高缓存局部性
+  std::vector<LRUNode> lruNodes_;
+  uint32_t lruHead_ = 0;  // 最近使用
+  uint32_t lruTail_ = 0;  // 最久未使用
+  uint32_t freeList_ = 0; // 空闲节点链表
 
   // 统计
   size_t totalSize_ = 0;
@@ -175,6 +184,13 @@ private:
     std::function<void(Ptr<Texture>)> callback;
   };
   std::vector<AsyncLoadTask> asyncTasks_;
+
+  // LRU操作
+  uint32_t allocateLRUNode(const std::string& key);
+  void freeLRUNode(uint32_t index);
+  void moveToFront(uint32_t index);
+  void removeFromList(uint32_t index);
+  std::string evictLRU();
 
   // 内部方法
   void touch(const std::string &key);

@@ -180,52 +180,109 @@ std::vector<std::pair<Node *, Node *>> QuadTree::queryCollisions() const {
   return collisions;
 }
 
+void QuadTree::detectCollisionsInNode(
+    const std::vector<std::pair<Node *, Rect>> &objects,
+    std::vector<std::pair<Node *, Node *>> &collisions) const {
+  size_t n = objects.size();
+  if (n < 2)
+    return;
+
+  // 使用扫描线算法优化碰撞检测
+  // 按 x 坐标排序，只检查可能重叠的对象
+  collisionBuffer_.clear();
+  collisionBuffer_.reserve(n);
+  collisionBuffer_.assign(objects.begin(), objects.end());
+
+  // 按左边界排序
+  std::sort(collisionBuffer_.begin(), collisionBuffer_.end(),
+            [](const auto &a, const auto &b) {
+              return a.second.origin.x < b.second.origin.x;
+            });
+
+  // 扫描线检测
+  for (size_t i = 0; i < n; ++i) {
+    const auto &[objA, boundsA] = collisionBuffer_[i];
+    float rightA = boundsA.origin.x + boundsA.size.width;
+
+    // 只检查右边界在 objA 右侧的对象
+    for (size_t j = i + 1; j < n; ++j) {
+      const auto &[objB, boundsB] = collisionBuffer_[j];
+
+      // 如果 objB 的左边界超过 objA 的右边界，后续对象都不会碰撞
+      if (boundsB.origin.x > rightA)
+        break;
+
+      // 快速 AABB 检测
+      if (boundsA.intersects(boundsB)) {
+        collisions.emplace_back(objA, objB);
+      }
+    }
+  }
+}
+
 void QuadTree::collectCollisions(
     const QuadTreeNode *node,
     std::vector<std::pair<Node *, Node *>> &collisions) const {
   if (!node)
     return;
 
-  std::vector<std::pair<Node *, Rect>> ancestors;
-  ancestors.reserve(objectCount_);
+  // 使用迭代而非递归，避免深层树栈溢出
+  struct StackItem {
+    const QuadTreeNode *node;
+    size_t ancestorStart;
+    size_t ancestorEnd;
+  };
 
-  std::function<void(const QuadTreeNode *)> visit =
-      [&](const QuadTreeNode *current) {
-        if (!current)
-          return;
+  std::vector<StackItem> stack;
+  stack.reserve(32);
+  stack.push_back({node, 0, 0});
 
-        for (const auto &[obj, bounds] : current->objects) {
-          for (const auto &[ancestorObj, ancestorBounds] : ancestors) {
-            if (bounds.intersects(ancestorBounds)) {
-              collisions.emplace_back(ancestorObj, obj);
-            }
-          }
+  // 祖先对象列表，用于检测跨节点碰撞
+  collisionBuffer_.clear();
+
+  while (!stack.empty()) {
+    StackItem item = stack.back();
+    stack.pop_back();
+
+    const QuadTreeNode *current = item.node;
+    if (!current)
+      continue;
+
+    // 检测当前节点对象与祖先对象的碰撞
+    for (const auto &[obj, bounds] : current->objects) {
+      for (size_t i = item.ancestorStart; i < item.ancestorEnd; ++i) {
+        const auto &[ancestorObj, ancestorBounds] = collisionBuffer_[i];
+        if (bounds.intersects(ancestorBounds)) {
+          collisions.emplace_back(ancestorObj, obj);
         }
+      }
+    }
 
-        for (size_t i = 0; i < current->objects.size(); ++i) {
-          for (size_t j = i + 1; j < current->objects.size(); ++j) {
-            if (current->objects[i].second.intersects(
-                    current->objects[j].second)) {
-              collisions.emplace_back(current->objects[i].first,
-                                      current->objects[j].first);
-            }
-          }
+    // 检测当前节点内对象之间的碰撞（使用扫描线算法）
+    detectCollisionsInNode(current->objects, collisions);
+
+    // 记录当前节点的对象作为祖先
+    size_t oldSize = collisionBuffer_.size();
+    collisionBuffer_.insert(collisionBuffer_.end(), current->objects.begin(),
+                            current->objects.end());
+
+    // 将子节点压入栈（逆序以保持遍历顺序）
+    if (current->children[0]) {
+      for (int i = 3; i >= 0; --i) {
+        if (current->children[i]) {
+          stack.push_back({current->children[i].get(), oldSize,
+                           collisionBuffer_.size()});
         }
+      }
+    }
 
-        size_t oldSize = ancestors.size();
-        ancestors.insert(ancestors.end(), current->objects.begin(),
-                         current->objects.end());
-
-        if (current->children[0]) {
-          for (const auto &child : current->children) {
-            visit(child.get());
-          }
-        }
-
-        ancestors.resize(oldSize);
-      };
-
-  visit(node);
+    // 恢复祖先列表（模拟递归返回）
+    if (stack.empty() ||
+        (stack.back().ancestorStart != oldSize &&
+         stack.back().ancestorEnd != collisionBuffer_.size())) {
+      collisionBuffer_.resize(oldSize);
+    }
+  }
 }
 
 void QuadTree::clear() {

@@ -50,9 +50,21 @@ private:
                     std::vector<std::pair<Node *, Node *>> &collisions) const;
   bool removeFromNode(QuadTreeNode *node, Node *object);
 
+  /**
+   * @brief 使用扫描线算法检测节点内对象的碰撞
+   * @param objects 对象列表
+   * @param collisions 输出碰撞对
+   */
+  void detectCollisionsInNode(
+      const std::vector<std::pair<Node *, Rect>> &objects,
+      std::vector<std::pair<Node *, Node *>> &collisions) const;
+
   std::unique_ptr<QuadTreeNode> root_;
   Rect worldBounds_;
   size_t objectCount_ = 0;
+
+  // 碰撞检测用的临时缓冲区，避免重复分配
+  mutable std::vector<std::pair<Node *, Rect>> collisionBuffer_;
 };
 
 } // namespace extra2d

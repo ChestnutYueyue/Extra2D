@@ -81,6 +81,11 @@ public:
   glm::mat4 getLocalTransform() const;
   glm::mat4 getWorldTransform() const;
 
+  /**
+   * @brief 标记变换矩阵为脏状态，并传播到所有子节点
+   */
+  void markTransformDirty();
+
   // ------------------------------------------------------------------------
   // 名称和标签
   // ------------------------------------------------------------------------
@@ -173,6 +178,7 @@ private:
 
   // 缓存
   mutable bool transformDirty_ = true;
+  mutable bool worldTransformDirty_ = true;  // 世界变换独立的脏标记
   mutable glm::mat4 localTransform_;
   mutable glm::mat4 worldTransform_;
 

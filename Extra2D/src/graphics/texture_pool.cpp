@@ -156,6 +156,86 @@ Ptr<Texture> TexturePool::createFromData(const std::string &name,
   return texture;
 }
 
+uint32_t TexturePool::allocateLRUNode(const std::string& key) {
+  uint32_t index;
+  if (freeList_ != 0) {
+    // 复用空闲节点
+    index = freeList_;
+    freeList_ = lruNodes_[index - 1].next;
+  } else {
+    // 分配新节点
+    lruNodes_.emplace_back();
+    index = static_cast<uint32_t>(lruNodes_.size());
+  }
+
+  LRUNode& node = lruNodes_[index - 1];
+  node.key = key;
+  node.prev = 0;
+  node.next = 0;
+  node.valid = true;
+  return index;
+}
+
+void TexturePool::freeLRUNode(uint32_t index) {
+  if (index == 0 || index > lruNodes_.size()) return;
+
+  LRUNode& node = lruNodes_[index - 1];
+  node.valid = false;
+  node.key.clear();
+  node.prev = 0;
+  node.next = freeList_;
+  freeList_ = index;
+}
+
+void TexturePool::moveToFront(uint32_t index) {
+  if (index == 0 || index > lruNodes_.size() || index == lruHead_) return;
+
+  removeFromList(index);
+
+  LRUNode& node = lruNodes_[index - 1];
+  node.prev = 0;
+  node.next = lruHead_;
+
+  if (lruHead_ != 0) {
+    lruNodes_[lruHead_ - 1].prev = index;
+  }
+  lruHead_ = index;
+
+  if (lruTail_ == 0) {
+    lruTail_ = index;
+  }
+}
+
+void TexturePool::removeFromList(uint32_t index) {
+  if (index == 0 || index > lruNodes_.size()) return;
+
+  LRUNode& node = lruNodes_[index - 1];
+
+  if (node.prev != 0) {
+    lruNodes_[node.prev - 1].next = node.next;
+  } else {
+    lruHead_ = node.next;
+  }
+
+  if (node.next != 0) {
+    lruNodes_[node.next - 1].prev = node.prev;
+  } else {
+    lruTail_ = node.prev;
+  }
+}
+
+std::string TexturePool::evictLRU() {
+  if (lruTail_ == 0) return "";
+
+  uint32_t index = lruTail_;
+  std::string key = lruNodes_[index - 1].key;
+
+  removeFromList(index);
+  freeLRUNode(index);
+
+  return key;
+}
+
 void TexturePool::add(const std::string &key, Ptr<Texture> texture) {
   if (!texture || !texture->isValid()) {
     return;
@@ -171,19 +251,22 @@ void TexturePool::add(const std::string &key, Ptr<Texture> texture) {
   size_t size = calculateTextureSize(texture->getWidth(), texture->getHeight(),
                                      texture->getFormat());
 
+  // 分配LRU节点
+  uint32_t lruIndex = allocateLRUNode(key);
+
   // 创建缓存项
   CacheEntry entry;
   entry.texture = texture;
   entry.size = size;
   entry.lastAccessTime = 0.0f; // 将在touch中更新
   entry.accessCount = 0;
+  entry.lruIndex = lruIndex;
 
   // 添加到缓存
   cache_[key] = entry;
 
-  // 添加到LRU列表头部
-  lruList_.push_front(key);
-  lruMap_[key] = lruList_.begin();
+  // 添加到LRU链表头部
+  moveToFront(lruIndex);
 
   totalSize_ += size;
 
@@ -198,12 +281,9 @@ void TexturePool::remove(const std::string &key) {
     return;
   }
 
-  // 从LRU列表移除
-  auto lruIt = lruMap_.find(key);
-  if (lruIt != lruMap_.end()) {
-    lruList_.erase(lruIt->second);
-    lruMap_.erase(lruIt);
-  }
+  // 从LRU链表移除
+  removeFromList(it->second.lruIndex);
+  freeLRUNode(it->second.lruIndex);
 
   // 更新总大小
   totalSize_ -= it->second.size;
@@ -223,8 +303,10 @@ void TexturePool::clear() {
   std::lock_guard<std::mutex> lock(mutex_);
 
   cache_.clear();
-  lruMap_.clear();
-  lruList_.clear();
+  lruNodes_.clear();
+  lruHead_ = 0;
+  lruTail_ = 0;
+  freeList_ = 0;
   totalSize_ = 0;
 
   E2D_INFO("纹理缓存已清空");
@@ -233,7 +315,7 @@ void TexturePool::clear() {
 void TexturePool::trim(size_t targetSize) {
   std::lock_guard<std::mutex> lock(mutex_);
 
-  while (totalSize_ > targetSize && !lruList_.empty()) {
+  while (totalSize_ > targetSize && lruTail_ != 0) {
     evict();
   }
 
@@ -304,37 +386,28 @@ void TexturePool::setAutoUnloadInterval(float interval) {
 // ============================================================================
 
 void TexturePool::touch(const std::string &key) {
-  auto it = lruMap_.find(key);
-  if (it == lruMap_.end()) {
+  auto it = cache_.find(key);
+  if (it == cache_.end()) {
     return;
   }
 
-  // 移动到LRU列表头部
-  lruList_.splice(lruList_.begin(), lruList_, it->second);
+  // 移动到LRU链表头部
+  moveToFront(it->second.lruIndex);
 
   // 更新时间戳
-  auto cacheIt = cache_.find(key);
-  if (cacheIt != cache_.end()) {
-    cacheIt->second.lastAccessTime = 0.0f;
-  }
+  it->second.lastAccessTime = 0.0f;
 }
 
 void TexturePool::evict() {
-  if (lruList_.empty()) {
-    return;
-  }
-
-  // 移除LRU列表末尾的项（最久未使用）
-  auto key = lruList_.back();
+  // 使用侵入式LRU链表移除最久未使用的项
+  std::string key = evictLRU();
+  if (key.empty()) return;
 
   auto it = cache_.find(key);
   if (it != cache_.end()) {
     totalSize_ -= it->second.size;
     cache_.erase(it);
   }
-
-  lruMap_.erase(key);
-  lruList_.pop_back();
 
   E2D_DEBUG_LOG("纹理被清理出缓存: {}", key);
 }

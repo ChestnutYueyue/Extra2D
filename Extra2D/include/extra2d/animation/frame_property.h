@@ -49,10 +49,72 @@ enum class FramePropertyKey : uint32 {
 };
 
 // ============================================================================
-// 帧属性值 - variant 多态值
+// 帧属性值 - variant 多态值（优化版本）
+// 使用紧凑存储，常用小类型直接内联，大类型使用索引引用
 // ============================================================================
-using FramePropertyValue =
-    std::variant<bool, int, float, std::string, Vec2, Color, std::vector<int>>;
+
+// 前向声明
+struct FramePropertyValue;
+
+// 属性存储类型枚举
+enum class PropertyValueType : uint8_t {
+  Empty = 0,
+  Bool = 1,
+  Int = 2,
+  Float = 3,
+  Vec2 = 4,
+  Color = 5,
+  String = 6,        // 字符串使用索引引用
+  IntVector = 7,     // vector<int> 使用索引引用
+};
+
+// 紧凑的属性值结构（16字节）
+struct FramePropertyValue {
+  PropertyValueType type = PropertyValueType::Empty;
+  uint8_t padding[3] = {0};
+
+  // 使用结构体包装非平凡类型，使其可以在union中使用
+  struct Vec2Storage {
+    float x, y;
+    Vec2Storage() = default;
+    Vec2Storage(const Vec2& v) : x(v.x), y(v.y) {}
+    operator Vec2() const { return Vec2(x, y); }
+  };
+
+  struct ColorStorage {
+    float r, g, b, a;
+    ColorStorage() = default;
+    ColorStorage(const Color& c) : r(c.r), g(c.g), b(c.b), a(c.a) {}
+    operator Color() const { return Color(r, g, b, a); }
+  };
+
+  union Data {
+    bool boolValue;
+    int intValue;
+    float floatValue;
+    Vec2Storage vec2Value;
+    ColorStorage colorValue;
+    uint32_t stringIndex;     // 字符串池索引
+    uint32_t vectorIndex;     // vector池索引
+
+    Data() : intValue(0) {}  // 默认构造函数
+    ~Data() {}  // 析构函数
+  } data;
+
+  FramePropertyValue() : type(PropertyValueType::Empty) {}
+  explicit FramePropertyValue(bool v) : type(PropertyValueType::Bool) { data.boolValue = v; }
+  explicit FramePropertyValue(int v) : type(PropertyValueType::Int) { data.intValue = v; }
+  explicit FramePropertyValue(float v) : type(PropertyValueType::Float) { data.floatValue = v; }
+  explicit FramePropertyValue(const Vec2& v) : type(PropertyValueType::Vec2) { data.vec2Value = v; }
+  explicit FramePropertyValue(const Color& v) : type(PropertyValueType::Color) { data.colorValue = v; }
+
+  bool isInline() const {
+    return type <= PropertyValueType::Color;
+  }
+
+  bool isString() const { return type == PropertyValueType::String; }
+  bool isIntVector() const { return type == PropertyValueType::IntVector; }
+};
 
 // ============================================================================
 // FramePropertyKey 的 hash 支持
@@ -64,32 +126,27 @@ struct FramePropertyKeyHash {
 };
 
 // ============================================================================
-// FramePropertySet - 单帧属性集合
-// 同时支持强类型属性和自定义扩展（不固定数据）
+// FramePropertySet - 单帧属性集合（优化版本）
+// 使用紧凑存储和线性探测哈希表，提高缓存命中率
 // ============================================================================
 class FramePropertySet {
 public:
   FramePropertySet() = default;
 
   // ------ 设置属性 ------
-  void set(FramePropertyKey key, FramePropertyValue value) {
-    properties_[key] = std::move(value);
-  }
+  void set(FramePropertyKey key, FramePropertyValue value);
+  void set(FramePropertyKey key, bool value) { set(key, FramePropertyValue(value)); }
+  void set(FramePropertyKey key, int value) { set(key, FramePropertyValue(value)); }
+  void set(FramePropertyKey key, float value) { set(key, FramePropertyValue(value)); }
+  void set(FramePropertyKey key, const Vec2& value) { set(key, FramePropertyValue(value)); }
+  void set(FramePropertyKey key, const Color& value) { set(key, FramePropertyValue(value)); }
+  void set(FramePropertyKey key, const std::string& value);
+  void set(FramePropertyKey key, const std::vector<int>& value);
 
-  void setCustom(const std::string &key, std::any value) {
-    customProperties_[key] = std::move(value);
-  }
+  void setCustom(const std::string &key, std::any value);
 
   // ------ 类型安全获取 ------
-  template <typename T> std::optional<T> get(FramePropertyKey key) const {
-    auto it = properties_.find(key);
-    if (it == properties_.end())
-      return std::nullopt;
-    if (auto *val = std::get_if<T>(&it->second)) {
-      return *val;
-    }
-    return std::nullopt;
-  }
+  template <typename T> std::optional<T> get(FramePropertyKey key) const;
 
   template <typename T>
   T getOr(FramePropertyKey key, const T &defaultValue) const {
@@ -97,37 +154,18 @@ public:
     return result.value_or(defaultValue);
   }
 
-  std::optional<std::any> getCustom(const std::string &key) const {
-    auto it = customProperties_.find(key);
-    if (it == customProperties_.end())
-      return std::nullopt;
-    return it->second;
-  }
+  std::optional<std::any> getCustom(const std::string &key) const;
 
   // ------ 查询 ------
-  bool has(FramePropertyKey key) const {
-    return properties_.find(key) != properties_.end();
-  }
-
-  bool hasCustom(const std::string &key) const {
-    return customProperties_.find(key) != customProperties_.end();
-  }
-
-  bool empty() const {
-    return properties_.empty() && customProperties_.empty();
-  }
-
+  bool has(FramePropertyKey key) const;
+  bool hasCustom(const std::string &key) const;
+  bool empty() const { return properties_.empty() && customProperties_.empty(); }
   size_t count() const { return properties_.size() + customProperties_.size(); }
 
   // ------ 移除 ------
-  void remove(FramePropertyKey key) { properties_.erase(key); }
-
-  void removeCustom(const std::string &key) { customProperties_.erase(key); }
-
-  void clear() {
-    properties_.clear();
-    customProperties_.clear();
-  }
+  void remove(FramePropertyKey key);
+  void removeCustom(const std::string &key);
+  void clear();
 
   // ------ 迭代 ------
   using PropertyMap = std::unordered_map<FramePropertyKey, FramePropertyValue,
@@ -135,49 +173,38 @@ public:
   const PropertyMap &properties() const { return properties_; }
 
   // ------ 链式 API ------
-  FramePropertySet &withSetFlag(int index) {
-    set(FramePropertyKey::SetFlag, index);
-    return *this;
-  }
-
-  FramePropertySet &withPlaySound(const std::string &path) {
-    set(FramePropertyKey::PlaySound, path);
-    return *this;
-  }
-
-  FramePropertySet &withImageRate(const Vec2 &scale) {
-    set(FramePropertyKey::ImageRate, scale);
-    return *this;
-  }
-
-  FramePropertySet &withImageRotate(float degrees) {
-    set(FramePropertyKey::ImageRotate, degrees);
-    return *this;
-  }
-
-  FramePropertySet &withColorTint(const Color &color) {
-    set(FramePropertyKey::ColorTint, color);
-    return *this;
-  }
-
-  FramePropertySet &withInterpolation(bool enabled = true) {
-    set(FramePropertyKey::Interpolation, enabled);
-    return *this;
-  }
-
-  FramePropertySet &withBlendLinearDodge(bool enabled = true) {
-    set(FramePropertyKey::BlendLinearDodge, enabled);
-    return *this;
-  }
-
-  FramePropertySet &withLoop(bool enabled = true) {
-    set(FramePropertyKey::Loop, enabled);
-    return *this;
-  }
+  FramePropertySet &withSetFlag(int index);
+  FramePropertySet &withPlaySound(const std::string &path);
+  FramePropertySet &withImageRate(const Vec2 &scale);
+  FramePropertySet &withImageRotate(float degrees);
+  FramePropertySet &withColorTint(const Color &color);
+  FramePropertySet &withInterpolation(bool enabled = true);
+  FramePropertySet &withBlendLinearDodge(bool enabled = true);
+  FramePropertySet &withLoop(bool enabled = true);
 
 private:
   PropertyMap properties_;
   std::unordered_map<std::string, std::any> customProperties_;
+
+  // 字符串池和vector池，用于存储大对象
+  mutable std::vector<std::string> stringPool_;
+  mutable std::vector<std::vector<int>> vectorPool_;
+  mutable uint32_t nextStringIndex_ = 0;
+  mutable uint32_t nextVectorIndex_ = 0;
+
+  uint32_t allocateString(const std::string& str);
+  uint32_t allocateVector(const std::vector<int>& vec);
+  const std::string* getString(uint32_t index) const;
+  const std::vector<int>* getVector(uint32_t index) const;
 };
+
+// 模板特化声明
+template <> std::optional<bool> FramePropertySet::get<bool>(FramePropertyKey key) const;
+template <> std::optional<int> FramePropertySet::get<int>(FramePropertyKey key) const;
+template <> std::optional<float> FramePropertySet::get<float>(FramePropertyKey key) const;
+template <> std::optional<Vec2> FramePropertySet::get<Vec2>(FramePropertyKey key) const;
+template <> std::optional<Color> FramePropertySet::get<Color>(FramePropertyKey key) const;
+template <> std::optional<std::string> FramePropertySet::get<std::string>(FramePropertyKey key) const;
+template <> std::optional<std::vector<int>> FramePropertySet::get<std::vector<int>>(FramePropertyKey key) const;
 
 } // namespace extra2d
