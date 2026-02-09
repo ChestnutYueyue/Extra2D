@@ -86,9 +86,17 @@ void SpatialHash::insert(Node *node, const Rect &bounds) {
   if (!node)
     return;
 
+  // 检查节点是否已存在，如果存在则先移除
+  auto it = objectBounds_.find(node);
+  if (it != objectBounds_.end()) {
+    removeFromCells(node, it->second);
+    it->second = bounds;
+  } else {
+    objectBounds_[node] = bounds;
+    objectCount_++;
+  }
+
   insertIntoCells(node, bounds);
-  objectBounds_[node] = bounds;
-  objectCount_++;
 }
 
 void SpatialHash::remove(Node *node) {
@@ -100,6 +108,12 @@ void SpatialHash::remove(Node *node) {
     removeFromCells(node, it->second);
     objectBounds_.erase(it);
     objectCount_--;
+  } else {
+    // 节点不在 objectBounds_ 中，但可能还在 grid_ 的某些单元格中
+    // 需要遍历所有单元格来移除
+    for (auto &[cellKey, cell] : grid_) {
+      cell.remove(node);
+    }
   }
 }
 

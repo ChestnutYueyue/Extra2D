@@ -25,11 +25,56 @@ void Node::addChild(Ptr<Node> child) {
   children_.push_back(child);
   childrenOrderDirty_ = true;
 
+  // 更新索引
+  if (!child->getName().empty()) {
+    nameIndex_[child->getName()] = child;
+  }
+  if (child->getTag() != -1) {
+    tagIndex_[child->getTag()] = child;
+  }
+
   if (running_) {
     child->onEnter();
     if (scene_) {
       child->onAttachToScene(scene_);
     }
+  }
+}
+
+void Node::addChildren(std::vector<Ptr<Node>> &&children) {
+  // 预留空间，避免多次扩容
+  size_t newSize = children_.size() + children.size();
+  if (newSize > children_.capacity()) {
+    children_.reserve(newSize);
+  }
+
+  for (auto &child : children) {
+    if (!child || child.get() == this) {
+      continue;
+    }
+
+    child->removeFromParent();
+    child->parent_ = weak_from_this();
+    children_.push_back(child);
+
+    // 更新索引
+    if (!child->getName().empty()) {
+      nameIndex_[child->getName()] = child;
+    }
+    if (child->getTag() != -1) {
+      tagIndex_[child->getTag()] = child;
+    }
+
+    if (running_) {
+      child->onEnter();
+      if (scene_) {
+        child->onAttachToScene(scene_);
+      }
+    }
+  }
+
+  if (!children.empty()) {
+    childrenOrderDirty_ = true;
   }
 }
 
@@ -39,9 +84,19 @@ void Node::removeChild(Ptr<Node> child) {
 
   auto it = std::find(children_.begin(), children_.end(), child);
   if (it != children_.end()) {
+    // 始终从空间索引中移除（无论 running_ 状态）
+    // 这确保节点被正确清理
+    (*it)->onDetachFromScene();
+
     if (running_) {
-      (*it)->onDetachFromScene();
       (*it)->onExit();
+    }
+    // 从索引中移除
+    if (!(*it)->getName().empty()) {
+      nameIndex_.erase((*it)->getName());
+    }
+    if ((*it)->getTag() != -1) {
+      tagIndex_.erase((*it)->getTag());
     }
     (*it)->parent_.reset();
     children_.erase(it);
@@ -80,22 +135,24 @@ void Node::removeAllChildren() {
     child->parent_.reset();
   }
   children_.clear();
+  nameIndex_.clear();
+  tagIndex_.clear();
 }
 
 Ptr<Node> Node::getChildByName(const std::string &name) const {
-  for (const auto &child : children_) {
-    if (child->getName() == name) {
-      return child;
-    }
+  // 使用哈希索引，O(1) 查找
+  auto it = nameIndex_.find(name);
+  if (it != nameIndex_.end()) {
+    return it->second.lock();
   }
   return nullptr;
 }
 
 Ptr<Node> Node::getChildByTag(int tag) const {
-  for (const auto &child : children_) {
-    if (child->getTag() == tag) {
-      return child;
-    }
+  // 使用哈希索引，O(1) 查找
+  auto it = tagIndex_.find(tag);
+  if (it != tagIndex_.end()) {
+    return it->second.lock();
   }
   return nullptr;
 }
@@ -197,12 +254,26 @@ glm::mat4 Node::getLocalTransform() const {
 
 glm::mat4 Node::getWorldTransform() const {
   if (worldTransformDirty_) {
-    worldTransform_ = getLocalTransform();
-
-    auto p = parent_.lock();
-    if (p) {
-      worldTransform_ = p->getWorldTransform() * worldTransform_;
+    // 迭代计算世界变换，避免深层级时的栈溢出
+    // 收集父节点链
+    std::vector<const Node *> nodeChain;
+    const Node *current = this;
+    while (current) {
+      nodeChain.push_back(current);
+      auto p = current->parent_.lock();
+      current = p.get();
+      // 限制最大深度，防止异常循环
+      if (nodeChain.size() > 1000) {
+        break;
+      }
     }
+
+    // 从根节点开始计算
+    glm::mat4 transform = glm::mat4(1.0f);
+    for (auto it = nodeChain.rbegin(); it != nodeChain.rend(); ++it) {
+      transform = transform * (*it)->getLocalTransform();
+    }
+    worldTransform_ = transform;
     worldTransformDirty_ = false;
   }
   return worldTransform_;
@@ -313,33 +384,71 @@ void Node::updateSpatialIndex() {
 }
 
 void Node::runAction(Ptr<Action> action) {
-  if (action) {
-    action->start(this);
-    actions_.push_back(action);
+  if (!action) {
+    return;
   }
+
+  action->start(this);
+
+  int tag = action->getTag();
+  if (tag != -1) {
+    // 有 tag 的 Action 存入哈希表，O(1) 查找
+    // 如果已存在相同 tag 的 Action，先停止它
+    auto it = actionByTag_.find(tag);
+    if (it != actionByTag_.end()) {
+      // 从 vector 中移除旧的 Action
+      auto oldAction = it->second;
+      auto vecIt = std::find(actions_.begin(), actions_.end(), oldAction);
+      if (vecIt != actions_.end()) {
+        actions_.erase(vecIt);
+      }
+    }
+    actionByTag_[tag] = action;
+  }
+
+  actions_.push_back(action);
 }
 
-void Node::stopAllActions() { actions_.clear(); }
+void Node::stopAllActions() {
+  actions_.clear();
+  actionByTag_.clear();
+}
 
 void Node::stopAction(Ptr<Action> action) {
+  if (!action) {
+    return;
+  }
+
+  // 从 vector 中移除
   auto it = std::find(actions_.begin(), actions_.end(), action);
   if (it != actions_.end()) {
+    // 如果有 tag，从哈希表中也移除
+    int tag = action->getTag();
+    if (tag != -1) {
+      actionByTag_.erase(tag);
+    }
     actions_.erase(it);
   }
 }
 
 void Node::stopActionByTag(int tag) {
-  auto it = std::remove_if(
-      actions_.begin(), actions_.end(),
-      [tag](const Ptr<Action> &action) { return action->getTag() == tag; });
-  actions_.erase(it, actions_.end());
+  auto it = actionByTag_.find(tag);
+  if (it != actionByTag_.end()) {
+    auto action = it->second;
+    // 从 vector 中移除
+    auto vecIt = std::find(actions_.begin(), actions_.end(), action);
+    if (vecIt != actions_.end()) {
+      actions_.erase(vecIt);
+    }
+    actionByTag_.erase(it);
+  }
 }
 
 Ptr<Action> Node::getActionByTag(int tag) const {
-  for (const auto &action : actions_) {
-    if (action->getTag() == tag) {
-      return action;
-    }
+  // O(1) 哈希查找
+  auto it = actionByTag_.find(tag);
+  if (it != actionByTag_.end()) {
+    return it->second;
   }
   return nullptr;
 }
@@ -389,13 +498,20 @@ void Node::sortChildren() {
 
 void Node::collectRenderCommands(std::vector<RenderCommand> &commands,
                                  int parentZOrder) {
-  // 暂时最小化实现以测试
   if (!visible_)
     return;
 
-  // 不排序，不递归，只生成当前节点的命令
+  // 计算累积 Z 序
   int accumulatedZOrder = parentZOrder + zOrder_;
+
+  // 生成当前节点的渲染命令
   generateRenderCommand(commands, accumulatedZOrder);
+
+  // 递归收集子节点的渲染命令
+  // 注意：这里假设子节点已经按 Z 序排序
+  for (auto &child : children_) {
+    child->collectRenderCommands(commands, accumulatedZOrder);
+  }
 }
 
 } // namespace extra2d

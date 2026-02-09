@@ -30,6 +30,13 @@ public:
   // 层级管理
   // ------------------------------------------------------------------------
   void addChild(Ptr<Node> child);
+
+  /**
+   * @brief 批量添加子节点
+   * @param children 子节点列表
+   */
+  void addChildren(std::vector<Ptr<Node>> &&children);
+
   void removeChild(Ptr<Node> child);
   void removeChildByName(const std::string &name);
   void removeFromParent();
@@ -161,42 +168,62 @@ protected:
   float getOpacityRef() { return opacity_; }
 
 private:
-  // 层级
-  WeakPtr<Node> parent_;
-  std::vector<Ptr<Node>> children_;
-  bool childrenOrderDirty_ = false;
+  // ==========================================================================
+  // 成员变量按类型大小降序排列，减少内存对齐填充
+  // 64位系统对齐：std::string(32) > glm::mat4(64) > std::vector(24) > 
+  //              double(8) > float(4) > int(4) > bool(1)
+  // ==========================================================================
 
-  // 变换
-  Vec2 position_ = Vec2::Zero();
-  float rotation_ = 0.0f;
-  Vec2 scale_ = Vec2(1.0f, 1.0f);
-  Vec2 anchor_ = Vec2(0.5f, 0.5f);
-  Vec2 skew_ = Vec2::Zero();
-  float opacity_ = 1.0f;
-  bool visible_ = true;
-  int zOrder_ = 0;
+  // 1. 大块内存（64字节）
+  mutable glm::mat4 localTransform_;   // 64 bytes
+  mutable glm::mat4 worldTransform_;   // 64 bytes
 
-  // 缓存
-  mutable bool transformDirty_ = true;
-  mutable bool worldTransformDirty_ = true;  // 世界变换独立的脏标记
-  mutable glm::mat4 localTransform_;
-  mutable glm::mat4 worldTransform_;
+  // 2. 字符串和容器（24-32字节）
+  std::string name_;                   // 32 bytes
+  std::vector<Ptr<Node>> children_;    // 24 bytes
 
-  // 元数据
-  std::string name_;
-  int tag_ = -1;
+  // 3. 子节点索引（加速查找）
+  std::unordered_map<std::string, WeakPtr<Node>> nameIndex_; // 56 bytes
+  std::unordered_map<int, WeakPtr<Node>> tagIndex_;          // 56 bytes
 
-  // 状态
-  bool running_ = false;
-  Scene *scene_ = nullptr;
-  bool spatialIndexed_ = true; // 是否参与空间索引
-  Rect lastSpatialBounds_;     // 上一次的空间索引边界（用于检测变化）
+  // 4. 动作系统（使用 unordered_map 加速 tag 查找）
+  std::unordered_map<int, Ptr<Action>> actionByTag_; // 56 bytes
+  std::vector<Ptr<Action>> actions_;                 // 24 bytes（无 tag 的 Action）
 
-  // 动作
-  std::vector<Ptr<Action>> actions_;
+  // 5. 事件分发器
+  EventDispatcher eventDispatcher_;    // 大小取决于实现
 
-  // 事件
-  EventDispatcher eventDispatcher_;
+  // 6. 父节点引用
+  WeakPtr<Node> parent_;               // 16 bytes
+
+  // 7. 变换属性（按访问频率分组）
+  Vec2 position_ = Vec2::Zero();       // 8 bytes
+  Vec2 scale_ = Vec2(1.0f, 1.0f);      // 8 bytes
+  Vec2 anchor_ = Vec2(0.5f, 0.5f);     // 8 bytes
+  Vec2 skew_ = Vec2::Zero();           // 8 bytes
+
+  // 8. 边界框（用于空间索引）
+  Rect lastSpatialBounds_;             // 16 bytes
+
+  // 9. 浮点属性
+  float rotation_ = 0.0f;              // 4 bytes
+  float opacity_ = 1.0f;               // 4 bytes
+
+  // 10. 整数属性
+  int zOrder_ = 0;                     // 4 bytes
+  int tag_ = -1;                       // 4 bytes
+
+  // 11. 场景指针
+  Scene *scene_ = nullptr;             // 8 bytes
+
+  // 12. 布尔标志（打包在一起）
+  mutable bool transformDirty_ = true;         // 1 byte
+  mutable bool worldTransformDirty_ = true;    // 1 byte
+  bool childrenOrderDirty_ = false;            // 1 byte
+  bool visible_ = true;                        // 1 byte
+  bool running_ = false;                       // 1 byte
+  bool spatialIndexed_ = true;                 // 1 byte
+  // 填充 2 bytes 到 8 字节对齐
 };
 
 } // namespace extra2d
