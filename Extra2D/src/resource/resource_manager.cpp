@@ -314,6 +314,92 @@ void ResourceManager::unloadFont(const std::string &key) {
 }
 
 // ============================================================================
+// 多字体后备加载
+// ============================================================================
+
+Ptr<FontAtlas> ResourceManager::loadFontWithFallbacks(
+    const std::vector<std::string> &fontPaths, int fontSize, bool useSDF) {
+
+  // 尝试加载每一个候选字体
+  for (const auto &fontPath : fontPaths) {
+    auto font = loadFont(fontPath, fontSize, useSDF);
+    if (font) {
+      E2D_LOG_INFO("ResourceManager: successfully loaded font from fallback list: {}",
+                   fontPath);
+      return font;
+    }
+  }
+
+  E2D_LOG_ERROR("ResourceManager: failed to load any font from fallback list ({} candidates)",
+                fontPaths.size());
+  return nullptr;
+}
+
+Ptr<FontAtlas> ResourceManager::loadFontWithDefaultFallback(
+    const std::string &filepath, int fontSize, bool useSDF) {
+
+  // 首先尝试加载用户指定的字体
+  auto font = loadFont(filepath, fontSize, useSDF);
+  if (font) {
+    return font;
+  }
+
+  E2D_LOG_WARN("ResourceManager: failed to load font '{}', trying system fallbacks...",
+               filepath);
+
+  // 定义系统默认字体候选列表
+  std::vector<std::string> fallbackFonts;
+
+#ifdef __SWITCH__
+  // Switch 平台默认字体路径
+  fallbackFonts = {
+      "romfs:/assets/font.ttf",       // 应用自带字体
+      "romfs:/assets/default.ttf",    // 默认字体备选
+      "romfs:/font.ttf",              // 根目录字体
+      "sdmc:/switch/fonts/default.ttf", // SD卡字体目录
+      "sdmc:/switch/fonts/font.ttf",
+  };
+#else
+  // PC 平台系统字体路径（Windows/Linux/macOS）
+#ifdef _WIN32
+  fallbackFonts = {
+      "C:/Windows/Fonts/arial.ttf",
+      "C:/Windows/Fonts/segoeui.ttf",
+      "C:/Windows/Fonts/calibri.ttf",
+      "C:/Windows/Fonts/tahoma.ttf",
+      "C:/Windows/Fonts/msyh.ttc",  // 微软雅黑
+  };
+#elif __APPLE__
+  fallbackFonts = {
+      "/System/Library/Fonts/Helvetica.ttc",
+      "/System/Library/Fonts/SFNSDisplay.ttf",
+      "/Library/Fonts/Arial.ttf",
+  };
+#else
+  // Linux
+  fallbackFonts = {
+      "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+      "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
+      "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+      "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
+  };
+#endif
+#endif
+
+  // 尝试加载后备字体
+  for (const auto &fallbackPath : fallbackFonts) {
+    font = loadFont(fallbackPath, fontSize, useSDF);
+    if (font) {
+      E2D_LOG_INFO("ResourceManager: loaded fallback font: {}", fallbackPath);
+      return font;
+    }
+  }
+
+  E2D_LOG_ERROR("ResourceManager: all font fallbacks exhausted, no font available");
+  return nullptr;
+}
+
+// ============================================================================
 // 音效资源
 // ============================================================================
 

@@ -8,8 +8,7 @@
 #include <glm/mat4x4.hpp>
 #include <vector>
 
-// 使用标准 GLES3.2
-#include <GLES3/gl32.h>
+#include <glad/glad.h>
 
 namespace extra2d {
 

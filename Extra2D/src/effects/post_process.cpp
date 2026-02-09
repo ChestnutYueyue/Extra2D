@@ -3,8 +3,7 @@
 #include <extra2d/graphics/render_target.h>
 #include <extra2d/utils/logger.h>
 
-// 使用标准 GLES3.2
-#include <GLES3/gl32.h>
+#include <glad/glad.h>
 
 namespace extra2d {
 

@@ -4,8 +4,7 @@
 #include <extra2d/graphics/opengl/gl_shader.h>
 #include <extra2d/graphics/opengl/gl_sprite_batch.h>
 
-// 使用标准 GLES3.2
-#include <GLES3/gl32.h>
+#include <glad/glad.h>
 
 namespace extra2d {
 

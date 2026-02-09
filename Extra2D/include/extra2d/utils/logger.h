@@ -7,19 +7,22 @@
 #include <string>
 #include <type_traits>
 
+// SDL2 日志头文件
+#include <SDL.h>
+
 namespace extra2d {
 
 // ============================================================================
-// 日志级别枚举
+// 日志级别枚举 - 映射到 SDL_LogPriority
 // ============================================================================
 enum class LogLevel {
-  Trace = 0,
-  Debug = 1,
-  Info = 2,
-  Warn = 3,
-  Error = 4,
-  Fatal = 5,
-  Off = 6
+  Trace = SDL_LOG_PRIORITY_VERBOSE,  // SDL 详细日志
+  Debug = SDL_LOG_PRIORITY_DEBUG,    // SDL 调试日志
+  Info = SDL_LOG_PRIORITY_INFO,      // SDL 信息日志
+  Warn = SDL_LOG_PRIORITY_WARN,      // SDL 警告日志
+  Error = SDL_LOG_PRIORITY_ERROR,    // SDL 错误日志
+  Fatal = SDL_LOG_PRIORITY_CRITICAL, // SDL 严重日志
+  Off = SDL_LOG_PRIORITY_CRITICAL + 1  // 关闭日志 (使用 Critical+1 作为关闭标记)
 };
 
 // ============================================================================
@@ -146,82 +149,86 @@ inline std::string e2d_format(const char *fmt, const Args &...args) {
 inline std::string e2d_format(const char *fmt) { return std::string(fmt); }
 
 // ============================================================================
-// Logger 类 - 简单 printf 日志
+// Logger 类 - 使用 SDL2 日志系统
 // ============================================================================
 class Logger {
 public:
+  /**
+   * @brief 初始化日志系统
+   */
   static void init();
+
+  /**
+   * @brief 关闭日志系统
+   */
   static void shutdown();
+
+  /**
+   * @brief 设置日志级别
+   * @param level 日志级别
+   */
   static void setLevel(LogLevel level);
+
+  /**
+   * @brief 设置是否输出到控制台
+   * @param enable 是否启用
+   */
   static void setConsoleOutput(bool enable);
+
+  /**
+   * @brief 设置日志输出到文件
+   * @param filename 日志文件名
+   */
   static void setFileOutput(const std::string &filename);
 
+  /**
+   * @brief 获取当前日志级别
+   * @return 当前日志级别
+   */
   static LogLevel getLevel() { return level_; }
 
+  /**
+   * @brief 日志记录模板函数
+   * @param level 日志级别
+   * @param fmt 格式化字符串
+   * @param args 可变参数
+   */
   template <typename... Args>
   static void log(LogLevel level, const char *fmt, const Args &...args) {
-    if (level < level_)
+    if (static_cast<int>(level) < static_cast<int>(level_))
       return;
     std::string msg = e2d_format(fmt, args...);
-    const char *levelStr = "";
-    switch (level) {
-    case LogLevel::Trace:
-      levelStr = "TRACE";
-      break;
-    case LogLevel::Debug:
-      levelStr = "DEBUG";
-      break;
-    case LogLevel::Info:
-      levelStr = "INFO ";
-      break;
-    case LogLevel::Warn:
-      levelStr = "WARN ";
-      break;
-    case LogLevel::Error:
-      levelStr = "ERROR";
-      break;
-    case LogLevel::Fatal:
-      levelStr = "FATAL";
-      break;
-    default:
-      break;
-    }
-    printf("[%s] %s\n", levelStr, msg.c_str());
+    SDL_LogMessage(SDL_LOG_CATEGORY_APPLICATION,
+                   static_cast<SDL_LogPriority>(level), "[%s] %s",
+                   getLevelString(level), msg.c_str());
   }
 
-  // 无参数版本
+  /**
+   * @brief 日志记录无参数版本
+   * @param level 日志级别
+   * @param msg 日志消息
+   */
   static void log(LogLevel level, const char *msg) {
-    if (level < level_)
+    if (static_cast<int>(level) < static_cast<int>(level_))
       return;
-    const char *levelStr = "";
-    switch (level) {
-    case LogLevel::Trace:
-      levelStr = "TRACE";
-      break;
-    case LogLevel::Debug:
-      levelStr = "DEBUG";
-      break;
-    case LogLevel::Info:
-      levelStr = "INFO ";
-      break;
-    case LogLevel::Warn:
-      levelStr = "WARN ";
-      break;
-    case LogLevel::Error:
-      levelStr = "ERROR";
-      break;
-    case LogLevel::Fatal:
-      levelStr = "FATAL";
-      break;
-    default:
-      break;
-    }
-    printf("[%s] %s\n", levelStr, msg);
+    SDL_LogMessage(SDL_LOG_CATEGORY_APPLICATION,
+                   static_cast<SDL_LogPriority>(level), "[%s] %s",
+                   getLevelString(level), msg);
   }
 
 private:
-  static LogLevel level_;
-  static bool initialized_;
+  static LogLevel level_;      // 当前日志级别
+  static bool initialized_;    // 是否已初始化
+  static bool consoleOutput_;  // 是否输出到控制台
+  static bool fileOutput_;     // 是否输出到文件
+  static std::string logFile_; // 日志文件路径
+
+  /**
+   * @brief 获取日志级别字符串
+   * @param level 日志级别
+   * @return 级别字符串
+   */
+  static const char *getLevelString(LogLevel level);
 };
 
 // ============================================================================

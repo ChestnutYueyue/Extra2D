@@ -3,8 +3,7 @@
 #include <extra2d/graphics/texture.h>
 #include <extra2d/graphics/alpha_mask.h>
 
-// 使用标准 GLES3.2
-#include <GLES3/gl32.h>
+#include <glad/glad.h>
 
 #include <memory>
 

@@ -1,5 +1,4 @@
-// Switch: 使用 GLES 3.2
-#include <GLES3/gl32.h>
+#include <glad/glad.h>
 #include <extra2d/graphics/opengl/gl_texture.h>
 #include <extra2d/graphics/render_target.h>
 #include <extra2d/utils/logger.h>

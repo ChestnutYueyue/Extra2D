@@ -5,8 +5,7 @@
 
 #include <SDL.h>
 
-// 使用标准 GLES3.2
-#include <GLES3/gl32.h>
+#include <glad/glad.h>
 
 namespace extra2d {
 
@@ -83,10 +82,31 @@ bool Window::initSDL() {
     return false;
   }
 
+  if (SDL_GL_MakeCurrent(sdlWindow_, glContext_) != 0) {
+    E2D_LOG_ERROR("SDL_GL_MakeCurrent failed: {}", SDL_GetError());
+    SDL_GL_DeleteContext(glContext_);
+    glContext_ = nullptr;
+    SDL_DestroyWindow(sdlWindow_);
+    sdlWindow_ = nullptr;
+    SDL_Quit();
+    return false;
+  }
+
+  if (gladLoadGLES2Loader(reinterpret_cast<GLADloadproc>(SDL_GL_GetProcAddress)) ==
+      0) {
+    E2D_LOG_ERROR("gladLoadGLES2Loader failed");
+    SDL_GL_DeleteContext(glContext_);
+    glContext_ = nullptr;
+    SDL_DestroyWindow(sdlWindow_);
+    sdlWindow_ = nullptr;
+    SDL_Quit();
+    return false;
+  }
+
   // 设置 VSync
   SDL_GL_SetSwapInterval(vsync_ ? 1 : 0);
 
-  E2D_LOG_INFO("SDL2 + GLES 3.2 initialized successfully");
+  E2D_LOG_INFO("SDL2 + GLES 3.2 (glad) initialized successfully");
   return true;
 }
 

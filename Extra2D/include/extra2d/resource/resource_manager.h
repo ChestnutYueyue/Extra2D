@@ -83,6 +83,14 @@ public:
   Ptr<FontAtlas> loadFont(const std::string &filepath, int fontSize,
                           bool useSDF = false);
 
+  /// 尝试从多个候选路径加载字体，返回第一个成功加载的字体
+  Ptr<FontAtlas> loadFontWithFallbacks(const std::vector<std::string> &fontPaths,
+                                       int fontSize, bool useSDF = false);
+
+  /// 加载字体，使用默认系统字体作为后备
+  Ptr<FontAtlas> loadFontWithDefaultFallback(const std::string &filepath,
+                                             int fontSize, bool useSDF = false);
+
   /// 通过key获取已缓存的字体图集
   Ptr<FontAtlas> getFont(const std::string &key) const;
 

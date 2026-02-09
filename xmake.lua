@@ -42,9 +42,6 @@ toolchain("switch")
     -- SimpleIni 配置：不使用 Windows API
     add_defines("SI_NO_CONVERSION")
     
-    -- OpenGL 配置：使用标准 GLES3.2
-    add_defines("GL_GLES_PROTOTYPES")
-
     -- libnx 路径 - 必须在工具链级别添加
     add_includedirs(path.join(devkitPro, "libnx/include"))
     add_linkdirs(path.join(devkitPro, "libnx/lib"))
@@ -72,6 +69,7 @@ target("extra2d")
 
     -- 引擎源文件
     add_files(path.join(SRC_DIR, "**.cpp"))
+    add_files(path.join(SRC_DIR, "glad/glad.c"))
 
     -- Squirrel 3.2 源文件
     add_files("squirrel/squirrel/*.cpp")
@@ -145,86 +143,23 @@ target("extra2d")
     end
 target_end()
 
--- ==============================================
--- 2. Nintendo Switch 音频演示
--- ==============================================
-target("switch_audio_demo")
+-- ============================================
+-- Switch 简单测试程序
+-- ============================================
+target("hello_world")
     set_kind("binary")
     set_plat("switch")
     set_arch("arm64")
     set_toolchains("switch")
-    
-    add_files("Extra2D/examples/push_box/src/**.cpp")
-    add_deps("extra2d")
-    set_targetdir("$(builddir)/switch")
-    
-    -- 链接 EGL、OpenGL ES 3.0 和 SDL2 音频库
-    -- 注意：链接顺序很重要！被依赖的库必须放在后面
-    -- 依赖链：SDL2 -> EGL -> drm_nouveau
-    --          GLESv2 -> glapi -> drm_nouveau
-    add_syslinks("SDL2_mixer", "SDL2",
-                 "opusfile", "opus", "vorbisidec", "ogg",
-                 "modplug", "mpg123", "FLAC",
-                 "GLESv2",
-                 "EGL",
-                 "glapi",
-                 "drm_nouveau")
-
-    local appTitle = "Extra2D Switch Audio Demo"
-    local appAuthor = "Extra2D Switch Audio Demo"
-    local appVersion = "1.0.0"
-    
-    after_build(function (target)
-        -- 强制使用 Windows 路径
-        local devkitPro = "C:/devkitPro"
-        local elf_file = target:targetfile()
-        local output_dir = path.directory(elf_file)
-        local nacp_file = path.join(output_dir, "switch_audio_demo.nacp")
-        local nro_file = path.join(output_dir, "switch_audio_demo.nro")
-        local romfs_dir = "Extra2D/examples/push_box/src/romfs"
-        local nacptool = path.join(devkitPro, "tools/bin/nacptool.exe")
-        local elf2nro = path.join(devkitPro, "tools/bin/elf2nro.exe")
-
-        if not os.isfile(nacptool) then
-            print("Warning: nacptool not found at " .. nacptool)
-            return
-        end
-        if not os.isfile(elf2nro) then
-            print("Warning: elf2nro not found at " .. elf2nro)
-            return
-        end
-
-        -- 生成 .nacp 文件
-        os.vrunv(nacptool, {"--create", appTitle, appAuthor, appVersion, nacp_file})
-        print("Built " .. path.filename(nacp_file))
-
-        -- 生成 .nro 文件（包含 RomFS）
-        local romfs_absolute = path.absolute(romfs_dir)
-        if os.isdir(romfs_absolute) then
-            print("Packing RomFS from: " .. romfs_absolute)
-            os.vrunv(elf2nro, {elf_file, nro_file, "--nacp=" .. nacp_file, "--romfsdir=" .. romfs_absolute})
-            print("Built " .. path.filename(nro_file) .. " (with RomFS)")
-        else
-            os.vrunv(elf2nro, {elf_file, nro_file, "--nacp=" .. nacp_file})
-            print("Built " .. path.filename(nro_file))
-        end
-    end)
-target_end()
-
--- ============================================
--- Switch 简单测试程序
--- ============================================
-target("switch_simple_test")
-    set_kind("binary")
     set_targetdir("build/switch")
     
     -- 应用信息
-    local appTitle = "Extra2D Simple Test"
-    local appAuthor = "Extra2D Team"
+    local appTitle = "Extra2D hello_world"
+    local appAuthor = "Extra2D hello_world"
     local appVersion = "1.0.0"
     
     -- 添加源文件
-    add_files("Extra2D/examples/switch_simple_test/main.cpp")
+    add_files("Extra2D/examples/hello_world/main.cpp")
     
     -- 添加头文件路径
     add_includedirs("Extra2D/include")
@@ -238,9 +173,9 @@ target("switch_simple_test")
         local devkitPro = "C:/devkitPro"
         local elf_file = target:targetfile()
         local output_dir = path.directory(elf_file)
-        local nacp_file = path.join(output_dir, "switch_simple_test.nacp")
-        local nro_file = path.join(output_dir, "switch_simple_test.nro")
-        local romfs_dir = "Extra2D/examples/switch_simple_test/romfs"
+        local nacp_file = path.join(output_dir, "hello_world.nacp")
+        local nro_file = path.join(output_dir, "hello_world.nro")
+        local romfs_dir = "Extra2D/examples/hello_world/romfs"
         local nacptool = path.join(devkitPro, "tools/bin/nacptool.exe")
         local elf2nro = path.join(devkitPro, "tools/bin/elf2nro.exe")
         
@@ -270,3 +205,125 @@ target("switch_simple_test")
     end)
 target_end()
 
+-- ============================================
+-- 引擎空间索引演示（1000个节点）
+-- ============================================
+target("spatial_index_demo")
+    set_kind("binary")
+    set_plat("switch")
+    set_arch("arm64")
+    set_toolchains("switch")
+    set_targetdir("build/switch")
+
+    -- 应用信息
+    local appTitle = "Extra2D Spatial Index Demo"
+    local appAuthor = "Extra2D Team"
+    local appVersion = "1.0.0"
+
+    -- 添加源文件
+    add_files("Extra2D/examples/spatial_index_demo/main.cpp")
+
+    -- 添加头文件路径
+    add_includedirs("Extra2D/include")
+
+    -- 链接 extra2d 库
+    add_deps("extra2d")
+
+    -- 构建后生成 .nro 文件（包含 RomFS）
+    after_build(function (target)
+        local devkitPro = "C:/devkitPro"
+        local elf_file = target:targetfile()
+        local output_dir = path.directory(elf_file)
+        local nacp_file = path.join(output_dir, "spatial_index_demo.nacp")
+        local nro_file = path.join(output_dir, "spatial_index_demo.nro")
+        local romfs_dir = "Extra2D/examples/spatial_index_demo/romfs"
+        local nacptool = path.join(devkitPro, "tools/bin/nacptool.exe")
+        local elf2nro = path.join(devkitPro, "tools/bin/elf2nro.exe")
+
+        if not os.isfile(nacptool) then
+            print("Warning: nacptool not found at " .. nacptool)
+            return
+        end
+        if not os.isfile(elf2nro) then
+            print("Warning: elf2nro not found at " .. elf2nro)
+            return
+        end
+
+        -- 生成 .nacp 文件
+        os.vrunv(nacptool, {"--create", appTitle, appAuthor, appVersion, nacp_file})
+        print("Built " .. path.filename(nacp_file))
+
+        -- 生成 .nro 文件（包含 RomFS）
+        local romfs_absolute = path.absolute(romfs_dir)
+        if os.isdir(romfs_absolute) then
+            print("Packing RomFS from: " .. romfs_absolute)
+            os.vrunv(elf2nro, {elf_file, nro_file, "--nacp=" .. nacp_file, "--romfsdir=" .. romfs_absolute})
+            print("Built " .. path.filename(nro_file) .. " (with RomFS)")
+        else
+            os.vrunv(elf2nro, {elf_file, nro_file, "--nacp=" .. nacp_file})
+            print("Built " .. path.filename(nro_file))
+        end
+    end)
+target_end()
+
+
+-- ============================================
+-- 碰撞检测演示程序
+-- ============================================
+target("collision_demo")
+    set_kind("binary")
+    set_plat("switch")
+    set_arch("arm64")
+    set_toolchains("switch")
+    set_targetdir("build/switch")
+
+    -- 应用信息
+    local appTitle = "Extra2D Collision Demo"
+    local appAuthor = "Extra2D Team"
+    local appVersion = "1.0.0"
+
+    -- 添加源文件
+    add_files("Extra2D/examples/collision_demo/main.cpp")
+
+    -- 添加头文件路径
+    add_includedirs("Extra2D/include")
+
+    -- 链接 extra2d 库
+    add_deps("extra2d")
+
+    -- 构建后生成 .nro 文件（包含 RomFS）
+    after_build(function (target)
+        local devkitPro = "C:/devkitPro"
+        local elf_file = target:targetfile()
+        local output_dir = path.directory(elf_file)
+        local nacp_file = path.join(output_dir, "collision_demo.nacp")
+        local nro_file = path.join(output_dir, "collision_demo.nro")
+        local romfs_dir = "Extra2D/examples/collision_demo/romfs"
+        local nacptool = path.join(devkitPro, "tools/bin/nacptool.exe")
+        local elf2nro = path.join(devkitPro, "tools/bin/elf2nro.exe")
+
+        if not os.isfile(nacptool) then
+            print("Warning: nacptool not found at " .. nacptool)
+            return
+        end
+        if not os.isfile(elf2nro) then
+            print("Warning: elf2nro not found at " .. elf2nro)
+            return
+        end
+
+        -- 生成 .nacp 文件
+        os.vrunv(nacptool, {"--create", appTitle, appAuthor, appVersion, nacp_file})
+        print("Built " .. path.filename(nacp_file))
+
+        -- 生成 .nro 文件（包含 RomFS）
+        local romfs_absolute = path.absolute(romfs_dir)
+        if os.isdir(romfs_absolute) then
+            print("Packing RomFS from: " .. romfs_absolute)
+            os.vrunv(elf2nro, {elf_file, nro_file, "--nacp=" .. nacp_file, "--romfsdir=" .. romfs_absolute})
+            print("Built " .. path.filename(nro_file) .. " (with RomFS)")
+        else
+            os.vrunv(elf2nro, {elf_file, nro_file, "--nacp=" .. nacp_file})
+            print("Built " .. path.filename(nro_file))
+        end
+    end)
+target_end()

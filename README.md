@@ -1,13 +1,13 @@
 <div align="center">
 
-![Easy2D Logo](./logo/logo_text_dark.png)
+![Extra2D Logo](./logo/logo_text_dark.svg)
 
 <p align="center">
-  <a href="https://github.com/Easy2D/Easy2D/releases/latest">
-    <img src="https://img.shields.io/github/release/easy2d/easy2d?style=for-the-badge&color=blue&logo=github" alt="Release">
+  <a href="https://github.com/ChestnutYueyue/extra2d/releases/latest">
+    <img src="https://img.shields.io/github/release/ChestnutYueyue/extra2d?style=for-the-badge&color=blue&logo=github" alt="Release">
   </a>
-  <a href="https://github.com/Easy2D/Easy2D/blob/master/LICENSE">
-    <img src="https://img.shields.io/github/license/easy2d/easy2d?style=for-the-badge&color=green&logo=opensourceinitiative" alt="License">
+  <a href="https://github.com/ChestnutYueyue/extra2d/blob/master/LICENSE">
+    <img src="https://img.shields.io/github/license/ChestnutYueyue/extra2d?style=for-the-badge&color=green&logo=opensourceinitiative" alt="License">
   </a>
   <a href="#">
     <img src="https://img.shields.io/badge/build-passing-brightgreen?style=for-the-badge&logo=appveyor" alt="Build Status">
@@ -16,22 +16,16 @@
     <img src="https://img.shields.io/badge/C++-17-00599C?style=for-the-badge&logo=c%2B%2B" alt="C++17">
   </a>
   <a href="#">
-    <img src="https://img.shields.io/badge/Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Windows">
-  </a>
-  <a href="#">
-    <img src="https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black" alt="Linux">
-  </a>
-  <a href="#">
-    <img src="https://img.shields.io/badge/macOS-000000?style=for-the-badge&logo=apple&logoColor=white" alt="macOS">
+    <img src="https://img.shields.io/badge/Nintendo%20Switch-E60012?style=for-the-badge&logo=nintendo-switch&logoColor=white" alt="Nintendo Switch">
   </a>
 </p>
 
 <p align="center">
-  <b>🎮 为 C++ 打造的轻量级 2D 游戏引擎</b><br>
-  <i>简单、高效、跨平台</i>
+  <b>🎮 专为 Nintendo Switch 打造的轻量级 2D 游戏引擎</b><br>
+  <i>高性能、易用、原生支持 Switch 平台</i>
 </p>
 
-[📖 官方文档](https://easy2d.cn) | [🚀 快速开始](#快速开始) | [📦 构建安装](#构建安装) | [💬 QQ群: 608406540](#联系方式)
+[📖 构建指南](./SWITCH_BUILD_GUIDE.md) | [🚀 快速开始](#快速开始) | [📦 项目结构](#项目结构) | [💬 问题反馈](https://github.com/ChestnutYueyue/extra2d/issues)
 
 </div>
 
@@ -39,17 +33,18 @@
 
 ## 🌟 简介
 
-**Easy2D v3.1.0** 是一个专为 C++ 设计的轻量级 2D 游戏引擎，采用全新架构设计，支持 Windows、Linux 和 macOS 三大平台。
+**Extra2D** 是一个专为 **Nintendo Switch** 平台设计的轻量级 2D 游戏引擎，采用现代 C++17 架构，充分利用 Switch 硬件特性，为开发者提供流畅的游戏开发体验。
 
-> 💡 创建这个引擎的初衷是学习游戏引擎技术，并开发一些有趣的小游戏。Easy2D 提供了丰富的工具和轮子，让游戏开发变得简单而愉快。
+> 💡 Extra2D 的诞生是为了让 Switch 独立游戏开发变得更加简单高效。无论是复古风格的像素游戏，还是现代化的 2D 作品，Extra2D 都能提供强大的支持。
 
 ### ✨ 核心特性
 
-- **🎬 动画系统**：支持基于动作（Action）的补间动画和基于精灵图（Sprite Sheet）的帧动画。`AnimatedSprite` 提供完整的动画控制，包括播放、暂停、帧范围限制、动画字典管理等功能。
-
-- **📜 脚本系统**：集成 Squirrel 脚本引擎，支持使用类 JavaScript 语法编写游戏逻辑。通过 `ScriptComponent` 将脚本附加到节点，实现数据驱动的游戏开发。提供完整的引擎 API 绑定，包括节点操作、输入处理、动画控制等。
-
-- **🎮 跨平台**：一套代码，多平台运行。支持 Windows、Linux 和 macOS。
+- **🎯 Switch 原生支持**：专为 Nintendo Switch 硬件优化，支持掌机/主机双模式
+- **🎬 高级动画系统**：支持骨骼动画、精灵动画、补间动画，提供 ALS 动画格式支持
+- **📜 脚本系统**：集成 Squirrel 脚本引擎，支持热更新和快速迭代开发
+- **🎵 音频系统**：基于 miniaudio 的高质量音频播放，支持 BGM 和音效
+- **🎨 特效系统**：粒子系统、后处理效果、自定义着色器支持
+- **💾 数据持久化**：游戏存档、配置文件的便捷读写
 
 ---
 
@@ -57,7 +52,7 @@
 
 ```mermaid
 mindmap
-  root((Easy2D v3.1.0 引擎架构))
+  root((Extra2D 引擎架构))
     核心系统
       应用管理 Application
       渲染后端 RenderBackend
@@ -66,50 +61,32 @@ mindmap
       音频引擎 AudioEngine
       资源管理 ResourceManager
       事件系统 EventDispatcher
-      日志系统 Logger
     场景管理
       场景 Scene
       场景管理器 SceneManager
       过渡动画 Transition
       空间索引 SpatialManager
-        四叉树 QuadTree
-        空间哈希 SpatialHash
     节点系统
       基础节点 Node
       精灵 Sprite
       文本 Text
       形状 ShapeNode
       摄像机 Camera
+      动画节点 AnimationNode
     动画系统
       动作系统 Action
-        位移动作 MoveBy/MoveTo
-        缩放动作 ScaleBy/ScaleTo
-        旋转动作 RotateBy/RotateTo
-        淡入淡出 FadeIn/FadeOut
-        跳跃动作 JumpBy/JumpTo
-        组合动作 Sequence/Spawn/Repeat
-        缓动函数 Ease
-      精灵动画系统
-        动画精灵 AnimatedSprite
-        动画片段 AnimationClip
-        动画控制器 AnimationController
-        精灵帧 SpriteFrame
+      精灵动画 AnimatedSprite
+      骨骼动画支持
+      动画缓存 AnimationCache
+      动画事件 AnimationEvent
     脚本系统
-      Squirrel 脚本引擎 ScriptEngine
-        VM 虚拟机管理
-        脚本加载与执行
-        错误处理与调试
-      脚本组件 ScriptComponent
-        生命周期回调 onEnter/onUpdate/onExit
-        节点访问与操作
-      脚本绑定 API
-        节点绑定 Node/Sprite/AnimatedSprite
-        输入绑定 Input/Key
-        数学绑定 Vec2/Rect/Color
-    事件系统
-      事件队列 EventQueue
-      事件分发 EventDispatcher
-      输入码 InputCodes
+      Squirrel 脚本引擎
+      脚本节点 ScriptNode
+      完整 API 绑定
+    特效系统
+      粒子系统 ParticleSystem
+      后处理 PostProcess
+      自定义效果管理器
     UI 系统
       基础控件 Widget
       按钮 Button
@@ -124,136 +101,6 @@ mindmap
       矩形 Rect
       大小 Size
       颜色 Color
-      矩阵 glm::mat4
-```
-
-### 🎬 动画系统详解
-
-Easy2D 提供两套动画系统，满足不同场景需求：
-
-**1. 动作系统（Action）**
-- 基于补间动画的节点变换系统
-- 支持位移、缩放、旋转、淡入淡出等基础动作
-- 支持组合动作（Sequence/Spawn/Repeat）和缓动函数
-- 适用于 UI 动画、特效动画等场景
-
-**2. 精灵动画系统（AnimatedSprite）**
-- 基于精灵图的帧动画系统
-- 支持从网格创建动画（`createFromGrid`）
-- 支持帧范围限制，实现多方向动画管理
-- 支持动画字典，动态切换不同动画
-- 提供完整的播放控制（play/pause/stop/reset）
-- 适用于角色行走、攻击等游戏动画
-
-### 📜 脚本系统详解
-
-Easy2D v3.1.0 引入 Squirrel 脚本引擎，支持数据驱动的游戏开发：
-
-**1. 脚本引擎（ScriptEngine）**
-- 基于 Squirrel 3.2 稳定版
-- 类 JavaScript 语法，易于学习
-- 支持面向对象编程
-- 提供完整的错误处理和调试信息
-
-**2. 脚本组件（ScriptComponent）**
-- 将脚本附加到场景节点
-- 生命周期回调：`onEnter`、`onUpdate`、`onExit`
-- 通过 `node` 参数访问和操附加的节点
-- 支持自定义属性和方法
-
-**3. 脚本绑定 API**
-- **节点操作**：`Node`、`Sprite`、`AnimatedSprite` 等
-- **输入处理**：`Input.isKeyDown()`、`Input.isKeyPressed()`
-- **数学类型**：`Vec2`、`Rect`、`Color` 等
-- **全局函数**：`log()` 日志输出
-
-**示例脚本结构**：
-```nut
-return {
-    function onEnter(node) {
-        // 初始化：创建精灵、设置位置等
-    }
-    
-    function onUpdate(node, dt) {
-        // 每帧更新：处理输入、更新状态等
-    }
-    
-    function onExit(node) {
-        // 清理：释放资源等
-    }
-}
-```
-
----
-
-## ✨ 功能特性
-
-### 🎬 核心功能
-
-| 功能模块 | 描述 | 状态 |
-|:--------:|:-----|:----:|
-| 🎭 场景管理 | 灵活的场景切换与管理 | ✅ |
-| 🎨 过渡动画 | 淡入淡出、移动、盒子等多种过渡效果 | ✅ |
-| 🎬 动画系统 | 丰富的动作和帧动画支持 | ✅ |
-| 📜 脚本系统 | Squirrel 脚本支持，可编写游戏逻辑 | ✅ |
-| 🔘 GUI 系统 | 简单易用的按钮组件 | ✅ |
-| 🎵 音频支持 | 基于 miniaudio 的音频播放 | ✅ |
-| 💾 数据持久化 | 游戏数据保存与读取 | ✅ |
-| 📝 日志系统 | 基于 spdlog 的高性能日志 | ✅ |
-| 🌐 跨平台 | 支持 Windows/Linux/macOS | ✅ |
-| 🚀 OpenGL 渲染 | 现代 OpenGL 渲染后端 | ✅ |
-| 🎯 空间索引 | 四叉树/空间哈希碰撞检测 | ✅ |
-
-### 🎯 动作系统详解
-
-```mermaid
-flowchart TB
-    subgraph 基础动作
-        A[Action 基类]
-        B[IntervalAction 持续动作]
-        C[InstantAction 瞬时动作]
-    end
-    
-    subgraph 变换动作
-        D[MoveBy/MoveTo 位移]
-        E[ScaleBy/ScaleTo 缩放]
-        F[RotateBy/RotateTo 旋转]
-        G[FadeIn/FadeOut 淡入淡出]
-        H[JumpBy/JumpTo 跳跃]
-    end
-    
-    subgraph 复合动作
-        I[Sequence 顺序执行]
-        J[Spawn 同步执行]
-        K[Repeat 循环执行]
-        L[Delay 延时]
-        M[CallFunc 回调]
-    end
-    
-    subgraph 缓动函数
-        N[EaseIn/EaseOut]
-        O[EaseInOut]
-        P[EaseBack/EaseBounce]
-        Q[EaseElastic]
-    end
-    
-    A --> B & C
-    B --> D & E & F & G & H
-    A --> I & J & K & L & M
-    B --> N & O & P & Q
-```
-
-### 🖼️ 渲染流程
-
-```mermaid
-flowchart LR
-    A[Application] --> B[Update Scene]
-    B --> C[Collect RenderCommands]
-    C --> D[OpenGL Backend]
-    D --> E[GPU Rendering]
-    
-    style A fill:#ff6b6b,color:#fff
-    style E fill:#4ecdc4,color:#fff
 ```
 
 ---
@@ -262,59 +109,49 @@ flowchart LR
 
 ### 环境要求
 
-| 组件 | 最低版本 | 推荐版本 |
-|:----:|:--------:|:--------:|
-| Windows | Windows 7 | Windows 10/11 |
-| Linux | Ubuntu 18.04 | Ubuntu 22.04 |
-| macOS | 10.14 | 最新版 |
-| C++ 标准 | C++17 | C++17 |
-| OpenGL | 3.3 | 4.0+ |
+| 组件 | 要求 |
+|:----:|:-----|
+| 开发环境 | devkitPro + devkitA64 |
+| C++ 标准 | C++17 |
+| 构建工具 | xmake |
+| 目标平台 | Nintendo Switch |
 
-### 使用 xmake 构建（推荐）
-
-#### 步骤 1: 安装 xmake
+### 安装 devkitPro
 
 ```bash
-# Windows (PowerShell)
-Invoke-Expression (Invoke-Webrequest 'https://xmake.io/psget.text' -UseBasicParsing).Content
+# Windows (以管理员身份运行 PowerShell)
+Invoke-WebRequest -Uri "https://github.com/devkitPro/pacman/releases/latest/download/devkitpro-pacman.amd64.exe" -OutFile "devkitpro-pacman.exe"
+.\devkitpro-pacman.exe
 
-# Linux/macOS
-curl -fsSL https://xmake.io/shget.text | bash
+# 安装 Switch 开发工具链
+pacman -S switch-dev switch-portlibs
 ```
 
-#### 步骤 2: 克隆并构建
+### 构建项目
 
 ```bash
 # 克隆仓库
-git clone https://github.com/nomango/easy2d.git
-cd easy2d
+git clone https://github.com/ChestnutYueyue/extra2d.git
+cd extra2d
 
-# 配置并构建
-xmake f --mode=release
+# 配置 Switch 平台构建
+xmake f -p switch --mode=release
+
+# 构建引擎
 xmake
 
-# 运行示例
-xmake run hello_world
-xmake run push_box
+# 构建示例游戏
+xmake -g examples
 ```
 
-#### 平台特定配置
+### 生成 NSP 可运行文件
 
 ```bash
-# Windows (MSVC - 默认)
-xmake f --mode=release
+# 打包推箱子游戏示例
+xmake package push_box
 
-# Windows (MinGW)
-xmake f --toolchain=mingw --mode=release
-
-# Linux
-xmake f --mode=release
-
-# macOS
-xmake f --mode=release
-
-# 调试模式
-xmake f --mode=debug
+# 生成的文件位于
+# build/switch/release/push_box/push_box.nsp
 ```
 
 ---
@@ -322,9 +159,9 @@ xmake f --mode=debug
 ## 📝 Hello World 示例
 
 ```cpp
-#include <easy2d/easy2d.h>
+#include <extra2d/extra2d.h>
 
-using namespace easy2d;
+using namespace extra2d;
 
 int main()
 {
@@ -334,9 +171,9 @@ int main()
 
     // 配置应用
     AppConfig config;
-    config.title = "Hello Easy2D";
-    config.width = 800;
-    config.height = 600;
+    config.title = "Hello Extra2D";
+    config.width = 1280;
+    config.height = 720;
     config.vsync = true;
 
     // 初始化应用
@@ -351,11 +188,11 @@ int main()
     scene->setBackgroundColor(Color(0.1f, 0.1f, 0.15f, 1.0f));
 
     // 创建文本节点
-    auto text = Text::create("Hello, Easy2D v3.0!");
-    text->setPosition(Vec2(400, 300));
+    auto text = Text::create("Hello, Extra2D on Switch!");
+    text->setPosition(Vec2(640, 360));
     text->setAnchor(Vec2(0.5f, 0.5f));
     text->setTextColor(Color(1.0f, 0.5f, 0.2f, 1.0f));
-    text->setFontSize(32);
+    text->setFontSize(48);
 
     // 添加动画效果
     text->runAction(makePtr<Repeat>(
@@ -381,182 +218,83 @@ int main()
 }
 ```
 
-### 脚本系统示例
-
-```nut
-// player_controller.nut - 角色控制器脚本
-// 使用 WASD 控制角色移动和动画
-
-local Direction = {
-    Down = 0,   // 向下走 - 帧 0-3
-    Left = 1,   // 向左走 - 帧 4-7
-    Right = 2,  // 向右走 - 帧 8-11
-    Up = 3      // 向上走 - 帧 12-15
-}
-
-return {
-    character = null
-    currentDir = Direction.Down
-    isMoving = false
-    moveSpeed = 150.0
-
-    function onEnter(node) {
-        // 创建动画精灵
-        character = AnimatedSprite.createFromGrid(
-            "player.png", 96, 96, 125.0, 16)
-        
-        // 设置初始帧范围（向下走：帧 0-3）
-        character.setFrameRange(0, 3)
-        character.setPosition(450.0, 300.0)
-        
-        node.addChild(character)
-    }
-
-    function onUpdate(node, dt) {
-        isMoving = false
-
-        // 处理输入
-        if (Input.isKeyDown(Key.W)) {
-            moveCharacter(Direction.Up, dt)
-        } else if (Input.isKeyDown(Key.S)) {
-            moveCharacter(Direction.Down, dt)
-        } else if (Input.isKeyDown(Key.A)) {
-            moveCharacter(Direction.Left, dt)
-        } else if (Input.isKeyDown(Key.D)) {
-            moveCharacter(Direction.Right, dt)
-        }
-
-        // 停止移动时暂停动画
-        if (!isMoving && character.isPlaying()) {
-            character.pause()
-        }
-    }
-
-    function moveCharacter(dir, dt) {
-        local frameStart = dir * 4
-        local frameEnd = frameStart + 3
-
-        // 方向改变时切换帧范围
-        if (currentDir != dir) {
-            character.setFrameRange(frameStart, frameEnd)
-            character.setFrameIndex(frameStart)
-        }
-
-        if (!character.isPlaying()) {
-            character.play()
-        }
-
-        currentDir = dir
-        isMoving = true
-
-        // 移动角色
-        local pos = character.getPosition()
-        switch (dir) {
-            case Direction.Down:  pos.setY(pos.getY() + moveSpeed * dt); break
-            case Direction.Up:    pos.setY(pos.getY() - moveSpeed * dt); break
-            case Direction.Left:  pos.setX(pos.getX() - moveSpeed * dt); break
-            case Direction.Right: pos.setX(pos.getX() + moveSpeed * dt); break
-        }
-        character.setPosition(pos.getX(), pos.getY())
-    }
-}
-```
-
 ---
 
 ## 🏗️ 项目结构
 
 ```
-Easy2D/
-├── 📁 Easy2D/                    # 引擎核心代码
+Extra2D/
+├── 📁 Extra2D/                   # 引擎核心代码
 │   ├── 📁 include/               # 头文件
-│   │   ├── 📁 easy2d/            # 引擎头文件
-│   │   │   ├── easy2d.h          # 主头文件
-│   │   │   ├── app/              # 应用管理
-│   │   │   │   └── application.h
-│   │   │   ├── action/           # 动作系统
-│   │   │   │   ├── action.h
-│   │   │   │   ├── actions.h
-│   │   │   │   └── ease.h
-│   │   │   ├── audio/            # 音频系统
-│   │   │   │   ├── audio_engine.h
-│   │   │   │   └── sound.h
-│   │   │   ├── core/             # 核心类型
-│   │   │   │   ├── types.h
-│   │   │   │   ├── math_types.h
-│   │   │   │   ├── color.h
-│   │   │   │   └── string.h
-│   │   │   ├── event/            # 事件系统
-│   │   │   │   ├── event.h
-│   │   │   │   ├── event_dispatcher.h
-│   │   │   │   └── input_codes.h
-│   │   │   ├── graphics/         # 图形渲染
-│   │   │   │   ├── render_backend.h
-│   │   │   │   ├── texture.h
-│   │   │   │   ├── font.h
-│   │   │   │   ├── camera.h
-│   │   │   │   └── opengl/       # OpenGL 实现
-│   │   │   ├── platform/         # 平台抽象
-│   │   │   │   ├── window.h
-│   │   │   │   └── input.h
-│   │   │   ├── resource/         # 资源管理
-│   │   │   │   └── resource_manager.h
-│   │   │   ├── scene/            # 场景系统
-│   │   │   │   ├── node.h
-│   │   │   │   ├── scene.h
-│   │   │   │   ├── sprite.h
-│   │   │   │   ├── text.h
-│   │   │   │   ├── shape_node.h
-│   │   │   │   ├── scene_manager.h
-│   │   │   │   └── transition.h
-│   │   │   ├── spatial/          # 空间索引
-│   │   │   │   ├── spatial_manager.h
-│   │   │   │   ├── quadtree.h
-│   │   │   │   └── spatial_hash.h
-│   │   │   ├── script/           # 脚本系统
-│   │   │   │   ├── script_engine.h
-│   │   │   │   ├── script_component.h
-│   │   │   │   └── sq_binding.h
-│   │   │   ├── ui/               # UI 系统
-│   │   │   │   ├── widget.h
-│   │   │   │   └── button.h
-│   │   │   └── utils/            # 工具库
-│   │   │       ├── logger.h
-│   │   │       ├── timer.h
-│   │   │       ├── data.h
-│   │   │       └── random.h
-│   │   ├── 📁 glew/              # GLEW 库
-│   │   ├── 📁 glfw/              # GLFW 库
-│   │   ├── 📁 glm/               # GLM 数学库
-│   │   ├── 📁 spdlog/            # spdlog 日志库
-│   │   ├── 📁 stb/               # stb 图像库
-│   │   ├── 📁 miniaudio/         # miniaudio 音频库
-│   │   └── 📁 simpleini/         # simpleini 配置库
+│   │   └── 📁 extra2d/           # 引擎头文件
+│   │       ├── extra2d.h         # 主头文件
+│   │       ├── app/              # 应用管理
+│   │       ├── action/           # 动作系统
+│   │       ├── animation/        # 动画系统
+│   │       ├── audio/            # 音频系统
+│   │       ├── core/             # 核心类型
+│   │       ├── effects/          # 特效系统
+│   │       ├── event/            # 事件系统
+│   │       ├── graphics/         # 图形渲染
+│   │       ├── platform/         # 平台抽象
+│   │       ├── resource/         # 资源管理
+│   │       ├── scene/            # 场景系统
+│   │       ├── script/           # 脚本系统
+│   │       ├── spatial/          # 空间索引
+│   │       ├── ui/               # UI 系统
+│   │       └── utils/            # 工具库
 │   ├── 📁 src/                   # 源文件
-│   │   ├── App/                  # 应用实现
-│   │   ├── Action/               # 动作系统实现
-│   │   ├── Animation/            # 动画系统实现
-│   │   ├── Audio/                # 音频系统实现
-│   │   ├── Core/                 # 核心实现
-│   │   ├── Event/                # 事件系统实现
-│   │   ├── Graphics/             # 图形渲染实现
-│   │   ├── Platform/             # 平台实现
-│   │   ├── Resource/             # 资源管理实现
-│   │   ├── Scene/                # 场景系统实现
-│   │   ├── Script/               # 脚本系统实现
-│   │   ├── Spatial/              # 空间索引实现
-│   │   ├── UI/                   # UI 系统实现
-│   │   └── Utils/                # 工具库实现
 │   └── 📁 examples/              # 示例程序
-│       ├── hello_world/          # Hello World 示例
-│       ├── animation_demo/       # 精灵动画示例
-│       ├── script_demo/          # 脚本系统示例
-│       ├── font_test/            # 字体测试示例
-│       └── push_box/             # 推箱子游戏示例
+│       ├── push_box/             # 推箱子游戏
+│       └── switch_simple_test/   # 简单测试
+├── 📁 squirrel/                  # Squirrel 脚本引擎
 ├── 📁 logo/                      # Logo 资源
 ├── 📄 xmake.lua                  # xmake 构建配置
+├── 📄 SWITCH_BUILD_GUIDE.md      # Switch 构建详细指南
 ├── 📄 LICENSE                    # MIT 许可证
 └── 📄 README.md                  # 本文件
+```
+
+---
+
+## 🎮 Switch 特定功能
+
+### 双模式支持
+
+```cpp
+// 检测当前模式
+if (app.isDocked()) {
+    // 主机模式：可使用更高分辨率
+    config.width = 1920;
+    config.height = 1080;
+} else {
+    // 掌机模式
+    config.width = 1280;
+    config.height = 720;
+}
+```
+
+### 控制器输入
+
+```cpp
+auto& input = app.input();
+
+// Joy-Con 支持
+if (input.isKeyDown(KeyCode::ButtonA)) {
+    // A 键按下
+}
+
+if (input.isKeyDown(KeyCode::ButtonLeft)) {
+    // 左摇杆向左
+}
+```
+
+### ROMFS 资源加载
+
+```cpp
+// 自动从 ROMFS 加载资源
+auto texture = resources.loadTexture("romfs:/images/player.png");
+auto sound = audio.loadSound("romfs:/audio/jump.wav");
 ```
 
 ---
@@ -566,255 +304,61 @@ Easy2D/
 ### 应用控制
 
 ```cpp
-// 获取应用实例
 auto& app = Application::instance();
-
-// 初始化
-AppConfig config;
-config.title = "My Game";
-config.width = 800;
-config.height = 600;
-config.vsync = true;
 app.init(config);
-
-// 运行主循环
 app.run();
-
-// 状态控制
-app.pause();
-app.resume();
 app.quit();
-
-// 进入场景
-app.enterScene(makePtr<MyScene>());
-app.enterScene(makePtr<MyScene>(), makePtr<FadeTransition>(1.0f));
-
-// 获取子系统
-auto& input = app.input();
-auto& audio = app.audio();
-auto& resources = app.resources();
-auto& timers = app.timers();
 ```
 
 ### 场景管理
 
 ```cpp
-// 创建场景
 auto scene = makePtr<Scene>();
-scene->setBackgroundColor(Color(0.1f, 0.1f, 0.2f, 1.0f));
-
-// 场景属性
-scene->setViewportSize(800, 600);
-scene->pause();
-scene->resume();
-
-// 空间索引
-scene->setSpatialIndexingEnabled(true);
-auto nodes = scene->queryNodesInArea(Rect(0, 0, 100, 100));
-auto collisions = scene->queryCollisions();
+app.enterScene(scene);
+app.enterScene(scene, makePtr<FadeTransition>(1.0f));
 ```
 
 ### 节点操作
 
 ```cpp
-// 创建节点
-auto node = makePtr<Node>();
 auto sprite = Sprite::create(texture);
-auto text = Text::create("Hello");
-
-// 变换属性
-node->setPosition(Vec2(100, 200));
-node->setPosition(100, 200);
-node->setRotation(45.0f);
-node->setScale(Vec2(2.0f, 2.0f));
-node->setScale(2.0f);
-node->setAnchor(Vec2(0.5f, 0.5f));
-node->setOpacity(0.8f);
-node->setVisible(true);
-node->setZOrder(10);
-
-// 层级管理
-parent->addChild(child);
-parent->removeChild(child);
-child->removeFromParent();
-auto found = parent->getChildByName("player");
-auto found = parent->getChildByTag(100);
-
-// 世界变换
-auto worldPos = node->convertToWorldSpace(Vec2(0, 0));
-auto localPos = node->convertToNodeSpace(worldPos);
-auto transform = node->getWorldTransform();
-
-// 空间索引
-node->setSpatialIndexed(true);
-node->updateSpatialIndex();
-auto bounds = node->getBoundingBox();
+sprite->setPosition(Vec2(100, 200));
+sprite->setRotation(45.0f);
+sprite->runAction(makePtr<MoveTo>(1.0f, Vec2(200, 300)));
 ```
 
-### 动作系统
+### 动画系统
 
 ```cpp
-// 创建动作
-auto move = makePtr<MoveTo>(1.0f, Vec2(100, 200));
-auto scale = makePtr<ScaleTo>(0.5f, Vec2(2.0f, 2.0f));
-auto rotate = makePtr<RotateBy>(1.0f, 90.0f);
-auto fade = makePtr<FadeIn>(0.5f);
-auto jump = makePtr<JumpBy>(1.0f, Vec2(100, 0), 50.0f, 3);
+// 精灵动画
+auto anim = AnimatedSprite::createFromGrid(
+    "player.png", 96, 96, 125.0f, 16);
+anim->setFrameRange(0, 3);
+anim->play();
 
-// 组合动作
-auto sequence = makePtr<Sequence>(std::vector<Ptr<Action>>{
-    move, scale, rotate
-});
-auto spawn = makePtr<Spawn>(std::vector<Ptr<Action>>{
-    move, fade
-});
-auto repeat = makePtr<Repeat>(sequence);
-auto repeatForever = makePtr<RepeatForever>(rotate);
-
-// 缓动
-auto easeMove = makePtr<EaseInOut>(move, 2.0f);
-
-// 运行动作
-node->runAction(action);
-node->stopAllActions();
-node->stopAction(action);
-node->stopActionByTag(1);
+// 动作动画
+node->runAction(makePtr<Sequence>(
+    makePtr<MoveTo>(1.0f, Vec2(100, 200)),
+    makePtr<ScaleTo>(0.5f, Vec2(2.0f, 2.0f))
+));
 ```
 
 ### 输入处理
 
 ```cpp
 auto& input = app.input();
-
-// 键盘
-if (input.isKeyDown(KeyCode::Space)) {}
-if (input.isKeyPressed(KeyCode::Enter)) {}
-if (input.isKeyReleased(KeyCode::Escape)) {}
-
-// 鼠标
-if (input.isMouseDown(MouseButton::Left)) {}
-if (input.isMousePressed(MouseButton::Right)) {}
+if (input.isKeyDown(KeyCode::ButtonA)) {}
+if (input.isKeyPressed(KeyCode::ButtonB)) {}
 auto pos = input.getMousePosition();
-auto delta = input.getMouseDelta();
-auto scroll = input.getMouseScrollDelta();
-
-// 鼠标控制
-input.setMousePosition(Vec2(400, 300));
-input.setMouseVisible(false);
-input.setMouseLocked(true);
 ```
 
 ### 音频播放
 
 ```cpp
 auto& audio = app.audio();
-
-// 加载音效
 auto sound = audio.loadSound("jump.wav");
-auto namedSound = audio.loadSound("jump", "jump.wav");
-
-// 播放控制
 sound->play();
-sound->pause();
-sound->resume();
-sound->stop();
-
-// 属性
 sound->setVolume(0.8f);
-sound->setLooping(true);
-sound->setPitch(1.2f);
-
-// 全局控制
-audio.setMasterVolume(0.5f);
-audio.pauseAll();
-audio.resumeAll();
-audio.stopAll();
-```
-
-### 资源管理
-
-```cpp
-auto& resources = app.resources();
-
-// 添加搜索路径
-resources.addSearchPath("assets");
-resources.addSearchPath("assets/images");
-
-// 加载纹理
-auto texture = resources.loadTexture("player.png");
-auto texture = resources.loadTexture("atlas.png", Rect(0, 0, 32, 32));
-
-// 加载字体
-auto font = resources.loadFont("arial.ttf", 16);
-
-// 创建精灵
-auto sprite = Sprite::create(texture);
-```
-
-### UI 系统
-
-```cpp
-// 创建按钮
-auto button = Button::create();
-button->setText("Click Me");
-button->setPosition(Vec2(400, 300));
-button->setTextColor(Color::White);
-button->setFontSize(24);
-
-// 背景设置
-button->setBackgroundColor(
-    Color(0.2f, 0.4f, 0.8f, 1.0f),  // normal
-    Color(0.3f, 0.5f, 0.9f, 1.0f),  // hover
-    Color(0.1f, 0.3f, 0.7f, 1.0f)   // pressed
-);
-button->setCornerRadius(8.0f);
-
-// 点击回调
-button->setOnClick([]() {
-    Logger::info("Button clicked!");
-});
-
-scene->addChild(button);
-```
-
-### 定时器
-
-```cpp
-auto& timers = app.timers();
-
-// 单次定时器
-auto id = timers.addTimer(2.0f, []() {
-    Logger::info("Timer fired!");
-});
-
-// 重复定时器
-auto id = timers.addRepeatingTimer(1.0f, []() {
-    Logger::info("Every second!");
-});
-
-// 控制
-timers.pauseTimer(id);
-timers.resumeTimer(id);
-timers.cancelTimer(id);
-```
-
-### 数据持久化
-
-```cpp
-// 保存数据
-Data data;
-data.setInt("score", 1000);
-data.setFloat("volume", 0.8f);
-data.setBool("fullscreen", true);
-data.setString("player", "Alice");
-data.save("savegame.dat");
-
-// 加载数据
-Data data;
-if (data.load("savegame.dat")) {
-    int score = data.getInt("score", 0);
-    float volume = data.getFloat("volume", 1.0f);
-}
 ```
 
 ---
@@ -823,38 +367,21 @@ if (data.load("savegame.dat")) {
 
 | 技术 | 用途 | 版本 |
 |:----:|:-----|:----:|
-| OpenGL | 2D 图形渲染 | 3.3+ |
+| OpenGL | 2D 图形渲染 | ES 3.0+ |
 | GLFW | 窗口和输入管理 | 3.3+ |
-| GLEW | OpenGL 扩展加载 | 2.1+ |
 | GLM | 数学库 | 0.9.9+ |
 | miniaudio | 音频播放 | 最新版 |
 | spdlog | 日志系统 | 最新版 |
 | stb_image | 图像加载 | 最新版 |
+| Squirrel | 脚本引擎 | 3.2+ |
 | xmake | 构建系统 | 2.5+ |
 
 ---
 
-## 📦 使用 xmake 集成 Easy2D
+## 📖 相关文档
 
-在你的项目中使用 Easy2D：
-
-```lua
--- xmake.lua
-add_rules("mode.debug", "mode.release")
-
--- 添加 Easy2D 仓库
-add_repositories("easy2d https://github.com/ChestnutYueyue/xmake-repo")
-
--- 添加依赖
-add_requires("easy2d")
-
-target("mygame")
-    set_kind("binary")
-    set_languages("c++17")
-    add_files("src/*.cpp")
-    add_packages("easy2d")
-target_end()
-```
+- [Switch 构建指南](./SWITCH_BUILD_GUIDE.md) - 详细的 Switch 平台构建教程
+- [迁移完成记录](./SWITCH_MIGRATION_COMPLETE.md) - 项目迁移历史记录
 
 ---
 
@@ -866,11 +393,11 @@ target_end()
 
 ## 📄 许可证
 
-Easy2D 使用 [MIT](LICENSE) 许可证。
+Extra2D 使用 [MIT](LICENSE) 许可证。
 
 ---
 
 ## 联系方式
 
-- QQ群: 608406540
-- GitHub: https://github.com/Easy2D/Easy2D
+- GitHub Issues: https://github.com/ChestnutYueyue/extra2d/issues
+- 作者: [ChestnutYueyue](https://github.com/ChestnutYueyue)

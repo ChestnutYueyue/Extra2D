@@ -1,7 +1,6 @@
 #pragma once
 
-// 使用标准 GLES3.2
-#include <GLES3/gl32.h>
+#include <glad/glad.h>
 
 #include <string>
 #include <unordered_map>
