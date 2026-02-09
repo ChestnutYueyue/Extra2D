@@ -185,11 +185,19 @@ private:
   void loadFonts() {
     auto &resources = Application::instance().resources();
 
+#ifdef PLATFORM_SWITCH
     std::vector<std::string> fontPaths = {
         "romfs:/assets/msjh.ttf",
         "romfs:/assets/default.ttf",
         "romfs:/assets/font.ttf",
     };
+#else
+    std::vector<std::string> fontPaths = {
+        FileSystem::resolvePath("msjh.ttf"),
+        FileSystem::resolvePath("default.ttf"),
+        FileSystem::resolvePath("font.ttf"),
+    };
+#endif
 
     titleFont_ = resources.loadFontWithFallbacks(fontPaths, 28, true);
     infoFont_ = resources.loadFontWithFallbacks(fontPaths, 16, true);
@@ -401,7 +409,12 @@ private:
 // 程序入口
 // ============================================================================
 
-extern "C" int main(int argc, char *argv[]) {
+#ifdef _WIN32
+int main(int argc, char *argv[])
+#else
+extern "C" int main(int argc, char *argv[])
+#endif
+{
   (void)argc;
   (void)argv;
 

@@ -6,6 +6,7 @@
 #include <glad/glad.h>
 
 #include <memory>
+#include <string>
 
 namespace extra2d {
 

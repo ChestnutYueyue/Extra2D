@@ -13,18 +13,29 @@
 #include <extra2d/utils/timer.h>
 
 #include <chrono>
-#include <switch.h>
 #include <thread>
 #include <time.h>
+
+#ifdef __SWITCH__
+#include <switch.h>
+#endif
 
 namespace extra2d {
 
 // 获取当前时间（秒）
 static double getTimeSeconds() {
+#ifdef __SWITCH__
   struct timespec ts;
   clock_gettime(CLOCK_MONOTONIC, &ts);
   return static_cast<double>(ts.tv_sec) +
          static_cast<double>(ts.tv_nsec) / 1000000000.0;
+#else
+  // PC 平台使用 chrono
+  using namespace std::chrono;
+  auto now = steady_clock::now();
+  auto duration = now.time_since_epoch();
+  return duration_cast<std::chrono::duration<double>>(duration).count();
+#endif
 }
 
 Application &Application::instance() {
@@ -42,8 +53,9 @@ bool Application::init(const AppConfig &config) {
 
   config_ = config;
 
+#ifdef __SWITCH__
   // ========================================
-  // 1. 初始化 RomFS 文件系统（必须在 SDL_Init 之前）
+  // 1. 初始化 RomFS 文件系统（Switch 平台）
   // ========================================
   Result rc;
   rc = romfsInit();
@@ -54,13 +66,14 @@ bool Application::init(const AppConfig &config) {
   }
 
   // ========================================
-  // 2. 初始化 nxlink 调试输出（可选）
+  // 2. 初始化 nxlink 调试输出（Switch 平台）
   // ========================================
   rc = socketInitializeDefault();
   if (R_FAILED(rc)) {
     E2D_LOG_WARN(
         "socketInitializeDefault failed, nxlink will not be available");
   }
+#endif
 
   // ========================================
   // 3. 创建窗口（包含 SDL_Init + GLES 3.2 上下文创建）
@@ -70,8 +83,14 @@ bool Application::init(const AppConfig &config) {
   winConfig.title = config.title;
   winConfig.width = 1280;
   winConfig.height = 720;
+#ifdef __SWITCH__
   winConfig.fullscreen = true;
   winConfig.resizable = false;
+#else
+  // PC 平台默认窗口模式
+  winConfig.fullscreen = config.fullscreen;
+  winConfig.resizable = true;
+#endif
   winConfig.vsync = config.vsync;
   winConfig.msaaSamples = config.msaaSamples;
 
@@ -101,7 +120,7 @@ bool Application::init(const AppConfig &config) {
   camera_ = makeUnique<Camera>(0, static_cast<float>(window_->getWidth()),
                                static_cast<float>(window_->getHeight()), 0);
 
-  // 窗口大小回调（Switch 上不会触发，但保留接口）
+  // 窗口大小回调
   window_->setResizeCallback([this](int width, int height) {
     if (camera_) {
       camera_->setViewport(0, static_cast<float>(width),
@@ -119,8 +138,13 @@ bool Application::init(const AppConfig &config) {
   // 初始化音频引擎
   AudioEngine::getInstance().initialize();
 
-  // 添加 romfs:/ 到资源搜索路径
+#ifdef __SWITCH__
+  // 添加 romfs:/ 到资源搜索路径（Switch 平台）
   resourceManager_->addSearchPath("romfs:/");
+#endif
+  // 添加默认资源路径
+  resourceManager_->addSearchPath("assets/");
+  resourceManager_->addSearchPath("./");
 
   initialized_ = true;
   running_ = true;
@@ -161,9 +185,11 @@ void Application::shutdown() {
     window_.reset();
   }
 
-  // Switch 清理
+#ifdef __SWITCH__
+  // Switch 平台清理
   romfsExit();
   socketExit();
+#endif
 
   initialized_ = false;
   running_ = false;
@@ -179,10 +205,17 @@ void Application::run() {
 
   lastFrameTime_ = getTimeSeconds();
 
+#ifdef __SWITCH__
   // SDL2 on Switch 内部已处理 appletMainLoop
   while (running_ && !window_->shouldClose()) {
     mainLoop();
   }
+#else
+  // PC 平台主循环
+  while (running_ && !window_->shouldClose()) {
+    mainLoop();
+  }
+#endif
 }
 
 void Application::quit() {

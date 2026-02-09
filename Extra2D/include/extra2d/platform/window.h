@@ -3,6 +3,7 @@
 #include <extra2d/core/types.h>
 #include <extra2d/core/string.h>
 #include <extra2d/core/math_types.h>
+#include <extra2d/platform/platform_compat.h>
 #include <functional>
 
 #include <SDL.h>
@@ -20,15 +21,15 @@ struct WindowConfig {
     String title = "Extra2D Application";
     int width = 1280;
     int height = 720;
-    bool fullscreen = true;   // Switch 始终全屏
-    bool resizable = false;
+    bool fullscreen = true;   // Switch 始终全屏，PC 可配置
+    bool resizable = false;   // PC 端可调整大小
     bool vsync = true;
     int msaaSamples = 0;
-    bool centerWindow = false;
+    bool centerWindow = true; // PC 端窗口居中
 };
 
 // ============================================================================
-// 鼠标光标形状枚举 (保留接口兼容性，Switch 上无效)
+// 鼠标光标形状枚举
 // ============================================================================
 enum class CursorShape {
     Arrow,
@@ -44,6 +45,7 @@ enum class CursorShape {
 
 // ============================================================================
 // Window 类 - SDL2 Window + GLES 3.2 封装
+// 支持平台: Nintendo Switch, Windows, Linux, macOS
 // ============================================================================
 class Window {
 public:
@@ -60,7 +62,7 @@ public:
     bool shouldClose() const;
     void setShouldClose(bool close);
 
-    // 窗口属性 (Switch 上大部分为空操作)
+    // 窗口属性
     void setTitle(const String& title);
     void setSize(int width, int height);
     void setPosition(int x, int y);
@@ -72,19 +74,19 @@ public:
     int getWidth() const { return width_; }
     int getHeight() const { return height_; }
     Size getSize() const { return Size(static_cast<float>(width_), static_cast<float>(height_)); }
-    Vec2 getPosition() const { return Vec2::Zero(); }
-    bool isFullscreen() const { return true; }
+    Vec2 getPosition() const;
+    bool isFullscreen() const { return fullscreen_; }
     bool isVSync() const { return vsync_; }
 
-    // DPI 缩放 (Switch 固定 1.0)
-    float getContentScaleX() const { return 1.0f; }
-    float getContentScaleY() const { return 1.0f; }
-    Vec2 getContentScale() const { return Vec2(1.0f, 1.0f); }
+    // DPI 缩放 (PC 端自动检测，Switch 固定 1.0)
+    float getContentScaleX() const;
+    float getContentScaleY() const;
+    Vec2 getContentScale() const;
 
     // 窗口状态
-    bool isFocused() const { return true; }
-    bool isMinimized() const { return false; }
-    bool isMaximized() const { return true; }
+    bool isFocused() const { return focused_; }
+    bool isMinimized() const;
+    bool isMaximized() const;
 
     // 获取 SDL2 窗口和 GL 上下文
     SDL_Window* getSDLWindow() const { return sdlWindow_; }
@@ -101,9 +103,10 @@ public:
     // 获取输入管理器
     Input* getInput() const { return input_.get(); }
 
-    // 光标操作 (Switch 上为空操作)
+    // 光标操作 (PC 端有效，Switch 上为空操作)
     void setCursor(CursorShape shape);
     void resetCursor();
+    void setMouseVisible(bool visible);
 
     // 窗口回调
     using ResizeCallback = std::function<void(int width, int height)>;
@@ -118,11 +121,17 @@ private:
     // SDL2 状态
     SDL_Window* sdlWindow_;
     SDL_GLContext glContext_;
+    SDL_Cursor* sdlCursors_[9];  // 光标缓存
+    SDL_Cursor* currentCursor_;
 
     int width_;
     int height_;
     bool vsync_;
     bool shouldClose_;
+    bool fullscreen_;
+    bool focused_;
+    float contentScaleX_;
+    float contentScaleY_;
     void* userData_;
     EventQueue* eventQueue_;
     UniquePtr<Input> input_;
@@ -131,8 +140,11 @@ private:
     FocusCallback focusCallback_;
     CloseCallback closeCallback_;
 
-    bool initSDL();
+    bool initSDL(const WindowConfig& config);
     void deinitSDL();
+    void initCursors();
+    void deinitCursors();
+    void updateContentScale();
 };
 
 } // namespace extra2d

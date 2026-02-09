@@ -21,8 +21,8 @@ function define_switch_toolchain()
         -- 架构标志
         local arch_flags = "-march=armv8-a+crc+crypto -mtune=cortex-a57 -mtp=soft -fPIE"
         add_cxflags(arch_flags)
-        -- 使用修复后的 switch_fix.specs 文件（使用 Windows 路径）
-        add_ldflags("-specs=switch_fix.specs", "-g", arch_flags)
+        -- 使用 devkitPro 提供的 switch.specs 文件
+        add_ldflags("-specs=" .. path.join(devkitPro, "libnx/switch.specs"), "-g", arch_flags)
 
         -- 定义 Switch 平台宏
         add_defines("__SWITCH__", "__NX__", "MA_SWITCH", "PFD_SWITCH")

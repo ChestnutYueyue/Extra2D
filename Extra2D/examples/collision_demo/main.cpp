@@ -124,9 +124,13 @@ private:
     auto &resources = Application::instance().resources();
 
     // 使用后备字体加载功能
+#ifdef PLATFORM_SWITCH
     std::vector<std::string> fontPaths = {
         "romfs:/assets/font.ttf" // 备选字体
     };
+#else
+    std::vector<std::string> fontPaths = {FileSystem::resolvePath("font.ttf")};
+#endif
 
     titleFont_ = resources.loadFontWithFallbacks(fontPaths, 60, true);
     infoFont_ = resources.loadFontWithFallbacks(fontPaths, 28, true);
@@ -240,7 +244,12 @@ private:
 // 程序入口
 // ============================================================================
 
-extern "C" int main(int argc, char *argv[]) {
+#ifdef _WIN32
+int main(int argc, char *argv[])
+#else
+extern "C" int main(int argc, char *argv[])
+#endif
+{
   (void)argc;
   (void)argv;
 

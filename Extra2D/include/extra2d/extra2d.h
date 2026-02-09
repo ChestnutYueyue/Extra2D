@@ -12,6 +12,7 @@
 // Platform
 #include <extra2d/platform/window.h>
 #include <extra2d/platform/input.h>
+#include <extra2d/platform/file_system.h>
 
 // Graphics
 #include <extra2d/graphics/render_backend.h>

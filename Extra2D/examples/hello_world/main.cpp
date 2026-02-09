@@ -1,5 +1,9 @@
 #include <extra2d/extra2d.h>
+#include <extra2d/platform/platform_compat.h>
+
+#ifdef PLATFORM_SWITCH
 #include <switch.h>
+#endif
 
 using namespace extra2d;
 
@@ -13,9 +17,9 @@ using namespace extra2d;
  */
 static std::vector<std::string> getFontCandidates() {
   return {
-      "romfs:/assets/font.ttf",     // 微软雅黑（中文支持）
-      "romfs:/assets/Gasinamu.ttf", // 备选字体
-      "romfs:/assets/default.ttf",  // 默认字体
+      FileSystem::resolvePath("font.ttf"),     // 微软雅黑（中文支持）
+      FileSystem::resolvePath("Gasinamu.ttf"), // 备选字体
+      FileSystem::resolvePath("default.ttf"),  // 默认字体
   };
 }
 
@@ -78,12 +82,23 @@ public:
   void onUpdate(float dt) override {
     Scene::onUpdate(dt);
 
-    // 检查退出按键（START 按钮）
+    // 检查退出按键
     auto &input = Application::instance().input();
+
+#ifdef PLATFORM_SWITCH
+    // Switch: 使用手柄 START 按钮
     if (input.isButtonPressed(SDL_CONTROLLER_BUTTON_START)) {
-      E2D_LOG_INFO("退出应用");
+      E2D_LOG_INFO("退出应用 (START 按钮)");
       Application::instance().quit();
     }
+#else
+    // PC: 支持 ESC 键或手柄 START 按钮
+    if (input.isKeyPressed(Key::Escape) ||
+        input.isButtonPressed(SDL_CONTROLLER_BUTTON_START)) {
+      E2D_LOG_INFO("退出应用 (ESC 键或 START 按钮)");
+      Application::instance().quit();
+    }
+#endif
   }
 
   /**
@@ -107,8 +122,13 @@ public:
 
     // 绘制提示文字（黄色）
     Color yellow(1.0f, 1.0f, 0.0f, 1.0f);
+#ifdef PLATFORM_SWITCH
     renderer.drawText(*font_, "退出按键（START 按钮）",
                       Vec2(centerX - 80.0f, centerY + 50.0f), yellow);
+#else
+    renderer.drawText(*font_, "退出按键（ESC 或 START 按钮）",
+                      Vec2(centerX - 80.0f, centerY + 50.0f), yellow);
+#endif
   }
 
 private:
@@ -130,13 +150,25 @@ static AppConfig createAppConfig() {
   config.height = 720;
   config.vsync = true;
   config.fpsLimit = 60;
+
+#ifdef PLATFORM_PC
+  // PC 端默认窗口模式
+  config.fullscreen = false;
+  config.resizable = true;
+#endif
+
   return config;
 }
 
 /**
  * @brief 程序入口
  */
-extern "C" int main(int argc, char *argv[]) {
+#ifdef _WIN32
+int main(int argc, char *argv[])
+#else
+extern "C" int main(int argc, char *argv[])
+#endif
+{
   (void)argc;
   (void)argv;
 
@@ -146,6 +178,7 @@ extern "C" int main(int argc, char *argv[]) {
 
   E2D_LOG_INFO("========================");
   E2D_LOG_INFO("Easy2D Hello World Demo");
+  E2D_LOG_INFO("Platform: {}", platform::getPlatformName());
   E2D_LOG_INFO("========================");
 
   // 获取应用实例

@@ -10,9 +10,15 @@
 namespace extra2d {
 
 Window::Window()
-    : sdlWindow_(nullptr), glContext_(nullptr), width_(1280), height_(720),
-      vsync_(true), shouldClose_(false), userData_(nullptr),
-      eventQueue_(nullptr) {}
+    : sdlWindow_(nullptr), glContext_(nullptr), currentCursor_(nullptr),
+      width_(1280), height_(720), vsync_(true), shouldClose_(false),
+      fullscreen_(true), focused_(true), contentScaleX_(1.0f), contentScaleY_(1.0f),
+      userData_(nullptr), eventQueue_(nullptr) {
+    // 初始化光标数组
+    for (int i = 0; i < 9; ++i) {
+        sdlCursors_[i] = nullptr;
+    }
+}
 
 Window::~Window() { destroy(); }
 
@@ -22,12 +28,13 @@ bool Window::create(const WindowConfig &config) {
     return false;
   }
 
-  width_ = 1280; // Switch 固定分辨率
-  height_ = 720;
+  width_ = config.width;
+  height_ = config.height;
   vsync_ = config.vsync;
+  fullscreen_ = config.fullscreen;
 
   // 初始化 SDL2 + 创建窗口 + GL 上下文
-  if (!initSDL()) {
+  if (!initSDL(config)) {
     E2D_LOG_ERROR("Failed to initialize SDL2");
     return false;
   }
@@ -36,14 +43,19 @@ bool Window::create(const WindowConfig &config) {
   input_ = makeUnique<Input>();
   input_->init();
 
-  E2D_LOG_INFO("Window created: {}x{}", width_, height_);
+  // PC 端初始化光标
+#ifdef PLATFORM_PC
+  initCursors();
+#endif
+
+  E2D_LOG_INFO("Window created: {}x{} (Platform: {})", 
+               width_, height_, platform::getPlatformName());
   return true;
 }
 
-bool Window::initSDL() {
+bool Window::initSDL(const WindowConfig &config) {
   // SDL2 全局初始化（视频 + 游戏控制器 + 音频）
-  if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_AUDIO) !=
-      0) {
+  if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_AUDIO) != 0) {
     E2D_LOG_ERROR("SDL_Init failed: {}", SDL_GetError());
     return false;
   }
@@ -61,11 +73,36 @@ bool Window::initSDL() {
   SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
   SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
 
-  // 创建 SDL2 窗口（Switch 全屏）
-  Uint32 windowFlags = SDL_WINDOW_OPENGL | SDL_WINDOW_FULLSCREEN;
-  sdlWindow_ =
-      SDL_CreateWindow("Easy2D", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-                       width_, height_, windowFlags);
+  // 双缓冲
+  SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+
+  // 创建 SDL2 窗口
+  Uint32 windowFlags = SDL_WINDOW_OPENGL;
+  
+#ifdef PLATFORM_SWITCH
+  // Switch 始终全屏
+  windowFlags |= SDL_WINDOW_FULLSCREEN;
+  width_ = 1280;
+  height_ = 720;
+#else
+  // PC 端根据配置设置
+  if (config.fullscreen) {
+    windowFlags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+  } else {
+    if (config.resizable) {
+      windowFlags |= SDL_WINDOW_RESIZABLE;
+    }
+    // 注意：SDL_WINDOWPOS_CENTERED 是位置参数，不是窗口标志
+    // 窗口居中在 SDL_CreateWindow 的位置参数中处理
+  }
+#endif
+
+  sdlWindow_ = SDL_CreateWindow(
+      config.title.c_str(),
+      config.centerWindow ? SDL_WINDOWPOS_CENTERED : SDL_WINDOWPOS_UNDEFINED,
+      config.centerWindow ? SDL_WINDOWPOS_CENTERED : SDL_WINDOWPOS_UNDEFINED,
+      width_, height_, windowFlags);
+      
   if (!sdlWindow_) {
     E2D_LOG_ERROR("SDL_CreateWindow failed: {}", SDL_GetError());
     SDL_Quit();
@@ -92,8 +129,8 @@ bool Window::initSDL() {
     return false;
   }
 
-  if (gladLoadGLES2Loader(reinterpret_cast<GLADloadproc>(SDL_GL_GetProcAddress)) ==
-      0) {
+  // 加载 OpenGL ES 函数指针
+  if (gladLoadGLES2Loader(reinterpret_cast<GLADloadproc>(SDL_GL_GetProcAddress)) == 0) {
     E2D_LOG_ERROR("gladLoadGLES2Loader failed");
     SDL_GL_DeleteContext(glContext_);
     glContext_ = nullptr;
@@ -106,11 +143,23 @@ bool Window::initSDL() {
   // 设置 VSync
   SDL_GL_SetSwapInterval(vsync_ ? 1 : 0);
 
-  E2D_LOG_INFO("SDL2 + GLES 3.2 (glad) initialized successfully");
+  // PC 端更新 DPI 缩放
+#ifndef PLATFORM_SWITCH
+  updateContentScale();
+#endif
+
+  E2D_LOG_INFO("SDL2 + GLES 3.2 initialized successfully");
+  E2D_LOG_INFO("OpenGL Version: {}",
+               reinterpret_cast<const char *>(glGetString(GL_VERSION)));
+  E2D_LOG_INFO("OpenGL Renderer: {}",
+               reinterpret_cast<const char *>(glGetString(GL_RENDERER)));
+
   return true;
 }
 
 void Window::deinitSDL() {
+  deinitCursors();
+  
   if (glContext_) {
     SDL_GL_DeleteContext(glContext_);
     glContext_ = nullptr;
@@ -147,18 +196,24 @@ void Window::pollEvents() {
     case SDL_WINDOWEVENT:
       switch (event.window.event) {
       case SDL_WINDOWEVENT_RESIZED:
+      case SDL_WINDOWEVENT_SIZE_CHANGED:
         width_ = event.window.data1;
         height_ = event.window.data2;
+#ifndef PLATFORM_SWITCH
+        updateContentScale();
+#endif
         if (resizeCallback_) {
           resizeCallback_(width_, height_);
         }
         break;
       case SDL_WINDOWEVENT_FOCUS_GAINED:
+        focused_ = true;
         if (focusCallback_) {
           focusCallback_(true);
         }
         break;
       case SDL_WINDOWEVENT_FOCUS_LOST:
+        focused_ = false;
         if (focusCallback_) {
           focusCallback_(false);
         }
@@ -184,20 +239,50 @@ bool Window::shouldClose() const { return shouldClose_; }
 
 void Window::setShouldClose(bool close) { shouldClose_ = close; }
 
-void Window::setTitle(const String & /*title*/) {
-  // Switch 无窗口标题
+void Window::setTitle(const String &title) {
+#ifdef PLATFORM_PC
+  if (sdlWindow_) {
+    SDL_SetWindowTitle(sdlWindow_, title.c_str());
+  }
+#else
+  (void)title;
+#endif
 }
 
-void Window::setSize(int /*width*/, int /*height*/) {
-  // Switch 固定 1280x720
+void Window::setSize(int width, int height) {
+#ifdef PLATFORM_PC
+  if (sdlWindow_) {
+    SDL_SetWindowSize(sdlWindow_, width, height);
+    width_ = width;
+    height_ = height;
+  }
+#else
+  (void)width;
+  (void)height;
+#endif
 }
 
-void Window::setPosition(int /*x*/, int /*y*/) {
-  // Switch 无窗口位置
+void Window::setPosition(int x, int y) {
+#ifdef PLATFORM_PC
+  if (sdlWindow_) {
+    SDL_SetWindowPosition(sdlWindow_, x, y);
+  }
+#else
+  (void)x;
+  (void)y;
+#endif
 }
 
-void Window::setFullscreen(bool /*fullscreen*/) {
-  // Switch 始终全屏
+void Window::setFullscreen(bool fullscreen) {
+#ifdef PLATFORM_PC
+  if (sdlWindow_) {
+    Uint32 flags = fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0;
+    SDL_SetWindowFullscreen(sdlWindow_, flags);
+    fullscreen_ = fullscreen;
+  }
+#else
+  (void)fullscreen;
+#endif
 }
 
 void Window::setVSync(bool enabled) {
@@ -205,16 +290,135 @@ void Window::setVSync(bool enabled) {
   SDL_GL_SetSwapInterval(enabled ? 1 : 0);
 }
 
-void Window::setResizable(bool /*resizable*/) {
-  // Switch 不支持
+void Window::setResizable(bool resizable) {
+#ifdef PLATFORM_PC
+  if (sdlWindow_) {
+    SDL_SetWindowResizable(sdlWindow_, resizable ? SDL_TRUE : SDL_FALSE);
+  }
+#else
+  (void)resizable;
+#endif
 }
 
-void Window::setCursor(CursorShape /*shape*/) {
-  // Switch 无鼠标光标
+Vec2 Window::getPosition() const {
+#ifdef PLATFORM_PC
+  if (sdlWindow_) {
+    int x, y;
+    SDL_GetWindowPosition(sdlWindow_, &x, &y);
+    return Vec2(static_cast<float>(x), static_cast<float>(y));
+  }
+#endif
+  return Vec2::Zero();
+}
+
+float Window::getContentScaleX() const {
+#ifdef PLATFORM_SWITCH
+  return 1.0f;
+#else
+  return contentScaleX_;
+#endif
+}
+
+float Window::getContentScaleY() const {
+#ifdef PLATFORM_SWITCH
+  return 1.0f;
+#else
+  return contentScaleY_;
+#endif
+}
+
+Vec2 Window::getContentScale() const {
+  return Vec2(getContentScaleX(), getContentScaleY());
+}
+
+bool Window::isMinimized() const {
+#ifdef PLATFORM_PC
+  if (sdlWindow_) {
+    Uint32 flags = SDL_GetWindowFlags(sdlWindow_);
+    return (flags & SDL_WINDOW_MINIMIZED) != 0;
+  }
+#endif
+  return false;
+}
+
+bool Window::isMaximized() const {
+#ifdef PLATFORM_PC
+  if (sdlWindow_) {
+    Uint32 flags = SDL_GetWindowFlags(sdlWindow_);
+    return (flags & SDL_WINDOW_MAXIMIZED) != 0;
+  }
+#endif
+  return true;
+}
+
+void Window::initCursors() {
+#ifdef PLATFORM_PC
+  sdlCursors_[0] = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW);
+  sdlCursors_[1] = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_IBEAM);
+  sdlCursors_[2] = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_CROSSHAIR);
+  sdlCursors_[3] = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_HAND);
+  sdlCursors_[4] = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZEWE);
+  sdlCursors_[5] = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZENS);
+  sdlCursors_[6] = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZEALL);
+  sdlCursors_[7] = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZENWSE);
+  sdlCursors_[8] = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZENESW);
+#endif
+}
+
+void Window::deinitCursors() {
+#ifdef PLATFORM_PC
+  for (int i = 0; i < 9; ++i) {
+    if (sdlCursors_[i]) {
+      SDL_FreeCursor(sdlCursors_[i]);
+      sdlCursors_[i] = nullptr;
+    }
+  }
+  currentCursor_ = nullptr;
+#endif
+}
+
+void Window::setCursor(CursorShape shape) {
+#ifdef PLATFORM_PC
+  int index = static_cast<int>(shape);
+  if (index >= 0 && index < 9 && sdlCursors_[index]) {
+    SDL_SetCursor(sdlCursors_[index]);
+    currentCursor_ = sdlCursors_[index];
+  }
+#else
+  (void)shape;
+#endif
 }
 
 void Window::resetCursor() {
-  // Switch 无鼠标光标
+#ifdef PLATFORM_PC
+  SDL_SetCursor(SDL_GetDefaultCursor());
+  currentCursor_ = nullptr;
+#endif
+}
+
+void Window::setMouseVisible(bool visible) {
+#ifdef PLATFORM_PC
+  SDL_ShowCursor(visible ? SDL_ENABLE : SDL_DISABLE);
+#else
+  (void)visible;
+#endif
+}
+
+void Window::updateContentScale() {
+#ifndef PLATFORM_SWITCH
+  if (sdlWindow_) {
+    // 使用 DPI 计算内容缩放比例
+    int displayIndex = SDL_GetWindowDisplayIndex(sdlWindow_);
+    if (displayIndex >= 0) {
+      float ddpi, hdpi, vdpi;
+      if (SDL_GetDisplayDPI(displayIndex, &ddpi, &hdpi, &vdpi) == 0) {
+        // 假设标准 DPI 为 96
+        contentScaleX_ = hdpi / 96.0f;
+        contentScaleY_ = vdpi / 96.0f;
+      }
+    }
+  }
+#endif
 }
 
 } // namespace extra2d
