@@ -1,12 +1,12 @@
 -- ==============================================
--- Easy2D for Nintendo Switch - Xmake Build Script
--- Purpose: Build Easy2D static library and Switch demo programs
+-- Extra2D for Nintendo Switch - Xmake Build Script
+-- Purpose: Build Extra2D static library and Switch demo programs
 -- Platform: Nintendo Switch (ARM64)
 -- Graphics: Desktop OpenGL 3.3+ via Mesa EGL
 -- Audio: SDL2_mixer
 -- ==============================================
 
-set_project("Easy2D")
+set_project("Extra2D")
 set_version("3.1.0")
 set_languages("c++17")
 set_encodings("utf-8")
@@ -57,13 +57,13 @@ toolchain("switch")
     add_syslinks("nx", "m")
 
 -- 核心路径定义
-local SRC_DIR = "Easy2D/src"
-local INC_DIR = "Easy2D/include"
+local SRC_DIR = "Extra2D/src"
+local INC_DIR = "Extra2D/include"
 
 -- ==============================================
--- 1. Easy2D 静态库 (Switch 专用)
+-- 1. Extra2D 静态库 (Switch 专用)
 -- ==============================================
-target("easy2d")
+target("extra2d")
     set_kind("static")
     set_plat("switch")
     set_arch("arm64")
@@ -106,7 +106,7 @@ target("easy2d")
     -- add_files(path.join(INC_DIR, "pfd/pfd_switch.cpp"))
 
     -- 添加 Switch 兼容性头文件路径
-    add_includedirs(path.join(INC_DIR, "easy2d/platform"), {public = true})
+    add_includedirs(path.join(INC_DIR, "extra2d/platform"), {public = true})
 
     -- Switch 特定编译标志
     -- 注意：Squirrel 脚本绑定使用 dynamic_cast，需要 RTTI 支持
@@ -122,7 +122,7 @@ target("easy2d")
     -- ==============================================
     -- 头文件安装配置
     -- ==============================================
-    add_headerfiles(path.join(INC_DIR, "easy2d/**.h"), {prefixdir = "easy2d"})
+    add_headerfiles(path.join(INC_DIR, "extra2d/**.h"), {prefixdir = "extra2d"})
     -- 使用 devkitPro 的 switch-glm 替代项目自带的 GLM
     -- add_headerfiles(path.join(INC_DIR, "glm/**.hpp"), {prefixdir = "glm"})
     add_headerfiles(path.join(INC_DIR, "stb/**.h"), {prefixdir = "stb"})
@@ -149,8 +149,8 @@ target("switch_audio_demo")
     set_arch("arm64")
     set_toolchains("switch")
     
-    add_files("Easy2D/examples/push_box/src/**.cpp")
-    add_deps("easy2d")
+    add_files("Extra2D/examples/push_box/src/**.cpp")
+    add_deps("extra2d")
     set_targetdir("$(builddir)/switch")
     
     -- 链接 EGL、OpenGL ES 3.0 和 SDL2 音频库
@@ -160,8 +160,8 @@ target("switch_audio_demo")
                  "opusfile", "opus", "vorbisidec", "ogg",
                  "modplug", "mpg123", "FLAC")
 
-    local appTitle = "Easy2D Switch Audio Demo"
-    local appAuthor = "Easy2D Switch Audio Demo"
+    local appTitle = "Extra2D Switch Audio Demo"
+    local appAuthor = "Extra2D Switch Audio Demo"
     local appVersion = "1.0.0"
     
     after_build(function (target)
@@ -171,7 +171,7 @@ target("switch_audio_demo")
         local output_dir = path.directory(elf_file)
         local nacp_file = path.join(output_dir, "switch_audio_demo.nacp")
         local nro_file = path.join(output_dir, "switch_audio_demo.nro")
-        local romfs_dir = "Easy2D/examples/push_box/src/romfs"
+        local romfs_dir = "Extra2D/examples/push_box/src/romfs"
         local nacptool = path.join(devkitPro, "tools/bin/nacptool.exe")
         local elf2nro = path.join(devkitPro, "tools/bin/elf2nro.exe")
 
@@ -209,18 +209,18 @@ target("switch_simple_test")
     set_targetdir("build/switch")
     
     -- 应用信息
-    local appTitle = "Easy2D Simple Test"
-    local appAuthor = "Easy2D Team"
+    local appTitle = "Extra2D Simple Test"
+    local appAuthor = "Extra2D Team"
     local appVersion = "1.0.0"
     
     -- 添加源文件
-    add_files("Easy2D/examples/switch_simple_test/main.cpp")
+    add_files("Extra2D/examples/switch_simple_test/main.cpp")
     
     -- 添加头文件路径
-    add_includedirs("Easy2D/include")
+    add_includedirs("Extra2D/include")
     
-    -- 链接 easy2d 库
-    add_deps("easy2d")
+    -- 链接 extra2d 库
+    add_deps("extra2d")
     
 
     -- 构建后生成 .nro 文件（包含 RomFS）
@@ -230,7 +230,7 @@ target("switch_simple_test")
         local output_dir = path.directory(elf_file)
         local nacp_file = path.join(output_dir, "switch_simple_test.nacp")
         local nro_file = path.join(output_dir, "switch_simple_test.nro")
-        local romfs_dir = "Easy2D/examples/switch_simple_test/romfs"
+        local romfs_dir = "Extra2D/examples/switch_simple_test/romfs"
         local nacptool = path.join(devkitPro, "tools/bin/nacptool.exe")
         local elf2nro = path.join(devkitPro, "tools/bin/elf2nro.exe")
         
