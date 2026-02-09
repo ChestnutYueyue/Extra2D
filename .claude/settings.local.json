@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs:*)",
+      "Bash(wc -l \"C:\\\\Users\\\\soulcoco\\\\Desktop\\\\Easy2D\\\\Easy2D-dev\\\\Easy2D\\\\src\"/**/*.cpp)",
+      "Bash(wc -l:*)"
+    ]
+  }
+}
