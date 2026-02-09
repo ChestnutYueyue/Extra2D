@@ -13,6 +13,23 @@ set_encodings("utf-8")
 add_rules("mode.debug", "mode.release")
 
 -- ==============================================
+-- 平台检测
+-- ==============================================
+local is_switch = is_plat("switch")
+local is_mingw = is_plat("mingw")
+local is_windows = is_plat("windows")
+local is_pc = is_mingw or is_windows
+
+-- ==============================================
+-- PC 平台依赖包 (使用 xmake 包管理)
+-- ==============================================
+if is_pc then
+    -- 使用 xmake 包管理安装 SDL2 和 SDL2_mixer
+    -- 包名在 xmake-repo 中为 libsdl2 和 libsdl2_mixer
+    add_requires("libsdl2")
+end
+
+-- ==============================================
 -- Nintendo Switch 工具链定义
 -- ==============================================
 toolchain("switch")
@@ -53,18 +70,38 @@ toolchain("switch")
     
     add_syslinks("nx", "m")
 
+-- ==============================================
+-- MinGW 工具链定义 (PC 版本)
+-- ==============================================
+toolchain("mingw")
+    set_kind("standalone")
+    set_description("MinGW-w64 toolchain for Windows")
+
+    -- 检测 MinGW 安装路径
+    local mingw_path = os.getenv("MINGW_PATH") or "C:/msys64/mingw64"
+    
+    -- 设置工具链路径
+    set_toolset("cc", path.join(mingw_path, "bin/gcc.exe"))
+    set_toolset("cxx", path.join(mingw_path, "bin/g++.exe"))
+    set_toolset("ld", path.join(mingw_path, "bin/g++.exe"))
+    set_toolset("ar", path.join(mingw_path, "bin/ar.exe"))
+    set_toolset("strip", path.join(mingw_path, "bin/strip.exe"))
+
+    -- 定义 PC 平台宏（用于替代 __SWITCH__）
+    add_defines("__PC_PLATFORM__", "__WINDOWS__", "_WINDOWS")
+    
+    -- SimpleIni 配置
+    add_defines("SI_NO_CONVERSION")
+
 -- 核心路径定义
 local SRC_DIR = "Extra2D/src"
 local INC_DIR = "Extra2D/include"
 
 -- ==============================================
--- 1. Extra2D 静态库 (Switch 专用)
+-- 1. Extra2D 静态库 (多平台支持)
 -- ==============================================
 target("extra2d")
     set_kind("static")
-    set_plat("switch")
-    set_arch("arm64")
-    set_toolchains("switch")
     set_basename(is_mode("debug") and "libeasy2dd" or "libeasy2d")
 
     -- 引擎源文件
@@ -82,34 +119,65 @@ target("extra2d")
     add_includedirs("squirrel/include", {public = true})
 
     -- ==============================================
-    -- Nintendo Switch 平台配置
+    -- 平台特定配置
     -- ==============================================
+    
+    if is_switch then
+        -- ==============================================
+        -- Nintendo Switch 平台配置
+        -- ==============================================
+        set_plat("switch")
+        set_arch("arm64")
+        set_toolchains("switch")
 
-    -- devkitPro mesa 路径（EGL + 桌面 OpenGL）
-    local devkitPro = "C:/devkitPro"
-    add_includedirs(path.join(devkitPro, "portlibs/switch/include"), {public = true})
-    add_linkdirs(path.join(devkitPro, "portlibs/switch/lib"))
+        -- devkitPro mesa 路径（EGL + 桌面 OpenGL）
+        local devkitPro = "C:/devkitPro"
+        add_includedirs(path.join(devkitPro, "portlibs/switch/include"), {public = true})
+        add_linkdirs(path.join(devkitPro, "portlibs/switch/lib"))
 
-    -- 使用系统 GLES3.2 头文件 (位于 devkitPro/portlibs/switch/include)
+        -- 使用系统 GLES3.2 头文件 (位于 devkitPro/portlibs/switch/include)
 
-    -- 链接 EGL、OpenGL ES 3.0（mesa）和 SDL2 音频
-    -- 注意：链接顺序很重要！被依赖的库必须放在后面
-    -- 依赖链：SDL2 -> EGL -> drm_nouveau
-    --          GLESv2 -> glapi -> drm_nouveau
-    add_syslinks("SDL2_mixer", "SDL2",
-                 "opusfile", "opus", "vorbisidec", "ogg",
-                 "modplug", "mpg123", "FLAC",
-                 "GLESv2",
-                 "EGL",
-                 "glapi",
-                 "drm_nouveau",
-                 {public = true})
+        -- 链接 EGL、OpenGL ES 3.0（mesa）和 SDL2 音频
+        -- 注意：链接顺序很重要！被依赖的库必须放在后面
+        -- 依赖链：SDL2 -> EGL -> drm_nouveau
+        --          GLESv2 -> glapi -> drm_nouveau
+        add_syslinks("SDL2_mixer", "SDL2",
+                     "opusfile", "opus", "vorbisidec", "ogg",
+                     "modplug", "mpg123", "FLAC",
+                     "GLESv2",
+                     "EGL",
+                     "glapi",
+                     "drm_nouveau",
+                     {public = true})
+
+        -- 添加 Switch 兼容性头文件路径
+        add_includedirs(path.join(INC_DIR, "extra2d/platform"), {public = true})
+
+    elseif is_pc then
+        -- ==============================================
+        -- PC 平台配置 (MinGW/Windows)
+        -- ==============================================
+        if is_mingw then
+            set_plat("mingw")
+            set_toolchains("mingw")
+        end
+        
+        -- 使用 xmake 包管理的 SDL2 和 SDL2_mixer
+        add_packages("libsdl2", {public = true})
+        
+        -- 链接 PC 平台的库
+        -- OpenGL
+        add_syslinks("opengl32", "glu32", {public = true})
+        
+        -- Windows 系统库
+        add_syslinks("winmm", "imm32", "version", "setupapi", "gdi32", "user32", "kernel32", "shell32", {public = true})
+        
+        -- 添加 PC 平台兼容性定义
+        add_includedirs(path.join(INC_DIR, "extra2d/platform"), {public = true})
+    end
 
     -- 注意：pfd (portable-file-dialogs) 暂时禁用，需要进一步修复
     -- add_files(path.join(INC_DIR, "pfd/pfd_switch.cpp"))
-
-    -- 添加 Switch 兼容性头文件路径
-    add_includedirs(path.join(INC_DIR, "extra2d/platform"), {public = true})
 
     -- Switch 特定编译标志
     -- 注意：Squirrel 脚本绑定使用 dynamic_cast，需要 RTTI 支持
@@ -118,9 +186,6 @@ target("extra2d")
     
     -- Squirrel 第三方库警告抑制
     add_cxflags("-Wno-deprecated-copy", "-Wno-strict-aliasing", "-Wno-implicit-fallthrough", "-Wno-class-memaccess", {force = true})
-
-    -- 使用 switch 工具链
-    set_toolchains("switch")
 
     -- ==============================================
     -- 头文件安装配置
@@ -142,6 +207,11 @@ target("extra2d")
         add_cxxflags("-O2", {force = true})
     end
 target_end()
+
+-- ==============================================
+-- Switch 示例程序目标
+-- ==============================================
+if is_switch then
 
 -- ============================================
 -- Switch 简单测试程序
@@ -228,6 +298,9 @@ target("spatial_index_demo")
 
     -- 链接 extra2d 库
     add_deps("extra2d")
+
+    -- 生成 map 文件用于调试
+    add_ldflags("-Wl,-Map=build/switch/spatial_index_demo.map", {force = true})
 
     -- 构建后生成 .nro 文件（包含 RomFS）
     after_build(function (target)
@@ -327,3 +400,140 @@ target("collision_demo")
         end
     end)
 target_end()
+
+-- ==============================================
+-- PC 示例程序目标 (MinGW)
+-- ==============================================
+elseif is_pc then
+
+-- ============================================
+-- PC 简单测试程序
+-- ============================================
+target("hello_world")
+    set_kind("binary")
+    if is_mingw then
+        set_plat("mingw")
+        set_toolchains("mingw")
+    end
+    set_targetdir("build/pc")
+    
+    -- 添加源文件
+    add_files("Extra2D/examples/hello_world/main.cpp")
+    
+    -- 添加头文件路径
+    add_includedirs("Extra2D/include")
+    
+    -- 链接 extra2d 库
+    add_deps("extra2d")
+    
+    -- 使用 xmake 包管理的 SDL2
+    add_packages("libsdl2")
+    
+    -- 复制资源文件到输出目录
+    after_build(function (target)
+        local output_dir = path.directory(target:targetfile())
+        local romfs_dir = "Extra2D/examples/hello_world/romfs"
+        
+        -- 创建 assets 目录并复制资源
+        local assets_dir = path.join(output_dir, "assets")
+        os.mkdir(assets_dir)
+        
+        local font_src = path.join(romfs_dir, "assets/font.ttf")
+        local font_dst = path.join(assets_dir, "font.ttf")
+        
+        if os.isfile(font_src) then
+            os.cp(font_src, font_dst)
+            print("Copied font to: " .. font_dst)
+        end
+        
+        print("Built " .. path.filename(target:targetfile()))
+    end)
+target_end()
+
+-- ============================================
+-- PC 空间索引演示
+-- ============================================
+target("spatial_index_demo")
+    set_kind("binary")
+    if is_mingw then
+        set_plat("mingw")
+        set_toolchains("mingw")
+    end
+    set_targetdir("build/pc")
+
+    -- 添加源文件
+    add_files("Extra2D/examples/spatial_index_demo/main.cpp")
+
+    -- 添加头文件路径
+    add_includedirs("Extra2D/include")
+
+    -- 链接 extra2d 库
+    add_deps("extra2d")
+    
+    -- 使用 xmake 包管理的 SDL2
+    add_packages("libsdl2")
+
+    -- 复制资源文件
+    after_build(function (target)
+        local output_dir = path.directory(target:targetfile())
+        local romfs_dir = "Extra2D/examples/spatial_index_demo/romfs"
+        
+        local assets_dir = path.join(output_dir, "assets")
+        os.mkdir(assets_dir)
+        
+        local font_src = path.join(romfs_dir, "assets/font.ttf")
+        local font_dst = path.join(assets_dir, "font.ttf")
+        
+        if os.isfile(font_src) then
+            os.cp(font_src, font_dst)
+            print("Copied font to: " .. font_dst)
+        end
+        
+        print("Built " .. path.filename(target:targetfile()))
+    end)
+target_end()
+
+-- ============================================
+-- PC 碰撞检测演示
+-- ============================================
+target("collision_demo")
+    set_kind("binary")
+    if is_mingw then
+        set_plat("mingw")
+        set_toolchains("mingw")
+    end
+    set_targetdir("build/pc")
+
+    -- 添加源文件
+    add_files("Extra2D/examples/collision_demo/main.cpp")
+
+    -- 添加头文件路径
+    add_includedirs("Extra2D/include")
+
+    -- 链接 extra2d 库
+    add_deps("extra2d")
+    
+    -- 使用 xmake 包管理的 SDL2
+    add_packages("libsdl2")
+
+    -- 复制资源文件
+    after_build(function (target)
+        local output_dir = path.directory(target:targetfile())
+        local romfs_dir = "Extra2D/examples/collision_demo/romfs"
+        
+        local assets_dir = path.join(output_dir, "assets")
+        os.mkdir(assets_dir)
+        
+        local font_src = path.join(romfs_dir, "assets/font.ttf")
+        local font_dst = path.join(assets_dir, "font.ttf")
+        
+        if os.isfile(font_src) then
+            os.cp(font_src, font_dst)
+            print("Copied font to: " .. font_dst)
+        end
+        
+        print("Built " .. path.filename(target:targetfile()))
+    end)
+target_end()
+
+end -- end of platform-specific targets

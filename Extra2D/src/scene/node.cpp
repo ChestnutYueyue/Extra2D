@@ -259,7 +259,9 @@ void Node::onAttachToScene(Scene *scene) {
 
 void Node::onDetachFromScene() {
   // 从场景的空间索引移除
-  if (spatialIndexed_ && scene_ && !lastSpatialBounds_.empty()) {
+  // 注意：即使 lastSpatialBounds_ 为空也要尝试移除，
+  // 因为节点可能通过其他方式被插入到空间索引中
+  if (spatialIndexed_ && scene_) {
     scene_->removeNodeFromSpatialIndex(this);
     lastSpatialBounds_ = Rect();
   }

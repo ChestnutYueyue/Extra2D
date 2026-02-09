@@ -125,7 +125,7 @@ private:
 
     // 使用后备字体加载功能
     std::vector<std::string> fontPaths = {
-        "romfs:/assets/font.ttf", // 备选字体
+        "romfs:/assets/font.ttf" // 备选字体
     };
 
     titleFont_ = resources.loadFontWithFallbacks(fontPaths, 60, true);
@@ -201,10 +201,10 @@ private:
                       Color(1.0f, 1.0f, 1.0f, 1.0f));
 
     // 绘制说明文字
-    renderer.drawText(*infoFont_, "蓝色方块旋转并检测碰撞",
-                      Vec2(50.0f, 80.0f), Color(0.8f, 0.8f, 0.8f, 1.0f));
-    renderer.drawText(*infoFont_, "红色 = 检测到碰撞",
-                      Vec2(50.0f, 105.0f), Color(1.0f, 0.5f, 0.5f, 1.0f));
+    renderer.drawText(*infoFont_, "蓝色方块旋转并检测碰撞", Vec2(50.0f, 80.0f),
+                      Color(0.8f, 0.8f, 0.8f, 1.0f));
+    renderer.drawText(*infoFont_, "红色 = 检测到碰撞", Vec2(50.0f, 105.0f),
+                      Color(1.0f, 0.5f, 0.5f, 1.0f));
 
     // 绘制碰撞统计
     std::stringstream ss;

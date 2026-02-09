@@ -13,7 +13,7 @@ using namespace extra2d;
  */
 static std::vector<std::string> getFontCandidates() {
   return {
-      "romfs:/assets/msjh.ttf",     // 微软雅黑（中文支持）
+      "romfs:/assets/font.ttf",     // 微软雅黑（中文支持）
       "romfs:/assets/Gasinamu.ttf", // 备选字体
       "romfs:/assets/default.ttf",  // 默认字体
   };
