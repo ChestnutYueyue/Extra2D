@@ -95,11 +95,16 @@ target("extra2d")
     -- 使用系统 GLES3.2 头文件 (位于 devkitPro/portlibs/switch/include)
 
     -- 链接 EGL、OpenGL ES 3.0（mesa）和 SDL2 音频
-    -- 注意：链接顺序很重要！SDL2 必须在 SDL2_mixer 之后
-    add_syslinks("GLESv2", "EGL", "glapi", "drm_nouveau", 
-                 "SDL2_mixer", "SDL2",
+    -- 注意：链接顺序很重要！被依赖的库必须放在后面
+    -- 依赖链：SDL2 -> EGL -> drm_nouveau
+    --          GLESv2 -> glapi -> drm_nouveau
+    add_syslinks("SDL2_mixer", "SDL2",
                  "opusfile", "opus", "vorbisidec", "ogg",
                  "modplug", "mpg123", "FLAC",
+                 "GLESv2",
+                 "EGL",
+                 "glapi",
+                 "drm_nouveau",
                  {public = true})
 
     -- 注意：pfd (portable-file-dialogs) 暂时禁用，需要进一步修复
@@ -154,11 +159,16 @@ target("switch_audio_demo")
     set_targetdir("$(builddir)/switch")
     
     -- 链接 EGL、OpenGL ES 3.0 和 SDL2 音频库
-    -- 注意：链接顺序很重要！SDL2 必须在 SDL2_mixer 之后
-    add_syslinks("GLESv2", "EGL", "glapi", "drm_nouveau", 
-                 "SDL2_mixer", "SDL2",
+    -- 注意：链接顺序很重要！被依赖的库必须放在后面
+    -- 依赖链：SDL2 -> EGL -> drm_nouveau
+    --          GLESv2 -> glapi -> drm_nouveau
+    add_syslinks("SDL2_mixer", "SDL2",
                  "opusfile", "opus", "vorbisidec", "ogg",
-                 "modplug", "mpg123", "FLAC")
+                 "modplug", "mpg123", "FLAC",
+                 "GLESv2",
+                 "EGL",
+                 "glapi",
+                 "drm_nouveau")
 
     local appTitle = "Extra2D Switch Audio Demo"
     local appAuthor = "Extra2D Switch Audio Demo"
