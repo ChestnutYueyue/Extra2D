@@ -156,23 +156,23 @@ public:
 
     // 检查退出按键
     auto &input = Application::instance().input();
-    if (input.isButtonPressed(SDL_CONTROLLER_BUTTON_START)) {
+    if (input.isButtonPressed(GamepadButton::Start)) {
       E2D_LOG_INFO("退出应用");
       Application::instance().quit();
     }
 
-    // 按A键添加节点
-    if (input.isButtonPressed(SDL_CONTROLLER_BUTTON_A)) {
+    // 按 A 键添加节点
+    if (input.isButtonPressed(GamepadButton::A)) {
       addNodes(100);
     }
 
-    // 按B键减少节点
-    if (input.isButtonPressed(SDL_CONTROLLER_BUTTON_B)) {
+    // 按 B 键减少节点
+    if (input.isButtonPressed(GamepadButton::B)) {
       removeNodes(100);
     }
 
-    // 按X键切换空间索引策略
-    if (input.isButtonPressed(SDL_CONTROLLER_BUTTON_X)) {
+    // 按 X 键切换空间索引策略
+    if (input.isButtonPressed(GamepadButton::X)) {
       toggleSpatialStrategy();
     }
   }

@@ -41,8 +41,8 @@ public:
     // 检查退出按键
     auto &input = Application::instance().input();
 
-    // Switch: 使用手柄 START 按钮
-    if (input.isButtonPressed(SDL_CONTROLLER_BUTTON_START)) {
+    // 使用手柄 START 按钮退出 (GamepadButton::Start)
+    if (input.isButtonPressed(GamepadButton::Start)) {
       E2D_LOG_INFO("退出应用 (START 按钮)");
       Application::instance().quit();
     }

@@ -122,21 +122,21 @@ void StartScene::onUpdate(float dt) {
     auto& input = app.input();
 
     // 方向键上下切换选择
-    if (input.isButtonPressed(SDL_CONTROLLER_BUTTON_DPAD_UP)) {
+    if (input.isButtonPressed(extra2d::GamepadButton::DPadUp)) {
         selectedIndex_ = (selectedIndex_ - 1 + menuCount_) % menuCount_;
         updateMenuColors();
-    } else if (input.isButtonPressed(SDL_CONTROLLER_BUTTON_DPAD_DOWN)) {
+    } else if (input.isButtonPressed(extra2d::GamepadButton::DPadDown)) {
         selectedIndex_ = (selectedIndex_ + 1) % menuCount_;
         updateMenuColors();
     }
 
     // A键确认
-    if (input.isButtonPressed(SDL_CONTROLLER_BUTTON_A)) {
+    if (input.isButtonPressed(extra2d::GamepadButton::A)) {
         executeMenuItem();
     }
 
-    // Y键切换音效
-    if (input.isButtonPressed(SDL_CONTROLLER_BUTTON_X)) {
+    // X键切换音效
+    if (input.isButtonPressed(extra2d::GamepadButton::X)) {
         g_SoundOpen = !g_SoundOpen;
         if (auto audio = getAudioController()) {
             audio->setEnabled(g_SoundOpen);
