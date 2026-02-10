@@ -115,6 +115,17 @@ public:
     E2D_LOG_INFO("空间索引已启用: {}", isSpatialIndexingEnabled());
   }
 
+  void onExit() override {
+    // 先清理 nodes_ 向量
+    nodes_.clear();
+
+    // 显式移除所有子节点，确保在场景析构前正确清理空间索引
+    // 这必须在 Scene::onExit() 之前调用，因为 onExit() 会将 running_ 设为 false
+    removeAllChildren();
+
+    Scene::onExit();
+  }
+
   void onUpdate(float dt) override {
     Scene::onUpdate(dt);
 

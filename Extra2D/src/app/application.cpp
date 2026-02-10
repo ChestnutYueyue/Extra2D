@@ -97,6 +97,7 @@ bool Application::init(const AppConfig &config) {
   winConfig.height = 720;
   if (platform == PlatformType::Switch) {
     winConfig.fullscreen = true;
+    winConfig.fullscreenDesktop = false;  // Switch 使用固定分辨率全屏
     winConfig.resizable = false;
     winConfig.enableCursors = false;
     winConfig.enableDpiScale = false;
@@ -169,6 +170,11 @@ void Application::shutdown() {
 
   // 打印 VRAM 统计
   VRAMManager::getInstance().printStats();
+
+  // 先结束所有场景，确保 onExit() 被正确调用
+  if (sceneManager_) {
+    sceneManager_->end();
+  }
 
   // 清理子系统
   sceneManager_.reset();

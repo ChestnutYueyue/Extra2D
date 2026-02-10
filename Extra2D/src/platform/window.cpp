@@ -81,7 +81,13 @@ bool Window::initSDL(const WindowConfig &config) {
   
   // 根据配置设置窗口模式
   if (config.fullscreen) {
-    windowFlags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+    // Switch 平台使用 SDL_WINDOW_FULLSCREEN（固定分辨率）
+    // PC 平台使用 SDL_WINDOW_FULLSCREEN_DESKTOP（桌面全屏）
+    if (config.fullscreenDesktop) {
+      windowFlags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+    } else {
+      windowFlags |= SDL_WINDOW_FULLSCREEN;
+    }
   } else {
     if (config.resizable) {
       windowFlags |= SDL_WINDOW_RESIZABLE;
@@ -252,6 +258,7 @@ void Window::setPosition(int x, int y) {
 
 void Window::setFullscreen(bool fullscreen) {
   if (sdlWindow_) {
+    // 默认使用桌面全屏模式（PC 平台）
     Uint32 flags = fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0;
     SDL_SetWindowFullscreen(sdlWindow_, flags);
     fullscreen_ = fullscreen;

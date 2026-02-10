@@ -3,10 +3,6 @@
 -- 支持平台: MinGW (Windows), Nintendo Switch
 -- ==============================================
 
--- 获取当前平台
-local host_plat = os.host()
-local target_plat = get_config("plat") or host_plat
-
 -- 获取当前脚本所在目录（示例根目录）
 local example_dir = os.scriptdir()
 
@@ -17,7 +13,8 @@ target("spatial_index_demo")
     add_includedirs("../../Extra2D/include")
     add_deps("extra2d")
 
-    if target_plat == "switch" then
+    -- 使用与主项目相同的平台配置
+    if is_plat("switch") then
         set_plat("switch")
         set_arch("arm64")
         set_toolchains("switch")
@@ -43,7 +40,7 @@ target("spatial_index_demo")
             end
         end)
 
-    elseif target_plat == "mingw" then
+    elseif is_plat("mingw") then
         set_plat("mingw")
         set_arch("x86_64")
         set_targetdir("../../build/examples/spatial_index_demo")

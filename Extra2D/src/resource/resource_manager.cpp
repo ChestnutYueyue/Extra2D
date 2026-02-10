@@ -7,6 +7,11 @@
 #include <extra2d/utils/logger.h>
 #include <sys/stat.h>
 
+// Windows 平台需要包含的头文件
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 namespace extra2d {
 
 // 辅助函数：检查文件是否存在
@@ -20,7 +25,23 @@ static bool isRomfsPath(const std::string &path) {
   return path.find("romfs:/") == 0 || path.find("romfs:\\") == 0;
 }
 
-// 解析资源路径（优先尝试 romfs:/ 前缀，然后 sdmc:/）
+// 辅助函数：获取可执行文件所在目录（Windows 平台）
+#ifdef _WIN32
+static std::string getExecutableDirectory() {
+  char buffer[MAX_PATH];
+  DWORD len = GetModuleFileNameA(NULL, buffer, MAX_PATH);
+  if (len > 0 && len < MAX_PATH) {
+    std::string exePath(buffer, len);
+    size_t lastSlash = exePath.find_last_of("\\/");
+    if (lastSlash != std::string::npos) {
+      return exePath.substr(0, lastSlash);
+    }
+  }
+  return "";
+}
+#endif
+
+// 解析资源路径（优先尝试 romfs:/ 前缀，然后 sdmc:/，最后尝试相对于可执行文件的路径）
 static std::string resolveResourcePath(const std::string &filepath) {
   // 如果已经是 romfs 或 sdmc 路径，直接返回
   if (isRomfsPath(filepath) || filepath.find("sdmc:/") == 0) {
@@ -43,6 +64,17 @@ static std::string resolveResourcePath(const std::string &filepath) {
   if (fileExists(filepath)) {
     return filepath;
   }
+
+  // Windows 平台：尝试相对于可执行文件的路径
+#ifdef _WIN32
+  std::string exeDir = getExecutableDirectory();
+  if (!exeDir.empty()) {
+    std::string exeRelativePath = exeDir + "/" + filepath;
+    if (fileExists(exeRelativePath)) {
+      return exeRelativePath;
+    }
+  }
+#endif
 
   return "";
 }

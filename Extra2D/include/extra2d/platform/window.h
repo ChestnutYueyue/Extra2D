@@ -27,6 +27,7 @@ struct WindowConfig {
     bool centerWindow = true;
     bool enableCursors = true;
     bool enableDpiScale = true;
+    bool fullscreenDesktop = true;  // true: SDL_WINDOW_FULLSCREEN_DESKTOP, false: SDL_WINDOW_FULLSCREEN
 };
 
 // ============================================================================
