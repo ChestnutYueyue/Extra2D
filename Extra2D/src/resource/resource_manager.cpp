@@ -9,50 +9,6 @@
 
 namespace extra2d {
 
-ResourceManager::ResourceManager() {
-#ifdef __SWITCH__
-  addSearchPath("romfs:/");
-  addSearchPath("sdmc:/");
-#endif
-}
-ResourceManager::~ResourceManager() = default;
-
-ResourceManager &ResourceManager::getInstance() {
-  static ResourceManager instance;
-  return instance;
-}
-
-// ============================================================================
-// 搜索路径管理
-// ============================================================================
-
-void ResourceManager::addSearchPath(const std::string &path) {
-  std::lock_guard<std::mutex> lock(textureMutex_);
-
-  // 避免重复添加
-  auto it = std::find(searchPaths_.begin(), searchPaths_.end(), path);
-  if (it == searchPaths_.end()) {
-    searchPaths_.push_back(path);
-    E2D_LOG_DEBUG("ResourceManager: added search path: {}", path);
-  }
-}
-
-void ResourceManager::removeSearchPath(const std::string &path) {
-  std::lock_guard<std::mutex> lock(textureMutex_);
-
-  auto it = std::find(searchPaths_.begin(), searchPaths_.end(), path);
-  if (it != searchPaths_.end()) {
-    searchPaths_.erase(it);
-    E2D_LOG_DEBUG("ResourceManager: removed search path: {}", path);
-  }
-}
-
-void ResourceManager::clearSearchPaths() {
-  std::lock_guard<std::mutex> lock(textureMutex_);
-  searchPaths_.clear();
-  E2D_LOG_DEBUG("ResourceManager: cleared all search paths");
-}
-
 // 辅助函数：检查文件是否存在
 static bool fileExists(const std::string &path) {
   struct stat st;
@@ -64,49 +20,39 @@ static bool isRomfsPath(const std::string &path) {
   return path.find("romfs:/") == 0 || path.find("romfs:\\") == 0;
 }
 
-// 辅助函数：拼接路径
-static std::string joinPath(const std::string &dir,
-                            const std::string &filename) {
-  if (dir.empty())
-    return filename;
-  char lastChar = dir.back();
-  if (lastChar == '/' || lastChar == '\\') {
-    return dir + filename;
-  }
-  return dir + "/" + filename;
-}
-
-std::string
-ResourceManager::findResourcePath(const std::string &filename) const {
-  // 首先检查是否是 romfs 路径（Switch 平台）
-  if (isRomfsPath(filename)) {
-    if (fileExists(filename)) {
-      return filename;
-    }
-    return "";
+// 解析资源路径（优先尝试 romfs:/ 前缀，然后 sdmc:/）
+static std::string resolveResourcePath(const std::string &filepath) {
+  // 如果已经是 romfs 或 sdmc 路径，直接返回
+  if (isRomfsPath(filepath) || filepath.find("sdmc:/") == 0) {
+    return filepath;
   }
 
-  // 首先检查是否是绝对路径或相对当前目录存在
-  if (fileExists(filename)) {
-    return filename;
-  }
-
-  // 在搜索路径中查找
-  std::lock_guard<std::mutex> lock(textureMutex_);
-  for (const auto &path : searchPaths_) {
-    std::string fullPath = joinPath(path, filename);
-    if (fileExists(fullPath)) {
-      return fullPath;
-    }
-  }
-
-  // 最后尝试在 romfs 中查找（自动添加 romfs:/ 前缀）
-  std::string romfsPath = "romfs:/" + filename;
+  // 优先尝试 romfs:/ 前缀的路径（Switch 平台）
+  std::string romfsPath = "romfs:/" + filepath;
   if (fileExists(romfsPath)) {
     return romfsPath;
   }
 
+  // 尝试 sdmc:/ 前缀的路径（Switch SD卡）
+  std::string sdmcPath = "sdmc:/" + filepath;
+  if (fileExists(sdmcPath)) {
+    return sdmcPath;
+  }
+
+  // 如果都不存在，尝试原路径
+  if (fileExists(filepath)) {
+    return filepath;
+  }
+
   return "";
+}
+
+ResourceManager::ResourceManager() = default;
+ResourceManager::~ResourceManager() = default;
+
+ResourceManager &ResourceManager::getInstance() {
+  static ResourceManager instance;
+  return instance;
 }
 
 // ============================================================================
@@ -127,14 +73,14 @@ Ptr<Texture> ResourceManager::loadTexture(const std::string &filepath) {
     textureCache_.erase(it);
   }
 
-  // 查找完整路径
-  std::string fullPath = findResourcePath(filepath);
+  // 解析资源路径（优先尝试 romfs:/ 前缀）
+  std::string fullPath = resolveResourcePath(filepath);
   if (fullPath.empty()) {
     E2D_LOG_ERROR("ResourceManager: texture file not found: {}", filepath);
     return nullptr;
   }
 
-  // 创建新纹理（根据扩展名自动选择加载路径）
+  // 创建新纹理
   try {
     auto texture = makePtr<GLTexture>(fullPath);
     if (!texture->isValid()) {
@@ -261,8 +207,8 @@ Ptr<FontAtlas> ResourceManager::loadFont(const std::string &filepath,
     fontCache_.erase(it);
   }
 
-  // 查找完整路径
-  std::string fullPath = findResourcePath(filepath);
+  // 解析资源路径（优先尝试 romfs:/ 前缀）
+  std::string fullPath = resolveResourcePath(filepath);
   if (fullPath.empty()) {
     E2D_LOG_ERROR("ResourceManager: font file not found: {}", filepath);
     return nullptr;
@@ -314,92 +260,6 @@ void ResourceManager::unloadFont(const std::string &key) {
 }
 
 // ============================================================================
-// 多字体后备加载
-// ============================================================================
-
-Ptr<FontAtlas> ResourceManager::loadFontWithFallbacks(
-    const std::vector<std::string> &fontPaths, int fontSize, bool useSDF) {
-
-  // 尝试加载每一个候选字体
-  for (const auto &fontPath : fontPaths) {
-    auto font = loadFont(fontPath, fontSize, useSDF);
-    if (font) {
-      E2D_LOG_INFO("ResourceManager: successfully loaded font from fallback list: {}",
-                   fontPath);
-      return font;
-    }
-  }
-
-  E2D_LOG_ERROR("ResourceManager: failed to load any font from fallback list ({} candidates)",
-                fontPaths.size());
-  return nullptr;
-}
-
-Ptr<FontAtlas> ResourceManager::loadFontWithDefaultFallback(
-    const std::string &filepath, int fontSize, bool useSDF) {
-
-  // 首先尝试加载用户指定的字体
-  auto font = loadFont(filepath, fontSize, useSDF);
-  if (font) {
-    return font;
-  }
-
-  E2D_LOG_WARN("ResourceManager: failed to load font '{}', trying system fallbacks...",
-               filepath);
-
-  // 定义系统默认字体候选列表
-  std::vector<std::string> fallbackFonts;
-
-#ifdef __SWITCH__
-  // Switch 平台默认字体路径
-  fallbackFonts = {
-      "romfs:/assets/font.ttf",       // 应用自带字体
-      "romfs:/assets/default.ttf",    // 默认字体备选
-      "romfs:/font.ttf",              // 根目录字体
-      "sdmc:/switch/fonts/default.ttf", // SD卡字体目录
-      "sdmc:/switch/fonts/font.ttf",
-  };
-#else
-  // PC 平台系统字体路径（Windows/Linux/macOS）
-#ifdef _WIN32
-  fallbackFonts = {
-      "C:/Windows/Fonts/arial.ttf",
-      "C:/Windows/Fonts/segoeui.ttf",
-      "C:/Windows/Fonts/calibri.ttf",
-      "C:/Windows/Fonts/tahoma.ttf",
-      "C:/Windows/Fonts/msyh.ttc",  // 微软雅黑
-  };
-#elif __APPLE__
-  fallbackFonts = {
-      "/System/Library/Fonts/Helvetica.ttc",
-      "/System/Library/Fonts/SFNSDisplay.ttf",
-      "/Library/Fonts/Arial.ttf",
-  };
-#else
-  // Linux
-  fallbackFonts = {
-      "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-      "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
-      "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
-      "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
-  };
-#endif
-#endif
-
-  // 尝试加载后备字体
-  for (const auto &fallbackPath : fallbackFonts) {
-    font = loadFont(fallbackPath, fontSize, useSDF);
-    if (font) {
-      E2D_LOG_INFO("ResourceManager: loaded fallback font: {}", fallbackPath);
-      return font;
-    }
-  }
-
-  E2D_LOG_ERROR("ResourceManager: all font fallbacks exhausted, no font available");
-  return nullptr;
-}
-
-// ============================================================================
 // 音效资源
 // ============================================================================
 
@@ -422,8 +282,8 @@ Ptr<Sound> ResourceManager::loadSound(const std::string &name,
     soundCache_.erase(it);
   }
 
-  // 查找完整路径
-  std::string fullPath = findResourcePath(filepath);
+  // 解析资源路径（优先尝试 romfs:/ 前缀）
+  std::string fullPath = resolveResourcePath(filepath);
   if (fullPath.empty()) {
     E2D_LOG_ERROR("ResourceManager: sound file not found: {}", filepath);
     return nullptr;

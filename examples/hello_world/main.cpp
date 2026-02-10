@@ -85,7 +85,6 @@ int main(int argc, char **argv)
 
   E2D_LOG_INFO("========================");
   E2D_LOG_INFO("Easy2D Hello World Demo");
-  E2D_LOG_INFO("Platform: {}", platform::getPlatformName());
   E2D_LOG_INFO("========================");
 
   // 获取应用实例

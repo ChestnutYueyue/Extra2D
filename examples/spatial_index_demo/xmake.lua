@@ -7,6 +7,9 @@
 local host_plat = os.host()
 local target_plat = get_config("plat") or host_plat
 
+-- 获取当前脚本所在目录（示例根目录）
+local example_dir = os.scriptdir()
+
 -- 可执行文件目标
 target("spatial_index_demo")
     set_kind("binary")
@@ -18,7 +21,7 @@ target("spatial_index_demo")
         set_plat("switch")
         set_arch("arm64")
         set_toolchains("switch")
-        set_targetdir("build/switch")
+        set_targetdir("../../build/examples/spatial_index_demo")
 
         after_build(function (target)
             local devkitPro = os.getenv("DEVKITPRO") or "C:/devkitPro"
@@ -31,7 +34,7 @@ target("spatial_index_demo")
 
             if os.isfile(nacptool) and os.isfile(elf2nro) then
                 os.vrunv(nacptool, {"--create", "Spatial Index Demo", "Extra2D Team", "1.0.0", nacp_file})
-                local romfs = path.absolute("romfs")
+                local romfs = path.join(example_dir, "romfs")
                 if os.isdir(romfs) then
                     os.vrunv(elf2nro, {elf_file, nro_file, "--nacp=" .. nacp_file, "--romfsdir=" .. romfs})
                 else
@@ -43,11 +46,12 @@ target("spatial_index_demo")
     elseif target_plat == "mingw" then
         set_plat("mingw")
         set_arch("x86_64")
-        set_targetdir("build/mingw")
+        set_targetdir("../../build/examples/spatial_index_demo")
         add_ldflags("-mwindows", {force = true})
 
+        -- 复制资源
         after_build(function (target)
-            local romfs = path.absolute("romfs")
+            local romfs = path.join(example_dir, "romfs")
             if os.isdir(romfs) then
                 local target_dir = path.directory(target:targetfile())
                 local assets_dir = path.join(target_dir, "assets")
@@ -55,6 +59,9 @@ target("spatial_index_demo")
                     os.mkdir(assets_dir)
                 end
                 os.cp(path.join(romfs, "assets/*"), assets_dir)
+                print("Copied assets from " .. romfs .. " to " .. assets_dir)
+            else
+                print("Warning: romfs directory not found at " .. romfs)
             end
         end)
     end

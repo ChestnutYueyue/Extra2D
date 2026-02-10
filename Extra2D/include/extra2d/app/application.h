@@ -21,16 +21,24 @@ class Camera;
 // ============================================================================
 // Application 配置
 // ============================================================================
+
+enum class PlatformType {
+  Auto = 0,
+  PC,
+  Switch
+};
+
 struct AppConfig {
   String title = "Easy2D Application";
   int width = 800;
   int height = 600;
   bool fullscreen = false;
-  bool resizable = true; // 窗口是否可调整大小
+  bool resizable = true;
   bool vsync = true;
-  int fpsLimit = 0; // 0 = 不限制
+  int fpsLimit = 0;
   BackendType renderBackend = BackendType::OpenGL;
   int msaaSamples = 0;
+  PlatformType platform = PlatformType::Auto;
 };
 
 // ============================================================================

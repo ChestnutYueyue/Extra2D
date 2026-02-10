@@ -12,7 +12,6 @@
 // Platform
 #include <extra2d/platform/window.h>
 #include <extra2d/platform/input.h>
-#include <extra2d/platform/file_system.h>
 
 // Graphics
 #include <extra2d/graphics/render_backend.h>
@@ -96,3 +95,7 @@
 // Script
 #include <extra2d/script/script_engine.h>
 #include <extra2d/script/script_node.h>
+
+#ifdef __SWITCH__
+#include <switch.h>
+#endif

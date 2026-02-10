@@ -53,27 +53,39 @@ bool Application::init(const AppConfig &config) {
 
   config_ = config;
 
+  // 确定平台类型
+  PlatformType platform = config_.platform;
+  if (platform == PlatformType::Auto) {
 #ifdef __SWITCH__
-  // ========================================
-  // 1. 初始化 RomFS 文件系统（Switch 平台）
-  // ========================================
-  Result rc;
-  rc = romfsInit();
-  if (R_SUCCEEDED(rc)) {
-    E2D_LOG_INFO("RomFS initialized successfully");
-  } else {
-    E2D_LOG_WARN("romfsInit failed: {:#08X}, will use regular filesystem", rc);
+    platform = PlatformType::Switch;
+#else
+    platform = PlatformType::PC;
+#endif
   }
 
-  // ========================================
-  // 2. 初始化 nxlink 调试输出（Switch 平台）
-  // ========================================
-  rc = socketInitializeDefault();
-  if (R_FAILED(rc)) {
-    E2D_LOG_WARN(
-        "socketInitializeDefault failed, nxlink will not be available");
-  }
+  if (platform == PlatformType::Switch) {
+#ifdef __SWITCH__
+    // ========================================
+    // 1. 初始化 RomFS 文件系统（Switch 平台）
+    // ========================================
+    Result rc;
+    rc = romfsInit();
+    if (R_SUCCEEDED(rc)) {
+      E2D_LOG_INFO("RomFS initialized successfully");
+    } else {
+      E2D_LOG_WARN("romfsInit failed: {:#08X}, will use regular filesystem", rc);
+    }
+
+    // ========================================
+    // 2. 初始化 nxlink 调试输出（Switch 平台）
+    // ========================================
+    rc = socketInitializeDefault();
+    if (R_FAILED(rc)) {
+      E2D_LOG_WARN(
+          "socketInitializeDefault failed, nxlink will not be available");
+    }
 #endif
+  }
 
   // ========================================
   // 3. 创建窗口（包含 SDL_Init + GLES 3.2 上下文创建）
@@ -83,14 +95,18 @@ bool Application::init(const AppConfig &config) {
   winConfig.title = config.title;
   winConfig.width = 1280;
   winConfig.height = 720;
-#ifdef __SWITCH__
-  winConfig.fullscreen = true;
-  winConfig.resizable = false;
-#else
-  // PC 平台默认窗口模式
-  winConfig.fullscreen = config.fullscreen;
-  winConfig.resizable = true;
-#endif
+  if (platform == PlatformType::Switch) {
+    winConfig.fullscreen = true;
+    winConfig.resizable = false;
+    winConfig.enableCursors = false;
+    winConfig.enableDpiScale = false;
+  } else {
+    // PC 平台默认窗口模式
+    winConfig.fullscreen = config.fullscreen;
+    winConfig.resizable = true;
+    winConfig.enableCursors = true;
+    winConfig.enableDpiScale = true;
+  }
   winConfig.vsync = config.vsync;
   winConfig.msaaSamples = config.msaaSamples;
 
@@ -138,14 +154,6 @@ bool Application::init(const AppConfig &config) {
   // 初始化音频引擎
   AudioEngine::getInstance().initialize();
 
-#ifdef __SWITCH__
-  // 添加 romfs:/ 到资源搜索路径（Switch 平台）
-  resourceManager_->addSearchPath("romfs:/");
-#endif
-  // 添加默认资源路径
-  resourceManager_->addSearchPath("assets/");
-  resourceManager_->addSearchPath("./");
-
   initialized_ = true;
   running_ = true;
 
@@ -185,11 +193,21 @@ void Application::shutdown() {
     window_.reset();
   }
 
-#ifdef __SWITCH__
   // Switch 平台清理
-  romfsExit();
-  socketExit();
+  PlatformType platform = config_.platform;
+  if (platform == PlatformType::Auto) {
+#ifdef __SWITCH__
+    platform = PlatformType::Switch;
+#else
+    platform = PlatformType::PC;
 #endif
+  }
+  if (platform == PlatformType::Switch) {
+#ifdef __SWITCH__
+    romfsExit();
+    socketExit();
+#endif
+  }
 
   initialized_ = false;
   running_ = false;

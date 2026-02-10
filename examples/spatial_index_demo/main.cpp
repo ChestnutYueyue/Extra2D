@@ -185,14 +185,8 @@ private:
   void loadFonts() {
     auto &resources = Application::instance().resources();
 
-    std::vector<std::string> fontPaths = {
-        "romfs:/assets/msjh.ttf",
-        "romfs:/assets/default.ttf",
-        "romfs:/assets/font.ttf",
-    };
-
-    titleFont_ = resources.loadFontWithFallbacks(fontPaths, 28, true);
-    infoFont_ = resources.loadFontWithFallbacks(fontPaths, 16, true);
+    titleFont_ = resources.loadFont("assets/font.ttf", 28, true);
+    infoFont_ = resources.loadFont("assets/font.ttf", 16, true);
   }
 
   /**

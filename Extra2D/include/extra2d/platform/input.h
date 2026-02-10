@@ -3,7 +3,6 @@
 #include <array>
 #include <extra2d/core/math_types.h>
 #include <extra2d/core/types.h>
-#include <extra2d/platform/platform_compat.h>
 #include <extra2d/event/input_codes.h>
 
 #include <SDL.h>

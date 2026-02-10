@@ -8,7 +8,6 @@
 #include <mutex>
 #include <string>
 #include <unordered_map>
-#include <vector>
 
 namespace extra2d {
 
@@ -21,27 +20,6 @@ public:
   // 单例访问
   // ------------------------------------------------------------------------
   static ResourceManager &getInstance();
-
-  // ------------------------------------------------------------------------
-  // 搜索路径管理
-  // ------------------------------------------------------------------------
-
-  /// 添加资源搜索路径
-  void addSearchPath(const std::string &path);
-
-  /// 移除资源搜索路径
-  void removeSearchPath(const std::string &path);
-
-  /// 清空所有搜索路径
-  void clearSearchPaths();
-
-  /// 获取搜索路径列表
-  const std::vector<std::string> &getSearchPaths() const {
-    return searchPaths_;
-  }
-
-  /// 查找资源文件完整路径
-  std::string findResourcePath(const std::string &filename) const;
 
   // ------------------------------------------------------------------------
   // 纹理资源
@@ -82,14 +60,6 @@ public:
   /// 加载字体图集（带缓存）
   Ptr<FontAtlas> loadFont(const std::string &filepath, int fontSize,
                           bool useSDF = false);
-
-  /// 尝试从多个候选路径加载字体，返回第一个成功加载的字体
-  Ptr<FontAtlas> loadFontWithFallbacks(const std::vector<std::string> &fontPaths,
-                                       int fontSize, bool useSDF = false);
-
-  /// 加载字体，使用默认系统字体作为后备
-  Ptr<FontAtlas> loadFontWithDefaultFallback(const std::string &filepath,
-                                             int fontSize, bool useSDF = false);
 
   /// 通过key获取已缓存的字体图集
   Ptr<FontAtlas> getFont(const std::string &key) const;
@@ -150,9 +120,6 @@ public:
   mutable std::mutex textureMutex_;
   mutable std::mutex fontMutex_;
   mutable std::mutex soundMutex_;
-
-  // 搜索路径
-  std::vector<std::string> searchPaths_;
 
   // 资源缓存 - 使用弱指针实现自动清理
   std::unordered_map<std::string, WeakPtr<Texture>> textureCache_;

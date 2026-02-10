@@ -16,7 +16,7 @@ StartScene::StartScene() {
 
 static extra2d::Ptr<extra2d::FontAtlas> loadMenuFont() {
     auto& resources = extra2d::Application::instance().resources();
-    auto font = resources.loadFont("assets/font.ttf", 28);
+    auto font = resources.loadFont("assets/font.ttf", 28,true);
     return font;
 }
 

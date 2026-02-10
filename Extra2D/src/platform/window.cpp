@@ -13,7 +13,7 @@ Window::Window()
     : sdlWindow_(nullptr), glContext_(nullptr), currentCursor_(nullptr),
       width_(1280), height_(720), vsync_(true), shouldClose_(false),
       fullscreen_(true), focused_(true), contentScaleX_(1.0f), contentScaleY_(1.0f),
-      userData_(nullptr), eventQueue_(nullptr) {
+      enableDpiScale_(true), userData_(nullptr), eventQueue_(nullptr) {
     // 初始化光标数组
     for (int i = 0; i < 9; ++i) {
         sdlCursors_[i] = nullptr;
@@ -32,6 +32,7 @@ bool Window::create(const WindowConfig &config) {
   height_ = config.height;
   vsync_ = config.vsync;
   fullscreen_ = config.fullscreen;
+  enableDpiScale_ = config.enableDpiScale;
 
   // 初始化 SDL2 + 创建窗口 + GL 上下文
   if (!initSDL(config)) {
@@ -43,13 +44,12 @@ bool Window::create(const WindowConfig &config) {
   input_ = makeUnique<Input>();
   input_->init();
 
-  // PC 端初始化光标
-#ifdef PLATFORM_PC
-  initCursors();
-#endif
+  // 初始化光标
+  if (config.enableCursors) {
+    initCursors();
+  }
 
-  E2D_LOG_INFO("Window created: {}x{} (Platform: {})", 
-               width_, height_, platform::getPlatformName());
+  E2D_LOG_INFO("Window created: {}x{}", width_, height_);
   return true;
 }
 
@@ -79,13 +79,7 @@ bool Window::initSDL(const WindowConfig &config) {
   // 创建 SDL2 窗口
   Uint32 windowFlags = SDL_WINDOW_OPENGL;
   
-#ifdef PLATFORM_SWITCH
-  // Switch 始终全屏
-  windowFlags |= SDL_WINDOW_FULLSCREEN;
-  width_ = 1280;
-  height_ = 720;
-#else
-  // PC 端根据配置设置
+  // 根据配置设置窗口模式
   if (config.fullscreen) {
     windowFlags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
   } else {
@@ -95,7 +89,6 @@ bool Window::initSDL(const WindowConfig &config) {
     // 注意：SDL_WINDOWPOS_CENTERED 是位置参数，不是窗口标志
     // 窗口居中在 SDL_CreateWindow 的位置参数中处理
   }
-#endif
 
   sdlWindow_ = SDL_CreateWindow(
       config.title.c_str(),
@@ -143,10 +136,10 @@ bool Window::initSDL(const WindowConfig &config) {
   // 设置 VSync
   SDL_GL_SetSwapInterval(vsync_ ? 1 : 0);
 
-  // PC 端更新 DPI 缩放
-#ifndef PLATFORM_SWITCH
-  updateContentScale();
-#endif
+  // 更新 DPI 缩放
+  if (config.enableDpiScale) {
+    updateContentScale();
+  }
 
   E2D_LOG_INFO("SDL2 + GLES 3.2 initialized successfully");
   E2D_LOG_INFO("OpenGL Version: {}",
@@ -199,9 +192,7 @@ void Window::pollEvents() {
       case SDL_WINDOWEVENT_SIZE_CHANGED:
         width_ = event.window.data1;
         height_ = event.window.data2;
-#ifndef PLATFORM_SWITCH
         updateContentScale();
-#endif
         if (resizeCallback_) {
           resizeCallback_(width_, height_);
         }
@@ -240,49 +231,31 @@ bool Window::shouldClose() const { return shouldClose_; }
 void Window::setShouldClose(bool close) { shouldClose_ = close; }
 
 void Window::setTitle(const String &title) {
-#ifdef PLATFORM_PC
   if (sdlWindow_) {
     SDL_SetWindowTitle(sdlWindow_, title.c_str());
   }
-#else
-  (void)title;
-#endif
 }
 
 void Window::setSize(int width, int height) {
-#ifdef PLATFORM_PC
   if (sdlWindow_) {
     SDL_SetWindowSize(sdlWindow_, width, height);
     width_ = width;
     height_ = height;
   }
-#else
-  (void)width;
-  (void)height;
-#endif
 }
 
 void Window::setPosition(int x, int y) {
-#ifdef PLATFORM_PC
   if (sdlWindow_) {
     SDL_SetWindowPosition(sdlWindow_, x, y);
   }
-#else
-  (void)x;
-  (void)y;
-#endif
 }
 
 void Window::setFullscreen(bool fullscreen) {
-#ifdef PLATFORM_PC
   if (sdlWindow_) {
     Uint32 flags = fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0;
     SDL_SetWindowFullscreen(sdlWindow_, flags);
     fullscreen_ = fullscreen;
   }
-#else
-  (void)fullscreen;
-#endif
 }
 
 void Window::setVSync(bool enabled) {
@@ -291,40 +264,26 @@ void Window::setVSync(bool enabled) {
 }
 
 void Window::setResizable(bool resizable) {
-#ifdef PLATFORM_PC
   if (sdlWindow_) {
     SDL_SetWindowResizable(sdlWindow_, resizable ? SDL_TRUE : SDL_FALSE);
   }
-#else
-  (void)resizable;
-#endif
 }
 
 Vec2 Window::getPosition() const {
-#ifdef PLATFORM_PC
   if (sdlWindow_) {
     int x, y;
     SDL_GetWindowPosition(sdlWindow_, &x, &y);
     return Vec2(static_cast<float>(x), static_cast<float>(y));
   }
-#endif
   return Vec2::Zero();
 }
 
 float Window::getContentScaleX() const {
-#ifdef PLATFORM_SWITCH
-  return 1.0f;
-#else
-  return contentScaleX_;
-#endif
+  return enableDpiScale_ ? contentScaleX_ : 1.0f;
 }
 
 float Window::getContentScaleY() const {
-#ifdef PLATFORM_SWITCH
-  return 1.0f;
-#else
-  return contentScaleY_;
-#endif
+  return enableDpiScale_ ? contentScaleY_ : 1.0f;
 }
 
 Vec2 Window::getContentScale() const {
@@ -332,27 +291,22 @@ Vec2 Window::getContentScale() const {
 }
 
 bool Window::isMinimized() const {
-#ifdef PLATFORM_PC
   if (sdlWindow_) {
     Uint32 flags = SDL_GetWindowFlags(sdlWindow_);
     return (flags & SDL_WINDOW_MINIMIZED) != 0;
   }
-#endif
   return false;
 }
 
 bool Window::isMaximized() const {
-#ifdef PLATFORM_PC
   if (sdlWindow_) {
     Uint32 flags = SDL_GetWindowFlags(sdlWindow_);
     return (flags & SDL_WINDOW_MAXIMIZED) != 0;
   }
-#endif
   return true;
 }
 
 void Window::initCursors() {
-#ifdef PLATFORM_PC
   sdlCursors_[0] = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW);
   sdlCursors_[1] = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_IBEAM);
   sdlCursors_[2] = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_CROSSHAIR);
@@ -362,11 +316,9 @@ void Window::initCursors() {
   sdlCursors_[6] = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZEALL);
   sdlCursors_[7] = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZENWSE);
   sdlCursors_[8] = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZENESW);
-#endif
 }
 
 void Window::deinitCursors() {
-#ifdef PLATFORM_PC
   for (int i = 0; i < 9; ++i) {
     if (sdlCursors_[i]) {
       SDL_FreeCursor(sdlCursors_[i]);
@@ -374,38 +326,26 @@ void Window::deinitCursors() {
     }
   }
   currentCursor_ = nullptr;
-#endif
 }
 
 void Window::setCursor(CursorShape shape) {
-#ifdef PLATFORM_PC
   int index = static_cast<int>(shape);
   if (index >= 0 && index < 9 && sdlCursors_[index]) {
     SDL_SetCursor(sdlCursors_[index]);
     currentCursor_ = sdlCursors_[index];
   }
-#else
-  (void)shape;
-#endif
 }
 
 void Window::resetCursor() {
-#ifdef PLATFORM_PC
   SDL_SetCursor(SDL_GetDefaultCursor());
   currentCursor_ = nullptr;
-#endif
 }
 
 void Window::setMouseVisible(bool visible) {
-#ifdef PLATFORM_PC
   SDL_ShowCursor(visible ? SDL_ENABLE : SDL_DISABLE);
-#else
-  (void)visible;
-#endif
 }
 
 void Window::updateContentScale() {
-#ifndef PLATFORM_SWITCH
   if (sdlWindow_) {
     // 使用 DPI 计算内容缩放比例
     int displayIndex = SDL_GetWindowDisplayIndex(sdlWindow_);
@@ -418,7 +358,6 @@ void Window::updateContentScale() {
       }
     }
   }
-#endif
 }
 
 } // namespace extra2d

@@ -123,13 +123,8 @@ private:
    */
   void loadFonts() {
     auto &resources = Application::instance().resources();
-
-    std::vector<std::string> fontPaths = {
-        "romfs:/assets/font.ttf" // 备选字体
-    };
-
-    titleFont_ = resources.loadFontWithFallbacks(fontPaths, 60, true);
-    infoFont_ = resources.loadFontWithFallbacks(fontPaths, 28, true);
+    titleFont_ = resources.loadFont("assets/font.ttf", 60, true);
+    infoFont_ = resources.loadFont("assets/font.ttf", 28, true);
 
     if (!titleFont_) {
       E2D_LOG_WARN("无法加载标题字体");

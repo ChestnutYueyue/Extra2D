@@ -16,7 +16,6 @@ int main(int argc, char **argv)
 
     E2D_LOG_INFO("========================");
     E2D_LOG_INFO("Extra2D push_box");
-    E2D_LOG_INFO("Platform: {}", platform::getPlatformName());
     E2D_LOG_INFO("========================");
 
     auto &app = Application::instance();

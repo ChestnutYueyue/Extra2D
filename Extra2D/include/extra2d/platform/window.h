@@ -3,7 +3,6 @@
 #include <extra2d/core/types.h>
 #include <extra2d/core/string.h>
 #include <extra2d/core/math_types.h>
-#include <extra2d/platform/platform_compat.h>
 #include <functional>
 
 #include <SDL.h>
@@ -21,11 +20,13 @@ struct WindowConfig {
     String title = "Extra2D Application";
     int width = 1280;
     int height = 720;
-    bool fullscreen = true;   // Switch 始终全屏，PC 可配置
-    bool resizable = false;   // PC 端可调整大小
+    bool fullscreen = true;
+    bool resizable = false;
     bool vsync = true;
     int msaaSamples = 0;
-    bool centerWindow = true; // PC 端窗口居中
+    bool centerWindow = true;
+    bool enableCursors = true;
+    bool enableDpiScale = true;
 };
 
 // ============================================================================
@@ -132,6 +133,7 @@ private:
     bool focused_;
     float contentScaleX_;
     float contentScaleY_;
+    bool enableDpiScale_;
     void* userData_;
     EventQueue* eventQueue_;
     UniquePtr<Input> input_;
