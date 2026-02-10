@@ -92,6 +92,10 @@ private:
 class SpatialIndexDemoScene : public Scene {
 public:
   void onEnter() override {
+    // 必须先调用父类的 onEnter()，这样才能正确设置 running_ 状态
+    // 并触发子节点的 onAttachToScene，将节点注册到空间索引
+    Scene::onEnter();
+
     E2D_LOG_INFO("SpatialIndexDemoScene::onEnter - 引擎空间索引演示");
 
     auto &app = Application::instance();
