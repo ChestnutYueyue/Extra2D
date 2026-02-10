@@ -20,7 +20,7 @@ target("hello_world")
         set_toolchains("switch")
         set_targetdir("../../build/examples/hello_world")
 
-        -- 生成 NRO
+        -- 构建后生成 NRO 文件
         after_build(function (target)
             local devkitPro = os.getenv("DEVKITPRO") or "C:/devkitPro"
             local elf_file = target:targetfile()
@@ -38,6 +38,17 @@ target("hello_world")
                 else
                     os.vrunv(elf2nro, {elf_file, nro_file, "--nacp=" .. nacp_file})
                 end
+                print("Generated NRO: " .. nro_file)
+            end
+        end)
+        
+        -- 打包时将 NRO 文件复制到 package 目录
+        after_package(function (target)
+            local nro_file = path.join(target:targetdir(), "hello_world.nro")
+            local package_dir = target:packagedir()
+            if os.isfile(nro_file) and package_dir then
+                os.cp(nro_file, package_dir)
+                print("Copied NRO to package: " .. package_dir)
             end
         end)
 
@@ -47,19 +58,38 @@ target("hello_world")
         set_targetdir("../../build/examples/hello_world")
         add_ldflags("-mwindows", {force = true})
 
-        -- 复制资源
+        -- 复制资源到输出目录
         after_build(function (target)
             local romfs = path.join(example_dir, "romfs")
             if os.isdir(romfs) then
                 local target_dir = path.directory(target:targetfile())
                 local assets_dir = path.join(target_dir, "assets")
+                
+                -- 创建 assets 目录
                 if not os.isdir(assets_dir) then
                     os.mkdir(assets_dir)
                 end
-                os.cp(path.join(romfs, "assets/*"), assets_dir)
+                
+                -- 复制所有资源文件（包括子目录）
+                os.cp(path.join(romfs, "assets/**"), assets_dir)
                 print("Copied assets from " .. romfs .. " to " .. assets_dir)
             else
                 print("Warning: romfs directory not found at " .. romfs)
+            end
+        end)
+        
+        -- 打包时将资源复制到 package 目录
+        after_package(function (target)
+            local target_dir = path.directory(target:targetfile())
+            local assets_dir = path.join(target_dir, "assets")
+            local package_dir = target:packagedir()
+            if os.isdir(assets_dir) and package_dir then
+                local package_assets = path.join(package_dir, "assets")
+                if not os.isdir(package_assets) then
+                    os.mkdir(package_assets)
+                end
+                os.cp(path.join(assets_dir, "**"), package_assets)
+                print("Copied assets to package: " .. package_assets)
             end
         end)
     end
