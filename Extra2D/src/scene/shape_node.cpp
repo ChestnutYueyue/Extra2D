@@ -256,21 +256,21 @@ void ShapeNode::generateRenderCommand(std::vector<RenderCommand> &commands,
 
   Vec2 offset = getPosition();
   RenderCommand cmd;
-  cmd.zOrder = zOrder;
+  cmd.layer = zOrder;
 
   switch (shapeType_) {
   case ShapeType::Point:
     if (!points_.empty()) {
       cmd.type = RenderCommandType::FilledCircle;
       cmd.data =
-          CircleData{points_[0] + offset, lineWidth_ * 0.5f, color_, 8, 0.0f};
+          CircleCommandData{points_[0] + offset, lineWidth_ * 0.5f, color_, 8, 0.0f, true};
     }
     break;
 
   case ShapeType::Line:
     if (points_.size() >= 2) {
       cmd.type = RenderCommandType::Line;
-      cmd.data = LineData{points_[0] + offset, points_[1] + offset, color_,
+      cmd.data = LineCommandData{points_[0] + offset, points_[1] + offset, color_,
                           lineWidth_};
     }
     break;
@@ -282,13 +282,13 @@ void ShapeNode::generateRenderCommand(std::vector<RenderCommand> &commands,
         Rect rect(points_[0].x, points_[0].y, points_[2].x - points_[0].x,
                   points_[2].y - points_[0].y);
         cmd.data =
-            RectData{Rect(rect.origin + offset, rect.size), color_, 0.0f};
+            RectCommandData{Rect(rect.origin + offset, rect.size), color_, 0.0f, true};
       } else {
         cmd.type = RenderCommandType::Rect;
         Rect rect(points_[0].x, points_[0].y, points_[2].x - points_[0].x,
                   points_[2].y - points_[0].y);
         cmd.data =
-            RectData{Rect(rect.origin + offset, rect.size), color_, lineWidth_};
+            RectCommandData{Rect(rect.origin + offset, rect.size), color_, lineWidth_, false};
       }
     }
     break;
@@ -299,11 +299,11 @@ void ShapeNode::generateRenderCommand(std::vector<RenderCommand> &commands,
       if (filled_) {
         cmd.type = RenderCommandType::FilledCircle;
         cmd.data =
-            CircleData{points_[0] + offset, radius, color_, segments_, 0.0f};
+            CircleCommandData{points_[0] + offset, radius, color_, segments_, 0.0f, true};
       } else {
         cmd.type = RenderCommandType::Circle;
-        cmd.data = CircleData{points_[0] + offset, radius, color_, segments_,
-                              lineWidth_};
+        cmd.data = CircleCommandData{points_[0] + offset, radius, color_, segments_,
+                              lineWidth_, false};
       }
     }
     break;
@@ -315,10 +315,10 @@ void ShapeNode::generateRenderCommand(std::vector<RenderCommand> &commands,
       Vec2 p3 = points_[2] + offset;
       if (filled_) {
         cmd.type = RenderCommandType::FilledTriangle;
-        cmd.data = TriangleData{p1, p2, p3, color_, 0.0f};
+        cmd.data = TriangleCommandData{p1, p2, p3, color_, 0.0f, true};
       } else {
         cmd.type = RenderCommandType::Triangle;
-        cmd.data = TriangleData{p1, p2, p3, color_, lineWidth_};
+        cmd.data = TriangleCommandData{p1, p2, p3, color_, lineWidth_, false};
       }
     }
     break;
@@ -333,10 +333,10 @@ void ShapeNode::generateRenderCommand(std::vector<RenderCommand> &commands,
 
       if (filled_) {
         cmd.type = RenderCommandType::FilledPolygon;
-        cmd.data = PolygonData{transformedPoints, color_, 0.0f};
+        cmd.data = PolygonCommandData{transformedPoints, color_, 0.0f, true};
       } else {
         cmd.type = RenderCommandType::Polygon;
-        cmd.data = PolygonData{transformedPoints, color_, lineWidth_};
+        cmd.data = PolygonCommandData{transformedPoints, color_, lineWidth_, false};
       }
     }
     break;

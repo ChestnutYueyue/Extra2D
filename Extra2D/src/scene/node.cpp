@@ -292,6 +292,31 @@ void Node::markTransformDirty() {
   }
 }
 
+void Node::batchUpdateTransforms() {
+  // 如果本地变换脏了，先计算本地变换
+  if (transformDirty_) {
+    (void)getLocalTransform(); // 这会计算并缓存本地变换
+  }
+  
+  // 如果世界变换脏了，需要重新计算
+  if (worldTransformDirty_) {
+    auto parent = parent_.lock();
+    if (parent) {
+      // 使用父节点的世界变换（确保父节点已经更新）
+      worldTransform_ = parent->getWorldTransform() * localTransform_;
+    } else {
+      // 根节点
+      worldTransform_ = localTransform_;
+    }
+    worldTransformDirty_ = false;
+  }
+  
+  // 递归更新子节点
+  for (auto &child : children_) {
+    child->batchUpdateTransforms();
+  }
+}
+
 void Node::onEnter() {
   running_ = true;
   for (auto &child : children_) {

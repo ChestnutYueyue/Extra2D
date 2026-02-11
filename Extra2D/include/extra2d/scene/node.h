@@ -93,6 +93,18 @@ public:
    */
   void markTransformDirty();
 
+  /**
+   * @brief 批量更新变换矩阵
+   * 在渲染前统一计算所有脏节点的变换矩阵，避免逐节点计算时的重复递归
+   */
+  void batchUpdateTransforms();
+
+  /**
+   * @brief 获取变换脏标记状态
+   */
+  bool isTransformDirty() const { return transformDirty_; }
+  bool isWorldTransformDirty() const { return worldTransformDirty_; }
+
   // ------------------------------------------------------------------------
   // 名称和标签
   // ------------------------------------------------------------------------

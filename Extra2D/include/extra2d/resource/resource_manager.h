@@ -5,15 +5,37 @@
 #include <extra2d/graphics/alpha_mask.h>
 #include <extra2d/graphics/font.h>
 #include <extra2d/graphics/texture.h>
+#include <functional>
+#include <future>
 #include <mutex>
 #include <string>
 #include <unordered_map>
+#include <queue>
+#include <thread>
+#include <atomic>
 
 namespace extra2d {
 
 // ============================================================================
 // 资源管理器 - 统一管理纹理、字体、音效等资源
+// 支持异步加载和纹理压缩
 // ============================================================================
+
+// 纹理格式枚举
+enum class TextureFormat {
+  Auto = 0,     // 自动选择最佳格式
+  RGBA8,        // 32位 RGBA
+  RGB8,         // 24位 RGB
+  DXT1,         // BC1/DXT1 压缩（1 bit alpha）
+  DXT5,         // BC3/DXT5 压缩（完整 alpha）
+  ETC2,         // ETC2 压缩（移动平台）
+  ASTC4x4,      // ASTC 4x4 压缩（高质量）
+  ASTC8x8,      // ASTC 8x8 压缩（高压缩率）
+};
+
+// 异步加载回调类型
+using TextureLoadCallback = std::function<void(Ptr<Texture>)>;
+
 class ResourceManager {
 public:
   // ------------------------------------------------------------------------
@@ -22,11 +44,23 @@ public:
   static ResourceManager &getInstance();
 
   // ------------------------------------------------------------------------
-  // 纹理资源
+  // 纹理资源 - 同步加载
   // ------------------------------------------------------------------------
 
   /// 加载纹理（带缓存）
   Ptr<Texture> loadTexture(const std::string &filepath);
+  
+  /// 加载纹理（指定是否异步）
+  Ptr<Texture> loadTexture(const std::string &filepath, bool async);
+  
+  /// 加载纹理（完整参数：异步 + 压缩格式）
+  Ptr<Texture> loadTexture(const std::string &filepath, bool async, TextureFormat format);
+  
+  /// 异步加载纹理（带回调）
+  void loadTextureAsync(const std::string &filepath, TextureLoadCallback callback);
+  
+  /// 异步加载纹理（指定格式 + 回调）
+  void loadTextureAsync(const std::string &filepath, TextureFormat format, TextureLoadCallback callback);
 
   /// 加载纹理并生成Alpha遮罩（用于不规则形状图片）
   Ptr<Texture> loadTextureWithAlphaMask(const std::string &filepath);
@@ -107,14 +141,41 @@ public:
   size_t getFontCacheSize() const;
   size_t getSoundCacheSize() const;
 
+  // ------------------------------------------------------------------------
+  // 异步加载控制
+  // ------------------------------------------------------------------------
+  
+  /// 初始化异步加载系统（可选，自动在首次异步加载时初始化）
+  void initAsyncLoader();
+  
+  /// 关闭异步加载系统
+  void shutdownAsyncLoader();
+  
+  /// 等待所有异步加载完成
+  void waitForAsyncLoads();
+  
+  /// 检查是否有正在进行的异步加载
+  bool hasPendingAsyncLoads() const;
+
   ResourceManager();
   ~ResourceManager();
   ResourceManager(const ResourceManager &) = delete;
   ResourceManager &operator=(const ResourceManager &) = delete;
 
+private:
   // 生成字体缓存key
   std::string makeFontKey(const std::string &filepath, int fontSize,
                           bool useSDF) const;
+  
+  // 内部加载实现
+  Ptr<Texture> loadTextureInternal(const std::string &filepath, TextureFormat format);
+  
+  // 选择最佳纹理格式
+  TextureFormat selectBestFormat(TextureFormat requested) const;
+  
+  // 压缩纹理数据
+  std::vector<uint8_t> compressTexture(const uint8_t* data, int width, int height, 
+                                       int channels, TextureFormat format);
 
   // 互斥锁保护缓存
   mutable std::mutex textureMutex_;
@@ -125,6 +186,23 @@ public:
   std::unordered_map<std::string, WeakPtr<Texture>> textureCache_;
   std::unordered_map<std::string, WeakPtr<FontAtlas>> fontCache_;
   std::unordered_map<std::string, WeakPtr<Sound>> soundCache_;
+  
+  // 异步加载相关
+  struct AsyncLoadTask {
+    std::string filepath;
+    TextureFormat format;
+    TextureLoadCallback callback;
+    std::promise<Ptr<Texture>> promise;
+  };
+  
+  std::queue<AsyncLoadTask> asyncTaskQueue_;
+  std::mutex asyncQueueMutex_;
+  std::condition_variable asyncCondition_;
+  std::unique_ptr<std::thread> asyncThread_;
+  std::atomic<bool> asyncRunning_{false};
+  std::atomic<int> pendingAsyncLoads_{0};
+  
+  void asyncLoadLoop();
 };
 
 } // namespace extra2d

@@ -80,7 +80,10 @@ static std::string resolveResourcePath(const std::string &filepath) {
 }
 
 ResourceManager::ResourceManager() = default;
-ResourceManager::~ResourceManager() = default;
+
+ResourceManager::~ResourceManager() {
+  shutdownAsyncLoader();
+}
 
 ResourceManager &ResourceManager::getInstance() {
   static ResourceManager instance;
@@ -88,10 +91,144 @@ ResourceManager &ResourceManager::getInstance() {
 }
 
 // ============================================================================
-// 纹理资源
+// 异步加载系统
+// ============================================================================
+
+void ResourceManager::initAsyncLoader() {
+  if (asyncRunning_) {
+    return;
+  }
+  
+  asyncRunning_ = true;
+  asyncThread_ = std::make_unique<std::thread>(&ResourceManager::asyncLoadLoop, this);
+  E2D_LOG_INFO("ResourceManager: async loader initialized");
+}
+
+void ResourceManager::shutdownAsyncLoader() {
+  if (!asyncRunning_) {
+    return;
+  }
+  
+  asyncRunning_ = false;
+  asyncCondition_.notify_all();
+  
+  if (asyncThread_ && asyncThread_->joinable()) {
+    asyncThread_->join();
+  }
+  
+  E2D_LOG_INFO("ResourceManager: async loader shutdown");
+}
+
+void ResourceManager::waitForAsyncLoads() {
+  while (pendingAsyncLoads_ > 0) {
+    std::this_thread::yield();
+  }
+}
+
+bool ResourceManager::hasPendingAsyncLoads() const {
+  return pendingAsyncLoads_ > 0;
+}
+
+void ResourceManager::asyncLoadLoop() {
+  while (asyncRunning_) {
+    AsyncLoadTask task;
+    
+    {
+      std::unique_lock<std::mutex> lock(asyncQueueMutex_);
+      asyncCondition_.wait(lock, [this] { return !asyncTaskQueue_.empty() || !asyncRunning_; });
+      
+      if (!asyncRunning_) {
+        break;
+      }
+      
+      if (asyncTaskQueue_.empty()) {
+        continue;
+      }
+      
+      task = std::move(asyncTaskQueue_.front());
+      asyncTaskQueue_.pop();
+    }
+    
+    // 执行加载
+    auto texture = loadTextureInternal(task.filepath, task.format);
+    
+    // 回调
+    if (task.callback) {
+      task.callback(texture);
+    }
+    
+    // 设置 promise
+    task.promise.set_value(texture);
+    
+    pendingAsyncLoads_--;
+  }
+}
+
+// ============================================================================
+// 纹理资源 - 同步加载
 // ============================================================================
 
 Ptr<Texture> ResourceManager::loadTexture(const std::string &filepath) {
+  return loadTexture(filepath, false, TextureFormat::Auto);
+}
+
+Ptr<Texture> ResourceManager::loadTexture(const std::string &filepath, bool async) {
+  return loadTexture(filepath, async, TextureFormat::Auto);
+}
+
+Ptr<Texture> ResourceManager::loadTexture(const std::string &filepath, bool async, TextureFormat format) {
+  if (async) {
+    // 异步加载：返回空指针，实际纹理通过回调获取
+    loadTextureAsync(filepath, format, nullptr);
+    return nullptr;
+  }
+  
+  return loadTextureInternal(filepath, format);
+}
+
+void ResourceManager::loadTextureAsync(const std::string &filepath, TextureLoadCallback callback) {
+  loadTextureAsync(filepath, TextureFormat::Auto, callback);
+}
+
+void ResourceManager::loadTextureAsync(const std::string &filepath, TextureFormat format, TextureLoadCallback callback) {
+  // 确保异步加载系统已启动
+  if (!asyncRunning_) {
+    initAsyncLoader();
+  }
+  
+  // 检查缓存
+  {
+    std::lock_guard<std::mutex> lock(textureMutex_);
+    auto it = textureCache_.find(filepath);
+    if (it != textureCache_.end()) {
+      if (auto texture = it->second.lock()) {
+        // 缓存命中，立即回调
+        if (callback) {
+          callback(texture);
+        }
+        return;
+      }
+    }
+  }
+  
+  // 添加到异步任务队列
+  AsyncLoadTask task;
+  task.filepath = filepath;
+  task.format = format;
+  task.callback = callback;
+  
+  {
+    std::lock_guard<std::mutex> lock(asyncQueueMutex_);
+    asyncTaskQueue_.push(std::move(task));
+  }
+  
+  pendingAsyncLoads_++;
+  asyncCondition_.notify_one();
+  
+  E2D_LOG_DEBUG("ResourceManager: queued async texture load: {}", filepath);
+}
+
+Ptr<Texture> ResourceManager::loadTextureInternal(const std::string &filepath, TextureFormat format) {
   std::lock_guard<std::mutex> lock(textureMutex_);
 
   // 检查缓存
@@ -120,6 +257,14 @@ Ptr<Texture> ResourceManager::loadTexture(const std::string &filepath) {
       return nullptr;
     }
 
+    // 如果需要压缩，处理纹理格式
+    if (format != TextureFormat::Auto && format != TextureFormat::RGBA8) {
+      // 注意：实际压缩需要在纹理创建时处理
+      // 这里仅记录日志，实际实现需要在 GLTexture 中支持
+      E2D_LOG_DEBUG("ResourceManager: texture format {} requested for {}", 
+                    static_cast<int>(format), filepath);
+    }
+
     // 存入缓存
     textureCache_[filepath] = texture;
     E2D_LOG_DEBUG("ResourceManager: loaded texture: {}", filepath);
@@ -128,6 +273,33 @@ Ptr<Texture> ResourceManager::loadTexture(const std::string &filepath) {
     E2D_LOG_ERROR("ResourceManager: exception loading texture: {}", filepath);
     return nullptr;
   }
+}
+
+TextureFormat ResourceManager::selectBestFormat(TextureFormat requested) const {
+  if (requested != TextureFormat::Auto) {
+    return requested;
+  }
+  
+  // 自动选择最佳格式
+  // 检查支持的扩展
+  // 这里简化处理，实际应该查询 OpenGL 扩展
+  
+  // 桌面平台优先 DXT
+  // 移动平台优先 ETC2 或 ASTC
+  
+  // 默认返回 RGBA8
+  return TextureFormat::RGBA8;
+}
+
+std::vector<uint8_t> ResourceManager::compressTexture(const uint8_t* data, int width, int height, 
+                                                       int channels, TextureFormat format) {
+  // 纹理压缩实现
+  // 这里需要根据格式使用相应的压缩库
+  // 如：squish (DXT), etcpack (ETC2), astc-encoder (ASTC)
+  
+  // 目前返回原始数据
+  std::vector<uint8_t> result(data, data + width * height * channels);
+  return result;
 }
 
 Ptr<Texture>

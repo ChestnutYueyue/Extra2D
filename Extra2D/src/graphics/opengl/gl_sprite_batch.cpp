@@ -54,9 +54,7 @@ void main() {
 
 GLSpriteBatch::GLSpriteBatch()
     : vao_(0), vbo_(0), ibo_(0), currentTexture_(nullptr), currentIsSDF_(false),
-      drawCallCount_(0), spriteCount_(0) {
-  vertices_.reserve(MAX_SPRITES * VERTICES_PER_SPRITE);
-  indices_.reserve(MAX_SPRITES * INDICES_PER_SPRITE);
+      vertexCount_(0), drawCallCount_(0), spriteCount_(0), batchCount_(0) {
 }
 
 GLSpriteBatch::~GLSpriteBatch() { shutdown(); }
@@ -76,10 +74,9 @@ bool GLSpriteBatch::init() {
 
   glBindVertexArray(vao_);
 
-  // 设置 VBO
+  // 设置 VBO - 使用动态绘制模式
   glBindBuffer(GL_ARRAY_BUFFER, vbo_);
-  glBufferData(GL_ARRAY_BUFFER,
-               MAX_SPRITES * VERTICES_PER_SPRITE * sizeof(Vertex), nullptr,
+  glBufferData(GL_ARRAY_BUFFER, MAX_VERTICES * sizeof(Vertex), nullptr,
                GL_DYNAMIC_DRAW);
 
   // 设置顶点属性
@@ -95,9 +92,9 @@ bool GLSpriteBatch::init() {
   glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex),
                         (void *)offsetof(Vertex, color));
 
-  // 生成索引缓冲区
+  // 生成索引缓冲区 - 静态，只需创建一次
   std::vector<GLuint> indices;
-  indices.reserve(MAX_SPRITES * INDICES_PER_SPRITE);
+  indices.reserve(MAX_INDICES);
   for (size_t i = 0; i < MAX_SPRITES; ++i) {
     GLuint base = static_cast<GLuint>(i * VERTICES_PER_SPRITE);
     indices.push_back(base + 0);
@@ -114,6 +111,7 @@ bool GLSpriteBatch::init() {
 
   glBindVertexArray(0);
 
+  E2D_LOG_INFO("GLSpriteBatch initialized with capacity for {} sprites", MAX_SPRITES);
   return true;
 }
 
@@ -134,24 +132,26 @@ void GLSpriteBatch::shutdown() {
 
 void GLSpriteBatch::begin(const glm::mat4 &viewProjection) {
   viewProjection_ = viewProjection;
-  vertices_.clear();
+  vertexCount_ = 0;
   currentTexture_ = nullptr;
   currentIsSDF_ = false;
   drawCallCount_ = 0;
   spriteCount_ = 0;
+  batchCount_ = 0;
 }
 
-void GLSpriteBatch::draw(const Texture &texture, const SpriteData &data) {
-  // 如果纹理改变或缓冲区已满，先 flush
-  if (currentTexture_ != nullptr &&
-      (currentTexture_ != &texture || currentIsSDF_ != data.isSDF ||
-       vertices_.size() >= MAX_SPRITES * VERTICES_PER_SPRITE)) {
-    flush();
+bool GLSpriteBatch::needsFlush(const Texture& texture, bool isSDF) const {
+  if (currentTexture_ == nullptr) {
+    return false;
   }
+  
+  // 检查是否需要刷新：纹理改变、SDF 状态改变或缓冲区已满
+  return (currentTexture_ != &texture) || 
+         (currentIsSDF_ != isSDF) || 
+         (vertexCount_ + VERTICES_PER_SPRITE > MAX_VERTICES);
+}
 
-  currentTexture_ = &texture;
-  currentIsSDF_ = data.isSDF;
-
+void GLSpriteBatch::addVertices(const SpriteData& data) {
   // 计算变换后的顶点位置
   glm::vec2 anchorOffset(data.size.x * data.anchor.x,
                          data.size.y * data.anchor.y);
@@ -172,32 +172,87 @@ void GLSpriteBatch::draw(const Texture &texture, const SpriteData &data) {
   // v0(左上) -- v1(右上)
   //   |           |
   // v3(左下) -- v2(右下)
-  Vertex v0{transform(0, 0), glm::vec2(data.texCoordMin.x, data.texCoordMin.y),
-            color};
-  Vertex v1{transform(data.size.x, 0),
-            glm::vec2(data.texCoordMax.x, data.texCoordMin.y), color};
-  Vertex v2{transform(data.size.x, data.size.y),
-            glm::vec2(data.texCoordMax.x, data.texCoordMax.y), color};
-  Vertex v3{transform(0, data.size.y),
-            glm::vec2(data.texCoordMin.x, data.texCoordMax.y), color};
+  Vertex v0{transform(0, 0), glm::vec2(data.texCoordMin.x, data.texCoordMin.y), color};
+  Vertex v1{transform(data.size.x, 0), glm::vec2(data.texCoordMax.x, data.texCoordMin.y), color};
+  Vertex v2{transform(data.size.x, data.size.y), glm::vec2(data.texCoordMax.x, data.texCoordMax.y), color};
+  Vertex v3{transform(0, data.size.y), glm::vec2(data.texCoordMin.x, data.texCoordMax.y), color};
 
-  vertices_.push_back(v0);
-  vertices_.push_back(v1);
-  vertices_.push_back(v2);
-  vertices_.push_back(v3);
+  vertexBuffer_[vertexCount_++] = v0;
+  vertexBuffer_[vertexCount_++] = v1;
+  vertexBuffer_[vertexCount_++] = v2;
+  vertexBuffer_[vertexCount_++] = v3;
+}
 
+void GLSpriteBatch::draw(const Texture &texture, const SpriteData &data) {
+  // 如果需要刷新，先提交当前批次
+  if (needsFlush(texture, data.isSDF)) {
+    flush();
+  }
+
+  currentTexture_ = &texture;
+  currentIsSDF_ = data.isSDF;
+
+  addVertices(data);
   spriteCount_++;
 }
 
+void GLSpriteBatch::drawBatch(const Texture& texture, const std::vector<SpriteData>& sprites) {
+  if (sprites.empty()) {
+    return;
+  }
+  
+  // 如果当前有未提交的批次且纹理不同，先刷新
+  if (currentTexture_ != nullptr && currentTexture_ != &texture) {
+    flush();
+  }
+  
+  currentTexture_ = &texture;
+  currentIsSDF_ = sprites[0].isSDF; // 假设批量中的精灵 SDF 状态一致
+  
+  // 分批处理，避免超过缓冲区大小
+  size_t index = 0;
+  while (index < sprites.size()) {
+    size_t remainingSpace = (MAX_VERTICES - vertexCount_) / VERTICES_PER_SPRITE;
+    size_t batchSize = std::min(sprites.size() - index, remainingSpace);
+    
+    for (size_t i = 0; i < batchSize; ++i) {
+      addVertices(sprites[index + i]);
+      spriteCount_++;
+    }
+    
+    index += batchSize;
+    
+    // 如果还有更多精灵，刷新当前批次
+    if (index < sprites.size()) {
+      flush();
+    }
+  }
+  
+  batchCount_++;
+}
+
+void GLSpriteBatch::drawImmediate(const Texture& texture, const SpriteData& data) {
+  // 立即绘制，不缓存 - 用于需要立即显示的情况
+  flush(); // 先提交当前批次
+  
+  currentTexture_ = &texture;
+  currentIsSDF_ = data.isSDF;
+  addVertices(data);
+  spriteCount_++;
+  
+  flush(); // 立即提交
+}
+
 void GLSpriteBatch::end() {
-  if (!vertices_.empty()) {
+  if (vertexCount_ > 0) {
     flush();
   }
 }
 
 void GLSpriteBatch::flush() {
-  if (vertices_.empty() || currentTexture_ == nullptr)
+  if (vertexCount_ == 0 || currentTexture_ == nullptr) {
     return;
+  }
 
   // 绑定纹理
   GLuint texID = static_cast<GLuint>(
@@ -213,19 +268,23 @@ void GLSpriteBatch::flush() {
   shader_.setFloat("uSdfOnEdge", 128.0f / 255.0f);
   shader_.setFloat("uSdfScale", 255.0f / 64.0f);
 
-  // 更新 VBO 数据
+  // 更新 VBO 数据 - 只更新实际使用的部分
   glBindBuffer(GL_ARRAY_BUFFER, vbo_);
-  glBufferSubData(GL_ARRAY_BUFFER, 0, vertices_.size() * sizeof(Vertex),
-                  vertices_.data());
+  glBufferSubData(GL_ARRAY_BUFFER, 0, vertexCount_ * sizeof(Vertex), vertexBuffer_.data());
 
   // 绘制
   glBindVertexArray(vao_);
   GLsizei indexCount = static_cast<GLsizei>(
-      vertices_.size() / VERTICES_PER_SPRITE * INDICES_PER_SPRITE);
+      (vertexCount_ / VERTICES_PER_SPRITE) * INDICES_PER_SPRITE);
   glDrawElements(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, nullptr);
 
   drawCallCount_++;
-  vertices_.clear();
+  batchCount_++;
+  
+  // 重置状态
+  vertexCount_ = 0;
+  currentTexture_ = nullptr;
+  currentIsSDF_ = false;
 }
 
 } // namespace extra2d

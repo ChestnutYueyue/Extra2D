@@ -7,19 +7,22 @@
 #include <extra2d/graphics/texture.h>
 #include <glm/mat4x4.hpp>
 #include <vector>
+#include <array>
 
 #include <glad/glad.h>
 
 namespace extra2d {
 
 // ============================================================================
-// OpenGL 精灵批渲染器
+// OpenGL 精灵批渲染器 - 优化版本
 // ============================================================================
 class GLSpriteBatch {
 public:
   static constexpr size_t MAX_SPRITES = 10000;
   static constexpr size_t VERTICES_PER_SPRITE = 4;
   static constexpr size_t INDICES_PER_SPRITE = 6;
+  static constexpr size_t MAX_VERTICES = MAX_SPRITES * VERTICES_PER_SPRITE;
+  static constexpr size_t MAX_INDICES = MAX_SPRITES * INDICES_PER_SPRITE;
 
   struct Vertex {
     glm::vec2 position;
@@ -48,9 +51,19 @@ public:
   void draw(const Texture &texture, const SpriteData &data);
   void end();
 
+  // 批量绘制接口 - 用于自动批处理
+  void drawBatch(const Texture& texture, const std::vector<SpriteData>& sprites);
+  
+  // 立即绘制（不缓存）
+  void drawImmediate(const Texture& texture, const SpriteData& data);
+
   // 统计
   uint32_t getDrawCallCount() const { return drawCallCount_; }
   uint32_t getSpriteCount() const { return spriteCount_; }
+  uint32_t getBatchCount() const { return batchCount_; }
+
+  // 检查是否需要刷新
+  bool needsFlush(const Texture& texture, bool isSDF) const;
 
 private:
   GLuint vao_;
@@ -58,8 +71,9 @@ private:
   GLuint ibo_;
   GLShader shader_;
 
-  std::vector<Vertex> vertices_;
-  std::vector<GLuint> indices_;
+  // 使用固定大小数组减少内存分配
+  std::array<Vertex, MAX_VERTICES> vertexBuffer_;
+  size_t vertexCount_;
 
   const Texture *currentTexture_;
   bool currentIsSDF_;
@@ -67,9 +81,13 @@ private:
 
   uint32_t drawCallCount_;
   uint32_t spriteCount_;
+  uint32_t batchCount_;
 
   void flush();
   void setupShader();
+  
+  // 添加顶点到缓冲区
+  void addVertices(const SpriteData& data);
 };
 
 } // namespace extra2d

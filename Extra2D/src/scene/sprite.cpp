@@ -129,9 +129,9 @@ void Sprite::generateRenderCommand(std::vector<RenderCommand> &commands,
   // 创建渲染命令
   RenderCommand cmd;
   cmd.type = RenderCommandType::Sprite;
-  cmd.zOrder = zOrder;
+  cmd.layer = zOrder;
   cmd.data =
-      SpriteData{texture_, destRect, srcRect, color_, getRotation(), anchor};
+      SpriteCommandData{texture_.get(), destRect, srcRect, color_, getRotation(), anchor, 0};
 
   commands.push_back(std::move(cmd));
 }
