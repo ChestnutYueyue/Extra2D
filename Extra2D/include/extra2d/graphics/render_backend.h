@@ -62,6 +62,13 @@ public:
   virtual void setViewProjection(const glm::mat4 &matrix) = 0;
 
   // ------------------------------------------------------------------------
+  // 变换矩阵栈
+  // ------------------------------------------------------------------------
+  virtual void pushTransform(const glm::mat4 &transform) = 0;
+  virtual void popTransform() = 0;
+  virtual glm::mat4 getCurrentTransform() const = 0;
+
+  // ------------------------------------------------------------------------
   // 纹理
   // ------------------------------------------------------------------------
   virtual Ptr<Texture> createTexture(int width, int height,

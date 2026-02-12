@@ -5,6 +5,7 @@
 #include <extra2d/graphics/opengl/gl_sprite_batch.h>
 
 #include <glad/glad.h>
+#include <vector>
 
 namespace extra2d {
 
@@ -29,6 +30,11 @@ public:
 
     void setBlendMode(BlendMode mode) override;
     void setViewProjection(const glm::mat4& matrix) override;
+
+    // 变换矩阵栈
+    void pushTransform(const glm::mat4& transform) override;
+    void popTransform() override;
+    glm::mat4 getCurrentTransform() const override;
 
     Ptr<Texture> createTexture(int width, int height, const uint8_t* pixels, int channels) override;
     Ptr<Texture> loadTexture(const std::string& filepath) override;
@@ -65,6 +71,7 @@ private:
     GLuint shapeVbo_;
     
     glm::mat4 viewProjection_;
+    std::vector<glm::mat4> transformStack_;
     Stats stats_;
     bool vsync_;
 

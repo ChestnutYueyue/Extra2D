@@ -1,5 +1,3 @@
-#include <algorithm>
-#include <cctype>
 #include <extra2d/animation/ani_parser.h>
 #include <extra2d/animation/sprite_frame_cache.h>
 #include <extra2d/utils/logger.h>

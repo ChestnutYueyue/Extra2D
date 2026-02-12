@@ -91,7 +91,7 @@ if is_config("examples","true") then
     includes("examples/spatial_index_demo", {rootdir = "examples/spatial_index_demo"})
     includes("examples/collision_demo", {rootdir = "examples/collision_demo"})
     includes("examples/push_box", {rootdir = "examples/push_box"})
-    -- includes("examples/flappy_bird", {rootdir = "examples/flappy_bird"})
+    includes("examples/flappy_bird", {rootdir = "examples/flappy_bird"})
 end
 
 -- ==============================================

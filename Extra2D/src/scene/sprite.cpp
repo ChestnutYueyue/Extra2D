@@ -76,11 +76,23 @@ void Sprite::onDraw(RenderBackend &renderer) {
   float width = textureRect_.width();
   float height = textureRect_.height();
 
-  auto pos = getPosition();
+  // 使用世界变换来获取最终的位置
+  auto worldTransform = getWorldTransform();
+
+  // 从世界变换矩阵中提取位置（第四列）
+  float worldX = worldTransform[3][0];
+  float worldY = worldTransform[3][1];
+
+  // 从世界变换矩阵中提取缩放
+  float worldScaleX =
+      glm::length(glm::vec2(worldTransform[0][0], worldTransform[0][1]));
+  float worldScaleY =
+      glm::length(glm::vec2(worldTransform[1][0], worldTransform[1][1]));
+
   auto anchor = getAnchor();
-  auto scale = getScale();
+
   // 锚点由 RenderBackend 在绘制时处理，这里只传递位置和尺寸
-  Rect destRect(pos.x, pos.y, width * scale.x, height * scale.y);
+  Rect destRect(worldX, worldY, width * worldScaleX, height * worldScaleY);
 
   // Adjust source rect for flipping
   Rect srcRect = textureRect_;
@@ -93,8 +105,11 @@ void Sprite::onDraw(RenderBackend &renderer) {
     srcRect.size.height = -srcRect.size.height;
   }
 
-  renderer.drawSprite(*texture_, destRect, srcRect, color_, getRotation(),
-                      getAnchor());
+  // 从世界变换矩阵中提取旋转角度
+  float worldRotation = std::atan2(worldTransform[0][1], worldTransform[0][0]);
+
+  renderer.drawSprite(*texture_, destRect, srcRect, color_, worldRotation,
+                      anchor);
 }
 
 void Sprite::generateRenderCommand(std::vector<RenderCommand> &commands,
@@ -103,15 +118,27 @@ void Sprite::generateRenderCommand(std::vector<RenderCommand> &commands,
     return;
   }
 
-  // 计算目标矩形（与 onDraw 一致）
+  // 计算目标矩形（与 onDraw 一致，使用世界变换）
   float width = textureRect_.width();
   float height = textureRect_.height();
 
-  auto pos = getPosition();
+  // 使用世界变换来获取最终的位置
+  auto worldTransform = getWorldTransform();
+
+  // 从世界变换矩阵中提取位置（第四列）
+  float worldX = worldTransform[3][0];
+  float worldY = worldTransform[3][1];
+
+  // 从世界变换矩阵中提取缩放
+  float worldScaleX =
+      glm::length(glm::vec2(worldTransform[0][0], worldTransform[0][1]));
+  float worldScaleY =
+      glm::length(glm::vec2(worldTransform[1][0], worldTransform[1][1]));
+
   auto anchor = getAnchor();
-  auto scale = getScale();
+
   // 锚点由 RenderBackend 在绘制时处理，这里只传递位置和尺寸
-  Rect destRect(pos.x, pos.y, width * scale.x, height * scale.y);
+  Rect destRect(worldX, worldY, width * worldScaleX, height * worldScaleY);
 
   // 调整源矩形（翻转）
   Rect srcRect = textureRect_;
@@ -124,12 +151,15 @@ void Sprite::generateRenderCommand(std::vector<RenderCommand> &commands,
     srcRect.size.height = -srcRect.size.height;
   }
 
+  // 从世界变换矩阵中提取旋转角度
+  float worldRotation = std::atan2(worldTransform[0][1], worldTransform[0][0]);
+
   // 创建渲染命令
   RenderCommand cmd;
   cmd.type = RenderCommandType::Sprite;
   cmd.layer = zOrder;
-  cmd.data =
-      SpriteCommandData{texture_.get(), destRect, srcRect, color_, getRotation(), anchor, 0};
+  cmd.data = SpriteCommandData{texture_.get(), destRect, srcRect, color_,
+                               worldRotation,  anchor,   0};
 
   commands.push_back(std::move(cmd));
 }

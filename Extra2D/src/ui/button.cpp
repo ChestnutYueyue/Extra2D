@@ -239,10 +239,26 @@ void Button::setBackgroundImage(Ptr<Texture> normal, Ptr<Texture> hover,
   imgHover_ = hover ? hover : normal;
   imgPressed_ = pressed ? pressed : (hover ? hover : normal);
   useImageBackground_ = (normal != nullptr);
+  useTextureRect_ = false;
 
   if (useImageBackground_ && scaleMode_ == ImageScaleMode::Original && normal) {
     setSize(static_cast<float>(normal->getWidth()),
             static_cast<float>(normal->getHeight()));
+  }
+}
+
+void Button::setBackgroundImage(Ptr<Texture> texture, const Rect &rect) {
+  imgNormal_ = texture;
+  imgHover_ = texture;
+  imgPressed_ = texture;
+  imgNormalRect_ = rect;
+  imgHoverRect_ = rect;
+  imgPressedRect_ = rect;
+  useImageBackground_ = (texture != nullptr);
+  useTextureRect_ = true;
+
+  if (useImageBackground_ && scaleMode_ == ImageScaleMode::Original) {
+    setSize(rect.size.width, rect.size.height);
   }
 }
 
@@ -308,19 +324,23 @@ Vec2 Button::calculateImageSize(const Vec2 &buttonSize, const Vec2 &imageSize) {
 
 void Button::drawBackgroundImage(RenderBackend &renderer, const Rect &rect) {
   Texture *texture = nullptr;
+  Rect srcRect;
+
   if (pressed_ && imgPressed_) {
     texture = imgPressed_.get();
+    srcRect = useTextureRect_ ? imgPressedRect_ : Rect(0, 0, static_cast<float>(imgPressed_->getWidth()), static_cast<float>(imgPressed_->getHeight()));
   } else if (hovered_ && imgHover_) {
     texture = imgHover_.get();
+    srcRect = useTextureRect_ ? imgHoverRect_ : Rect(0, 0, static_cast<float>(imgHover_->getWidth()), static_cast<float>(imgHover_->getHeight()));
   } else if (imgNormal_) {
     texture = imgNormal_.get();
+    srcRect = useTextureRect_ ? imgNormalRect_ : Rect(0, 0, static_cast<float>(imgNormal_->getWidth()), static_cast<float>(imgNormal_->getHeight()));
   }
 
   if (!texture)
     return;
 
-  Vec2 imageSize(static_cast<float>(texture->getWidth()),
-                 static_cast<float>(texture->getHeight()));
+  Vec2 imageSize(srcRect.size.width, srcRect.size.height);
   Vec2 buttonSize(rect.size.width, rect.size.height);
   Vec2 drawSize = calculateImageSize(buttonSize, imageSize);
 
@@ -329,7 +349,7 @@ void Button::drawBackgroundImage(RenderBackend &renderer, const Rect &rect) {
 
   Rect destRect(drawPos.x, drawPos.y, drawSize.x, drawSize.y);
 
-  renderer.drawSprite(*texture, destRect, Rect(0, 0, imageSize.x, imageSize.y),
+  renderer.drawSprite(*texture, destRect, srcRect,
                       Colors::White, 0.0f, Vec2::Zero());
 }
 
@@ -459,6 +479,7 @@ void Button::onDrawWidget(RenderBackend &renderer) {
   }
 
   if (useImageBackground_) {
+    // 使用图片背景时不绘制纯色背景和边框
     drawBackgroundImage(renderer, rect);
   } else {
     renderer.endSpriteBatch();
@@ -477,19 +498,20 @@ void Button::onDrawWidget(RenderBackend &renderer) {
     }
 
     renderer.beginSpriteBatch();
-  }
 
-  renderer.endSpriteBatch();
+    // 纯色背景模式下才绘制边框
+    renderer.endSpriteBatch();
 
-  if (borderWidth_ > 0.0f) {
-    if (roundedCornersEnabled_) {
-      drawRoundedRect(renderer, rect, borderColor_, cornerRadius_);
-    } else {
-      renderer.drawRect(rect, borderColor_, borderWidth_);
+    if (borderWidth_ > 0.0f) {
+      if (roundedCornersEnabled_) {
+        drawRoundedRect(renderer, rect, borderColor_, cornerRadius_);
+      } else {
+        renderer.drawRect(rect, borderColor_, borderWidth_);
+      }
     }
-  }
 
-  renderer.beginSpriteBatch();
+    renderer.beginSpriteBatch();
+  }
 
   if (font_ && !text_.empty()) {
     Vec2 textSize = font_->measureText(text_);

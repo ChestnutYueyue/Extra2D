@@ -243,9 +243,8 @@ glm::mat4 Node::getLocalTransform() const {
     localTransform_ =
         glm::scale(localTransform_, glm::vec3(scale_.x, scale_.y, 1.0f));
 
-    // Apply anchor point offset
-    localTransform_ = glm::translate(localTransform_,
-                                     glm::vec3(-anchor_.x, -anchor_.y, 0.0f));
+    // 注意：锚点偏移在渲染时处理，不在本地变换中处理
+    // 这样可以避免锚点偏移被父节点的缩放影响
 
     transformDirty_ = false;
   }

@@ -101,6 +101,7 @@ public:
   // ------------------------------------------------------------------------
   void setBackgroundImage(Ptr<Texture> normal, Ptr<Texture> hover = nullptr,
                           Ptr<Texture> pressed = nullptr);
+  void setBackgroundImage(Ptr<Texture> texture, const Rect &rect);
   void setBackgroundImageScaleMode(ImageScaleMode mode);
   void setCustomSize(const Vec2 &size);
   void setCustomSize(float width, float height);
@@ -162,8 +163,12 @@ private:
   Ptr<Texture> imgNormal_;
   Ptr<Texture> imgHover_;
   Ptr<Texture> imgPressed_;
+  Rect imgNormalRect_;
+  Rect imgHoverRect_;
+  Rect imgPressedRect_;
   ImageScaleMode scaleMode_ = ImageScaleMode::Original;
   bool useImageBackground_ = false;
+  bool useTextureRect_ = false;
 
   // 边框
   Color borderColor_ = Color(0.6f, 0.6f, 0.6f, 1.0f);

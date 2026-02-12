@@ -37,6 +37,9 @@ void Scene::renderContent(RenderBackend &renderer) {
   if (!isVisible())
     return;
 
+  // 在渲染前批量更新所有节点的世界变换
+  batchUpdateTransforms();
+
   Camera *activeCam = getActiveCamera();
   if (activeCam) {
     renderer.setViewProjection(activeCam->getViewProjectionMatrix());

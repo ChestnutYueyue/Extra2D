@@ -135,6 +135,27 @@ void GLRenderer::setViewProjection(const glm::mat4 &matrix) {
   viewProjection_ = matrix;
 }
 
+void GLRenderer::pushTransform(const glm::mat4 &transform) {
+  if (transformStack_.empty()) {
+    transformStack_.push_back(transform);
+  } else {
+    transformStack_.push_back(transformStack_.back() * transform);
+  }
+}
+
+void GLRenderer::popTransform() {
+  if (!transformStack_.empty()) {
+    transformStack_.pop_back();
+  }
+}
+
+glm::mat4 GLRenderer::getCurrentTransform() const {
+  if (transformStack_.empty()) {
+    return glm::mat4(1.0f);
+  }
+  return transformStack_.back();
+}
+
 Ptr<Texture> GLRenderer::createTexture(int width, int height,
                                        const uint8_t *pixels, int channels) {
   return makePtr<GLTexture>(width, height, pixels, channels);
@@ -160,8 +181,8 @@ void GLRenderer::drawSprite(const Texture &texture, const Rect &destRect,
   // 纹理坐标计算
   float u1 = srcRect.origin.x / texW;
   float u2 = (srcRect.origin.x + srcRect.size.width) / texW;
-  float v1 = 1.0f - (srcRect.origin.y / texH);
-  float v2 = 1.0f - ((srcRect.origin.y + srcRect.size.height) / texH);
+  float v1 = srcRect.origin.y / texH;
+  float v2 = (srcRect.origin.y + srcRect.size.height) / texH;
 
   data.texCoordMin = glm::vec2(glm::min(u1, u2), glm::min(v1, v2));
   data.texCoordMax = glm::vec2(glm::max(u1, u2), glm::max(v1, v2));

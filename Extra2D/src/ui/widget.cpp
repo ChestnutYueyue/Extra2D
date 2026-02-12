@@ -93,7 +93,7 @@ Vec2 Widget::getRenderPosition() const {
     case CoordinateSpace::World:
     default:
       // 世界空间：使用节点的世界位置
-      return getPosition();
+      return convertToWorldSpace(extra2d::Vec2::Zero());
   }
 }
 
