@@ -528,6 +528,42 @@ void GameOverLayer::initPanel(int score, float screenHeight) {
    - 引擎会自动在渲染前调用
    - 如果需要强制更新变换，可以手动调用
 
+7. **避免双重引用**：
+   - 节点通过 `addChild()` 添加到场景后，由场景统一管理
+   - **不要**额外存储 `shared_ptr` 到 vector 中，避免双重引用问题
+   - 使用 `getChildren()` 访问子节点，配合 `dynamic_cast` 筛选特定类型
+
+   ```cpp
+   // ❌ 错误：双重引用
+   class BadScene : public Scene {
+   private:
+       std::vector<Ptr<Sprite>> sprites_;  // 不要这样做！
+   public:
+       void createSprite() {
+           auto sprite = Sprite::create(texture);
+           addChild(sprite);
+           sprites_.push_back(sprite);  // 双重引用！
+       }
+   };
+   
+   // ✅ 正确：通过 getChildren() 访问
+   class GoodScene : public Scene {
+   public:
+       void createSprite() {
+           auto sprite = Sprite::create(texture);
+           addChild(sprite);  // 场景统一管理
+       }
+       
+       void updateSprites() {
+           for (const auto& child : getChildren()) {
+               if (auto sprite = dynamic_cast<Sprite*>(child.get())) {
+                   // 处理 sprite
+               }
+           }
+       }
+   };
+   ```
+
 ## 下一步
 
 - [04. 资源管理](./04_Resource_Management.md) - 深入了解资源加载

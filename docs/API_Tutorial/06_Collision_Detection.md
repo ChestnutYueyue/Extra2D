@@ -64,8 +64,10 @@ public:
         Scene::onUpdate(dt);
         
         // 清除之前的碰撞状态
-        for (auto& box : boxes_) {
-            box->setColliding(false);
+        for (const auto& child : getChildren()) {
+            if (auto box = dynamic_cast<CollidableBox*>(child.get())) {
+                box->setColliding(false);
+            }
         }
         
         // 使用场景的空间索引查询所有碰撞
@@ -82,10 +84,15 @@ public:
         }
     }
     
-private:
-    std::vector<Ptr<CollidableBox>> boxes_;
+    void createBox(float x, float y) {
+        auto box = makePtr<CollidableBox>(50.0f, 50.0f, Color(0.3f, 0.7f, 1.0f, 0.8f));
+        box->setPosition(Vec2(x, y));
+        addChild(box);  // 通过 addChild 管理节点生命周期
+    }
 };
 ```
+
+**注意**：节点通过 `addChild()` 添加到场景后，由场景统一管理生命周期。不要额外存储 `shared_ptr` 到 vector 中，避免双重引用问题。
 
 ## 空间索引策略
 
@@ -123,18 +130,19 @@ public:
         Scene::onEnter();
         
         // 创建100个碰撞节点
-        createNodes(100);
+        createPhysicsNodes(100);
         
-        E2D_LOG_INFO("创建了 {} 个碰撞节点", nodes_.size());
         E2D_LOG_INFO("空间索引已启用: {}", isSpatialIndexingEnabled());
     }
     
     void onUpdate(float dt) override {
         Scene::onUpdate(dt);
         
-        // 更新所有节点位置
-        for (auto& node : nodes_) {
-            node->update(dt, screenWidth_, screenHeight_);
+        // 更新所有物理节点位置（通过 getChildren() 访问）
+        for (const auto& child : getChildren()) {
+            if (auto node = dynamic_cast<PhysicsNode*>(child.get())) {
+                node->update(dt, screenWidth_, screenHeight_);
+            }
         }
         
         // 使用空间索引进行碰撞检测
@@ -150,8 +158,10 @@ public:
 private:
     void performCollisionDetection() {
         // 清除之前的碰撞状态
-        for (auto& node : nodes_) {
-            node->setColliding(false);
+        for (const auto& child : getChildren()) {
+            if (auto node = dynamic_cast<PhysicsNode*>(child.get())) {
+                node->setColliding(false);
+            }
         }
         
         // 使用引擎自带的空间索引进行碰撞检测
@@ -180,8 +190,24 @@ private:
             E2D_LOG_INFO("切换到四叉树策略");
         }
     }
+    
+    // 获取物理节点数量
+    size_t getPhysicsNodeCount() const {
+        size_t count = 0;
+        for (const auto& child : getChildren()) {
+            if (dynamic_cast<PhysicsNode*>(child.get())) {
+                ++count;
+            }
+        }
+        return count;
+    }
 };
 ```
+
+**关键改进**：
+- 使用 `getChildren()` 代替私有 vector 存储节点引用
+- 通过 `dynamic_cast` 筛选特定类型的子节点
+- 避免双重引用，简化生命周期管理
 
 ## 关键要点
 

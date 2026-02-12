@@ -72,20 +72,5 @@ target("collision_demo")
                 print("Warning: romfs directory not found at " .. romfs)
             end
         end)
-        
-        -- 打包时将资源复制到 package 目录
-        after_package(function (target)
-            local target_dir = path.directory(target:targetfile())
-            local assets_dir = path.join(target_dir, "assets")
-            local package_dir = target:packagedir()
-            if os.isdir(assets_dir) and package_dir then
-                local package_assets = path.join(package_dir, "assets")
-                if not os.isdir(package_assets) then
-                    os.mkdir(package_assets)
-                end
-                os.cp(path.join(assets_dir, "**"), package_assets)
-                print("Copied assets to package: " .. package_assets)
-            end
-        end)
     end
 target_end()

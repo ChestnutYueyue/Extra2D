@@ -1,8 +1,5 @@
-#include <cmath>
 #include <extra2d/extra2d.h>
-#include <iomanip>
 #include <random>
-#include <sstream>
 
 using namespace extra2d;
 
@@ -106,19 +103,15 @@ public:
     setBackgroundColor(Color(0.05f, 0.05f, 0.1f, 1.0f));
 
     // 创建100个碰撞节点
-    createNodes(100);
+    createPhysicsNodes(100);
 
     // 加载字体
     loadFonts();
 
-    E2D_LOG_INFO("创建了 {} 个碰撞节点", nodes_.size());
     E2D_LOG_INFO("空间索引已启用: {}", isSpatialIndexingEnabled());
   }
 
   void onExit() override {
-    // 先清理 nodes_ 向量
-    nodes_.clear();
-
     // 显式移除所有子节点，确保在场景析构前正确清理空间索引
     // 这必须在 Scene::onExit() 之前调用，因为 onExit() 会将 running_ 设为 false
     removeAllChildren();
@@ -131,9 +124,11 @@ public:
 
     auto startTime = std::chrono::high_resolution_clock::now();
 
-    // 更新所有节点位置
-    for (auto &node : nodes_) {
-      node->update(dt, screenWidth_, screenHeight_);
+    // 更新所有物理节点位置
+    for (const auto &child : getChildren()) {
+      if (auto node = dynamic_cast<PhysicsNode *>(child.get())) {
+        node->update(dt, screenWidth_, screenHeight_);
+      }
     }
 
     auto updateEndTime = std::chrono::high_resolution_clock::now();
@@ -149,7 +144,8 @@ public:
                                collisionEndTime - updateEndTime)
                                .count();
 
-    stats_.nodeCount = nodes_.size();
+    // 统计物理节点数量
+    stats_.nodeCount = getPhysicsNodeCount();
 
     // 获取当前使用的空间索引策略
     stats_.strategyName = getSpatialManager().getStrategyName();
@@ -310,9 +306,9 @@ private:
   }
 
   /**
-   * @brief 创建指定数量的节点
+   * @brief 创建指定数量的物理节点
    */
-  void createNodes(size_t count) {
+  void createPhysicsNodes(size_t count) {
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_real_distribution<float> posX(50.0f, screenWidth_ - 50.0f);
@@ -326,38 +322,70 @@ private:
       auto node = makePtr<PhysicsNode>(20.0f, color, static_cast<int>(i));
       node->setPosition(Vec2(posX(gen), posY(gen)));
       addChild(node);
-      nodes_.push_back(node);
     }
+  }
+
+  /**
+   * @brief 获取物理节点数量
+   */
+  size_t getPhysicsNodeCount() const {
+    size_t count = 0;
+    for (const auto &child : getChildren()) {
+      if (dynamic_cast<PhysicsNode *>(child.get())) {
+        ++count;
+      }
+    }
+    return count;
+  }
+
+  /**
+   * @brief 获取所有物理节点
+   */
+  std::vector<PhysicsNode *> getPhysicsNodes() const {
+    std::vector<PhysicsNode *> nodes;
+    for (const auto &child : getChildren()) {
+      if (auto node = dynamic_cast<PhysicsNode *>(child.get())) {
+        nodes.push_back(node);
+      }
+    }
+    return nodes;
   }
 
   /**
    * @brief 添加节点
    */
   void addNodes(size_t count) {
-    size_t currentCount = nodes_.size();
+    size_t currentCount = getPhysicsNodeCount();
     if (currentCount + count > 5000) {
       E2D_LOG_WARN("节点数量已达上限(5000)");
       return;
     }
-    createNodes(count);
-    E2D_LOG_INFO("添加 {} 个节点，当前总数: {}", count, nodes_.size());
+    createPhysicsNodes(count);
+    E2D_LOG_INFO("添加 {} 个节点，当前总数: {}", count, getPhysicsNodeCount());
   }
 
   /**
    * @brief 移除节点
    */
   void removeNodes(size_t count) {
-    if (count >= nodes_.size()) {
-      count = nodes_.size();
+    auto physicsNodes = getPhysicsNodes();
+    if (count >= physicsNodes.size()) {
+      count = physicsNodes.size();
     }
     if (count == 0)
       return;
 
+    // 从后往前移除指定数量的节点
     for (size_t i = 0; i < count; ++i) {
-      removeChild(nodes_.back());
-      nodes_.pop_back();
+      // 找到最后一个物理节点对应的子节点并移除
+      for (auto it = getChildren().rbegin(); it != getChildren().rend(); ++it) {
+        if (dynamic_cast<PhysicsNode *>(it->get())) {
+          removeChild(*it);
+          break;
+        }
+      }
     }
-    E2D_LOG_INFO("移除 {} 个节点，当前总数: {}", count, nodes_.size());
+    E2D_LOG_INFO("移除 {} 个节点，当前总数: {}", count, getPhysicsNodeCount());
   }
 
   /**
@@ -385,8 +413,10 @@ private:
    */
   void performCollisionDetection() {
     // 清除之前的碰撞状态
-    for (auto &node : nodes_) {
-      node->setColliding(false);
+    for (const auto &child : getChildren()) {
+      if (auto node = dynamic_cast<PhysicsNode *>(child.get())) {
+        node->setColliding(false);
+      }
     }
 
     // 使用引擎自带的空间索引进行碰撞检测
@@ -442,7 +472,6 @@ private:
                       Color(1.0f, 0.2f, 0.2f, 0.9f));
   }
 
-  std::vector<Ptr<PhysicsNode>> nodes_;
   PerformanceStats stats_;
   float screenWidth_ = 1280.0f;
   float screenHeight_ = 720.0f;
@@ -473,8 +502,7 @@ private:
 // 程序入口
 // ============================================================================
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
   Logger::init();
   Logger::setLevel(LogLevel::Debug);
 

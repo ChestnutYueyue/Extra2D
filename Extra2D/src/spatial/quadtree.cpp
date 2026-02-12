@@ -248,9 +248,12 @@ void QuadTree::collectCollisions(
     if (!current)
       continue;
 
+    // 确保 ancestorEnd 不超过当前 buffer 大小
+    size_t validAncestorEnd = std::min(item.ancestorEnd, collisionBuffer_.size());
+
     // 检测当前节点对象与祖先对象的碰撞
     for (const auto &[obj, bounds] : current->objects) {
-      for (size_t i = item.ancestorStart; i < item.ancestorEnd; ++i) {
+      for (size_t i = item.ancestorStart; i < validAncestorEnd; ++i) {
         const auto &[ancestorObj, ancestorBounds] = collisionBuffer_[i];
         if (bounds.intersects(ancestorBounds)) {
           collisions.emplace_back(ancestorObj, obj);
@@ -277,10 +280,15 @@ void QuadTree::collectCollisions(
     }
 
     // 恢复祖先列表（模拟递归返回）
-    if (stack.empty() ||
-        (stack.back().ancestorStart != oldSize &&
-         stack.back().ancestorEnd != collisionBuffer_.size())) {
+    // 只有当栈顶元素的祖先范围与当前不同时，才需要恢复
+    if (stack.empty()) {
       collisionBuffer_.resize(oldSize);
+    } else {
+      const auto& nextItem = stack.back();
+      // 如果下一个节点的祖先范围与当前不同，则需要恢复到其祖先起始位置
+      if (nextItem.ancestorStart != oldSize) {
+        collisionBuffer_.resize(oldSize);
+      }
     }
   }
 }
