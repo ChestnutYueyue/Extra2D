@@ -121,9 +121,8 @@ void ParticleEmitter::render(RenderBackend &renderer) {
         continue;
 
       // 计算目标矩形
-      float halfSize = p.size * 0.5f;
-      Rect destRect(p.position.x - halfSize, p.position.y - halfSize, p.size,
-                    p.size);
+      // 锚点由 RenderBackend 在绘制时处理，这里只传递位置和尺寸
+      Rect destRect(p.position.x, p.position.y, p.size, p.size);
 
       renderer.drawSprite(
           *config_.texture, destRect,

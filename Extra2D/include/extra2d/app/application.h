@@ -39,6 +39,9 @@ struct AppConfig {
   BackendType renderBackend = BackendType::OpenGL;
   int msaaSamples = 0;
   PlatformType platform = PlatformType::Auto;
+  // 窗口高级配置
+  bool enableCursors = true;        // 是否启用光标
+  bool enableDpiScale = false;      // 是否启用DPI缩放
 };
 
 // ============================================================================

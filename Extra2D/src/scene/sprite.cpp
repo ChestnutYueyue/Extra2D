@@ -79,9 +79,8 @@ void Sprite::onDraw(RenderBackend &renderer) {
   auto pos = getPosition();
   auto anchor = getAnchor();
   auto scale = getScale();
-  Rect destRect(pos.x - width * anchor.x * scale.x,
-                pos.y - height * anchor.y * scale.y, width * scale.x,
-                height * scale.y);
+  // 锚点由 RenderBackend 在绘制时处理，这里只传递位置和尺寸
+  Rect destRect(pos.x, pos.y, width * scale.x, height * scale.y);
 
   // Adjust source rect for flipping
   Rect srcRect = textureRect_;
@@ -111,9 +110,8 @@ void Sprite::generateRenderCommand(std::vector<RenderCommand> &commands,
   auto pos = getPosition();
   auto anchor = getAnchor();
   auto scale = getScale();
-  Rect destRect(pos.x - width * anchor.x * scale.x,
-                pos.y - height * anchor.y * scale.y, width * scale.x,
-                height * scale.y);
+  // 锚点由 RenderBackend 在绘制时处理，这里只传递位置和尺寸
+  Rect destRect(pos.x, pos.y, width * scale.x, height * scale.y);
 
   // 调整源矩形（翻转）
   Rect srcRect = textureRect_;

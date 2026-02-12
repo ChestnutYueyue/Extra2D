@@ -155,9 +155,9 @@ void FrameRenderer::drawSpriteFrame(RenderBackend &renderer,
   float flipScaleX = flipX ? -1.0f : 1.0f;
   float flipScaleY = flipY ? -1.0f : 1.0f;
 
-  Rect destRect{
-      {finalPos.x - w * 0.5f * flipScaleX, finalPos.y - h * 0.5f * flipScaleY},
-      {w, h}};
+  // 锚点由 RenderBackend 在绘制时处理，这里只传递位置和尺寸
+  // 使用中心锚点(0.5, 0.5)，所以 destRect 从 finalPos 开始，不预偏移
+  Rect destRect{{finalPos.x, finalPos.y}, {w * flipScaleX, h * flipScaleY}};
 
   Color finalColor{tint.r, tint.g, tint.b, tint.a * opacity};
 
