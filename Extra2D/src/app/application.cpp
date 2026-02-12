@@ -99,8 +99,8 @@ bool Application::init(const AppConfig &config) {
     winConfig.fullscreen = true;
     winConfig.fullscreenDesktop = false;  // Switch 使用固定分辨率全屏
     winConfig.resizable = false;
-    winConfig.enableCursors = config.enableCursors;
-    winConfig.enableDpiScale = config.enableDpiScale;
+    winConfig.enableCursors = false;
+    winConfig.enableDpiScale = false;
   } else {
     // PC 平台默认窗口模式
     winConfig.fullscreen = config.fullscreen;
