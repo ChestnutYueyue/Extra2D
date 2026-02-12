@@ -105,6 +105,87 @@ auto tex2 = resources.loadTexture("assets/image.png");
 // tex1 和 tex2 指向同一个纹理对象
 ```
 
+### LRU 缓存机制
+
+Extra2D 使用 LRU (Least Recently Used) 算法管理纹理缓存，自动清理最久未使用的纹理：
+
+```cpp
+// 配置纹理缓存参数
+auto& resources = Application::instance().resources();
+
+// 设置缓存参数：最大缓存大小(字节)、最大纹理数量、自动清理间隔(秒)
+resources.setTextureCache(
+    128 * 1024 * 1024,  // 128MB 最大缓存
+    512,                 // 最多 512 个纹理
+    30.0f               // 每 30 秒检查一次
+);
+
+// 在主循环中更新资源管理器（用于自动清理）
+void GameScene::update(float dt) {
+    // 这会触发缓存清理检查
+    resources.update(dt);
+}
+```
+
+#### 缓存统计
+
+```cpp
+// 获取缓存使用情况
+size_t memoryUsage = resources.getTextureCacheMemoryUsage();  // 当前缓存大小（字节）
+float hitRate = resources.getTextureCacheHitRate();            // 缓存命中率 (0.0 - 1.0)
+size_t cacheSize = resources.getTextureCacheSize();            // 缓存中的纹理数量
+
+// 打印详细统计信息
+resources.printTextureCacheStats();
+// 输出示例：
+// [INFO] 纹理缓存统计:
+// [INFO]   缓存纹理数: 45/512
+// [INFO]   缓存大小: 32 / 128 MB
+// [INFO]   缓存命中: 1024
+// [INFO]   缓存未命中: 56
+// [INFO]   命中率: 94.8%
+```
+
+#### 自动清理策略
+
+LRU 缓存会自动执行以下清理策略：
+
+1. **容量限制**：当缓存超过 `maxCacheSize` 或 `maxTextureCount` 时，自动驱逐最久未使用的纹理
+2. **定时清理**：每 `unloadInterval` 秒检查一次，如果缓存超过 80%，清理到 50%
+3. **访问更新**：每次访问纹理时，自动将其移到 LRU 链表头部（标记为最近使用）
+
+```cpp
+// 手动清理缓存
+resources.clearTextureCache();  // 清空所有纹理缓存
+resources.clearAllCaches();     // 清空所有资源缓存（纹理、字体、音效）
+
+// 手动卸载特定纹理
+resources.unloadTexture("assets/images/old_texture.png");
+```
+
+#### 缓存配置建议
+
+| 平台 | 最大缓存大小 | 最大纹理数 | 清理间隔 | 说明 |
+|------|-------------|-----------|---------|------|
+| Switch 掌机模式 | 64-128 MB | 256-512 | 30s | 内存有限，保守设置 |
+| Switch 主机模式 | 128-256 MB | 512-1024 | 30s | 内存充足，可以更大 |
+| PC (MinGW) | 256-512 MB | 1024+ | 60s | 内存充足，可以更大 |
+
+```cpp
+// 根据平台设置不同的缓存策略
+void setupCache() {
+    auto& resources = Application::instance().resources();
+    
+#ifdef __SWITCH__
+    // Switch 平台使用保守设置
+    resources.setTextureCache(64 * 1024 * 1024, 256, 30.0f);
+#else
+    // PC 平台可以使用更大的缓存
+    resources.setTextureCache(256 * 1024 * 1024, 1024, 60.0f);
+#endif
+}
+```
+
 ### 纹理图集（Texture Atlas）
 
 Extra2D 自动使用纹理图集优化渲染性能：
@@ -189,11 +270,22 @@ std::string path = ResourceManager::getPlatformPath("images/player.png");
 ### 手动清理缓存
 
 ```cpp
-// 清理未使用的资源
-resources.cleanupUnused();
+// 清理未使用的资源（清理字体和音效缓存中已失效的弱引用）
+resources.purgeUnused();
+
+// 清空特定类型的缓存
+resources.clearTextureCache();  // 清空纹理缓存
+resources.clearFontCache();     // 清空字体缓存
+resources.clearSoundCache();    // 清空音效缓存
 
 // 清空所有缓存（谨慎使用）
-resources.clearCache();
+resources.clearAllCaches();
+
+// 检查是否有正在进行的异步加载
+if (resources.hasPendingAsyncLoads()) {
+    // 等待所有异步加载完成
+    resources.waitForAsyncLoads();
+}
 ```
 
 ## 内存管理
@@ -302,6 +394,8 @@ void StartScene::onEnter() {
 2. **使用纹理图集** - 将多个小纹理打包到图集，减少 draw call
 3. **异步加载大纹理** - 避免在主线程加载大型资源造成卡顿
 4. **合理设置纹理尺寸** - 避免使用过大的纹理（建议最大 2048x2048）
+5. **配置合适的缓存大小** - 根据平台内存设置合理的 LRU 缓存参数
+6. **监控缓存命中率** - 使用 `printTextureCacheStats()` 检查缓存效率
 
 ### 资源加载策略
 
@@ -337,6 +431,9 @@ void GameScene::loadOptionalResources() {
 5. **使用异步加载** - 对大型资源使用异步加载避免卡顿
 6. **选择合适的压缩格式** - 根据纹理用途选择最佳压缩格式
 7. **利用自动批处理** - 相同纹理的精灵会自动批处理，无需手动优化
+8. **配置 LRU 缓存** - 根据平台内存配置合适的缓存大小
+9. **定期监控缓存** - 在开发阶段定期检查缓存命中率和内存使用
+10. **在主循环更新资源管理器** - 确保调用 `resources.update(dt)` 以触发自动清理
 
 ## 下一步
 
