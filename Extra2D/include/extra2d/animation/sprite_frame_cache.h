@@ -1,9 +1,9 @@
 #pragma once
 
 #include <extra2d/animation/sprite_frame.h>
-#include <extra2d/graphics/opengl/gl_texture.h>
+#include <extra2d/graphics/texture.h>
+#include <extra2d/resource/resource_manager.h>
 #include <extra2d/utils/logger.h>
-#include <stb/stb_image.h>
 #include <mutex>
 #include <string>
 #include <unordered_map>
@@ -164,30 +164,30 @@ private:
   SpriteFrameCache &operator=(const SpriteFrameCache &) = delete;
 
   /**
-   * @brief 从文件加载纹理
+   * @brief 从文件加载纹理（使用 ResourceManager 的 LRU 缓存）
    * @param filepath 纹理文件路径
    * @return 纹理对象，失败返回nullptr
    */
   Ptr<Texture> loadTextureFromFile(const std::string &filepath) {
-    // 使用stb_image加载图像
-    stbi_set_flip_vertically_on_load(false);
-    int width, height, channels;
-    unsigned char *pixels =
-        stbi_load(filepath.c_str(), &width, &height, &channels, 4);
-    if (!pixels) {
-      E2D_ERROR("加载纹理失败: {} - {}", filepath, stbi_failure_reason());
+    // 使用 ResourceManager 的纹理缓存机制
+    // 这样可以享受 LRU 缓存、自动清理和缓存统计等功能
+    auto &resources = ResourceManager::getInstance();
+    
+    // 先检查缓存中是否已有该纹理
+    auto texture = resources.getTexture(filepath);
+    if (texture) {
+      E2D_TRACE("SpriteFrameCache: 使用缓存纹理: {}", filepath);
+      return texture;
+    }
+    
+    // 缓存未命中，通过 ResourceManager 加载
+    texture = resources.loadTexture(filepath);
+    if (!texture) {
+      E2D_ERROR("SpriteFrameCache: 加载纹理失败: {}", filepath);
       return nullptr;
     }
-
-    // 创建GLTexture
-    auto texture = makePtr<GLTexture>(width, height, pixels, 4);
-    stbi_image_free(pixels);
-
-    if (!texture || !texture->isValid()) {
-      E2D_ERROR("创建纹理失败: {}", filepath);
-      return nullptr;
-    }
-
+    
+    E2D_TRACE("SpriteFrameCache: 加载新纹理: {}", filepath);
     return texture;
   }
 
