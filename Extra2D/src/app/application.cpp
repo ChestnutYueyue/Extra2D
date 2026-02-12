@@ -314,6 +314,11 @@ void Application::update() {
   if (sceneManager_) {
     sceneManager_->update(deltaTime_);
   }
+
+  // 更新资源管理器（触发纹理池自动清理）
+  if (resourceManager_) {
+    resourceManager_->update(deltaTime_);
+  }
 }
 
 void Application::render() {

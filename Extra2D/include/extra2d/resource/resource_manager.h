@@ -6,19 +6,16 @@
 #include <extra2d/graphics/font.h>
 #include <extra2d/graphics/texture.h>
 #include <functional>
-#include <future>
 #include <mutex>
 #include <string>
 #include <unordered_map>
-#include <queue>
-#include <thread>
-#include <atomic>
+#include <vector>
 
 namespace extra2d {
 
 // ============================================================================
 // 资源管理器 - 统一管理纹理、字体、音效等资源
-// 支持异步加载和纹理压缩
+// 使用 TexturePool 作为纹理管理后端
 // ============================================================================
 
 // 纹理格式枚举
@@ -42,6 +39,13 @@ public:
   // 单例访问
   // ------------------------------------------------------------------------
   static ResourceManager &getInstance();
+
+  // ------------------------------------------------------------------------
+  // 更新（在主循环中调用）
+  // ------------------------------------------------------------------------
+  
+  /// 更新资源管理器，触发纹理池自动清理等
+  void update(float dt);
 
   // ------------------------------------------------------------------------
   // 纹理资源 - 同步加载
@@ -142,19 +146,24 @@ public:
   size_t getSoundCacheSize() const;
 
   // ------------------------------------------------------------------------
-  // 异步加载控制
+  // 异步加载控制（已弃用，保留接口兼容性）
+  // 纹理异步加载由 TexturePool 内部处理
   // ------------------------------------------------------------------------
   
   /// 初始化异步加载系统（可选，自动在首次异步加载时初始化）
+  /// @deprecated 纹理池已内置异步加载，无需调用
   void initAsyncLoader();
   
   /// 关闭异步加载系统
+  /// @deprecated 纹理池自动管理生命周期，无需调用
   void shutdownAsyncLoader();
   
   /// 等待所有异步加载完成
+  /// @deprecated 使用回调机制处理异步加载结果
   void waitForAsyncLoads();
   
   /// 检查是否有正在进行的异步加载
+  /// @deprecated 始终返回 false
   bool hasPendingAsyncLoads() const;
 
   ResourceManager();
@@ -177,32 +186,14 @@ private:
   std::vector<uint8_t> compressTexture(const uint8_t* data, int width, int height, 
                                        int channels, TextureFormat format);
 
-  // 互斥锁保护缓存
-  mutable std::mutex textureMutex_;
+  // 互斥锁保护缓存（字体和音效缓存仍需锁保护）
   mutable std::mutex fontMutex_;
   mutable std::mutex soundMutex_;
 
   // 资源缓存 - 使用弱指针实现自动清理
-  std::unordered_map<std::string, WeakPtr<Texture>> textureCache_;
+  // 纹理缓存已移至 TexturePool，此处仅保留字体和音效缓存
   std::unordered_map<std::string, WeakPtr<FontAtlas>> fontCache_;
   std::unordered_map<std::string, WeakPtr<Sound>> soundCache_;
-  
-  // 异步加载相关
-  struct AsyncLoadTask {
-    std::string filepath;
-    TextureFormat format;
-    TextureLoadCallback callback;
-    std::promise<Ptr<Texture>> promise;
-  };
-  
-  std::queue<AsyncLoadTask> asyncTaskQueue_;
-  std::mutex asyncQueueMutex_;
-  std::condition_variable asyncCondition_;
-  std::unique_ptr<std::thread> asyncThread_;
-  std::atomic<bool> asyncRunning_{false};
-  std::atomic<int> pendingAsyncLoads_{0};
-  
-  void asyncLoadLoop();
 };
 
 } // namespace extra2d

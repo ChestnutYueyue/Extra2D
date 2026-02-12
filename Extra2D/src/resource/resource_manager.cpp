@@ -3,6 +3,7 @@
 #include <extra2d/audio/audio_engine.h>
 #include <extra2d/graphics/opengl/gl_font_atlas.h>
 #include <extra2d/graphics/opengl/gl_texture.h>
+#include <extra2d/graphics/texture_pool.h>
 #include <extra2d/resource/resource_manager.h>
 #include <extra2d/utils/logger.h>
 #include <sys/stat.h>
@@ -79,10 +80,17 @@ static std::string resolveResourcePath(const std::string &filepath) {
   return "";
 }
 
-ResourceManager::ResourceManager() = default;
+ResourceManager::ResourceManager() {
+  // 初始化纹理池
+  TexturePoolConfig config;
+  config.maxCacheSize = 128 * 1024 * 1024;  // 128MB
+  config.maxTextureCount = 512;
+  config.enableAsyncLoad = true;
+  TexturePool::getInstance().init(config);
+}
 
 ResourceManager::~ResourceManager() {
-  shutdownAsyncLoader();
+  TexturePool::getInstance().shutdown();
 }
 
 ResourceManager &ResourceManager::getInstance() {
@@ -91,77 +99,11 @@ ResourceManager &ResourceManager::getInstance() {
 }
 
 // ============================================================================
-// 异步加载系统
+// 更新（在主循环中调用）
 // ============================================================================
 
-void ResourceManager::initAsyncLoader() {
-  if (asyncRunning_) {
-    return;
-  }
-  
-  asyncRunning_ = true;
-  asyncThread_ = std::make_unique<std::thread>(&ResourceManager::asyncLoadLoop, this);
-  E2D_LOG_INFO("ResourceManager: async loader initialized");
-}
-
-void ResourceManager::shutdownAsyncLoader() {
-  if (!asyncRunning_) {
-    return;
-  }
-  
-  asyncRunning_ = false;
-  asyncCondition_.notify_all();
-  
-  if (asyncThread_ && asyncThread_->joinable()) {
-    asyncThread_->join();
-  }
-  
-  E2D_LOG_INFO("ResourceManager: async loader shutdown");
-}
-
-void ResourceManager::waitForAsyncLoads() {
-  while (pendingAsyncLoads_ > 0) {
-    std::this_thread::yield();
-  }
-}
-
-bool ResourceManager::hasPendingAsyncLoads() const {
-  return pendingAsyncLoads_ > 0;
-}
-
-void ResourceManager::asyncLoadLoop() {
-  while (asyncRunning_) {
-    AsyncLoadTask task;
-    
-    {
-      std::unique_lock<std::mutex> lock(asyncQueueMutex_);
-      asyncCondition_.wait(lock, [this] { return !asyncTaskQueue_.empty() || !asyncRunning_; });
-      
-      if (!asyncRunning_) {
-        break;
-      }
-      
-      if (asyncTaskQueue_.empty()) {
-        continue;
-      }
-      
-      task = std::move(asyncTaskQueue_.front());
-      asyncTaskQueue_.pop();
-    }
-    
-    // 执行加载
-    auto texture = loadTextureInternal(task.filepath, task.format);
-    
-    // 回调
-    if (task.callback) {
-      task.callback(texture);
-    }
-    
-    // 设置 promise
-    task.promise.set_value(texture);
-    
-    pendingAsyncLoads_--;
-  }
+void ResourceManager::update(float dt) {
+  TexturePool::getInstance().update(dt);
 }
 
 // ============================================================================
@@ -191,57 +133,31 @@ void ResourceManager::loadTextureAsync(const std::string &filepath, TextureLoadC
 }
 
 void ResourceManager::loadTextureAsync(const std::string &filepath, TextureFormat format, TextureLoadCallback callback) {
-  // 确保异步加载系统已启动
-  if (!asyncRunning_) {
-    initAsyncLoader();
-  }
-  
-  // 检查缓存
-  {
-    std::lock_guard<std::mutex> lock(textureMutex_);
-    auto it = textureCache_.find(filepath);
-    if (it != textureCache_.end()) {
-      if (auto texture = it->second.lock()) {
-        // 缓存命中，立即回调
-        if (callback) {
-          callback(texture);
-        }
-        return;
-      }
+  // 解析资源路径
+  std::string fullPath = resolveResourcePath(filepath);
+  if (fullPath.empty()) {
+    E2D_LOG_ERROR("ResourceManager: texture file not found: {}", filepath);
+    if (callback) {
+      callback(nullptr);
     }
+    return;
   }
   
-  // 添加到异步任务队列
-  AsyncLoadTask task;
-  task.filepath = filepath;
-  task.format = format;
-  task.callback = callback;
-  
-  {
-    std::lock_guard<std::mutex> lock(asyncQueueMutex_);
-    asyncTaskQueue_.push(std::move(task));
-  }
-  
-  pendingAsyncLoads_++;
-  asyncCondition_.notify_one();
-  
-  E2D_LOG_DEBUG("ResourceManager: queued async texture load: {}", filepath);
+  // 使用纹理池的异步加载
+  TexturePool::getInstance().getAsync(fullPath, 
+    [callback, filepath](Ptr<Texture> texture) {
+      if (texture) {
+        E2D_LOG_DEBUG("ResourceManager: async texture loaded: {}", filepath);
+      } else {
+        E2D_LOG_ERROR("ResourceManager: failed to async load texture: {}", filepath);
+      }
+      if (callback) {
+        callback(texture);
+      }
+    });
 }
 
 Ptr<Texture> ResourceManager::loadTextureInternal(const std::string &filepath, TextureFormat format) {
-  std::lock_guard<std::mutex> lock(textureMutex_);
-
-  // 检查缓存
-  auto it = textureCache_.find(filepath);
-  if (it != textureCache_.end()) {
-    if (auto texture = it->second.lock()) {
-      E2D_LOG_TRACE("ResourceManager: texture cache hit: {}", filepath);
-      return texture;
-    }
-    // 弱引用已失效，移除
-    textureCache_.erase(it);
-  }
-
   // 解析资源路径（优先尝试 romfs:/ 前缀）
   std::string fullPath = resolveResourcePath(filepath);
   if (fullPath.empty()) {
@@ -249,30 +165,22 @@ Ptr<Texture> ResourceManager::loadTextureInternal(const std::string &filepath, T
     return nullptr;
   }
 
-  // 创建新纹理
-  try {
-    auto texture = makePtr<GLTexture>(fullPath);
-    if (!texture->isValid()) {
-      E2D_LOG_ERROR("ResourceManager: failed to load texture: {}", filepath);
-      return nullptr;
-    }
-
-    // 如果需要压缩，处理纹理格式
-    if (format != TextureFormat::Auto && format != TextureFormat::RGBA8) {
-      // 注意：实际压缩需要在纹理创建时处理
-      // 这里仅记录日志，实际实现需要在 GLTexture 中支持
-      E2D_LOG_DEBUG("ResourceManager: texture format {} requested for {}", 
-                    static_cast<int>(format), filepath);
-    }
-
-    // 存入缓存
-    textureCache_[filepath] = texture;
-    E2D_LOG_DEBUG("ResourceManager: loaded texture: {}", filepath);
-    return texture;
-  } catch (...) {
-    E2D_LOG_ERROR("ResourceManager: exception loading texture: {}", filepath);
+  // 使用纹理池获取纹理
+  auto texture = TexturePool::getInstance().get(fullPath);
+  
+  if (!texture) {
+    E2D_LOG_ERROR("ResourceManager: failed to load texture: {}", filepath);
     return nullptr;
   }
+
+  // 如果需要压缩，处理纹理格式（记录日志，实际压缩需要在纹理创建时处理）
+  if (format != TextureFormat::Auto && format != TextureFormat::RGBA8) {
+    E2D_LOG_DEBUG("ResourceManager: texture format {} requested for {}", 
+                  static_cast<int>(format), filepath);
+  }
+
+  E2D_LOG_DEBUG("ResourceManager: loaded texture: {}", filepath);
+  return texture;
 }
 
 TextureFormat ResourceManager::selectBestFormat(TextureFormat requested) const {
@@ -318,70 +226,90 @@ ResourceManager::loadTextureWithAlphaMask(const std::string &filepath) {
 
 const AlphaMask *
 ResourceManager::getAlphaMask(const std::string &textureKey) const {
-  std::lock_guard<std::mutex> lock(textureMutex_);
-
-  auto it = textureCache_.find(textureKey);
-  if (it != textureCache_.end()) {
-    if (auto texture = it->second.lock()) {
-      GLTexture *glTexture = static_cast<GLTexture *>(texture.get());
-      return glTexture->getAlphaMask();
-    }
+  // 解析路径获取完整路径
+  std::string fullPath = resolveResourcePath(textureKey);
+  if (fullPath.empty()) {
+    return nullptr;
   }
-  return nullptr;
+
+  // 从纹理池获取纹理
+  auto texture = TexturePool::getInstance().get(fullPath);
+  if (!texture) {
+    return nullptr;
+  }
+
+  GLTexture *glTexture = static_cast<GLTexture *>(texture.get());
+  return glTexture->getAlphaMask();
 }
 
 bool ResourceManager::generateAlphaMask(const std::string &textureKey) {
-  std::lock_guard<std::mutex> lock(textureMutex_);
-
-  auto it = textureCache_.find(textureKey);
-  if (it != textureCache_.end()) {
-    if (auto texture = it->second.lock()) {
-      GLTexture *glTexture = static_cast<GLTexture *>(texture.get());
-      if (!glTexture->hasAlphaMask()) {
-        glTexture->generateAlphaMask();
-      }
-      return glTexture->hasAlphaMask();
-    }
+  // 解析路径获取完整路径
+  std::string fullPath = resolveResourcePath(textureKey);
+  if (fullPath.empty()) {
+    return false;
   }
-  return false;
+
+  // 从纹理池获取纹理
+  auto texture = TexturePool::getInstance().get(fullPath);
+  if (!texture) {
+    return false;
+  }
+
+  GLTexture *glTexture = static_cast<GLTexture *>(texture.get());
+  if (!glTexture->hasAlphaMask()) {
+    glTexture->generateAlphaMask();
+  }
+  return glTexture->hasAlphaMask();
 }
 
 bool ResourceManager::hasAlphaMask(const std::string &textureKey) const {
-  std::lock_guard<std::mutex> lock(textureMutex_);
-
-  auto it = textureCache_.find(textureKey);
-  if (it != textureCache_.end()) {
-    if (auto texture = it->second.lock()) {
-      GLTexture *glTexture = static_cast<GLTexture *>(texture.get());
-      return glTexture->hasAlphaMask();
-    }
+  // 解析路径获取完整路径
+  std::string fullPath = resolveResourcePath(textureKey);
+  if (fullPath.empty()) {
+    return false;
   }
-  return false;
+
+  // 从纹理池获取纹理
+  auto texture = TexturePool::getInstance().get(fullPath);
+  if (!texture) {
+    return false;
+  }
+
+  GLTexture *glTexture = static_cast<GLTexture *>(texture.get());
+  return glTexture->hasAlphaMask();
 }
 
 Ptr<Texture> ResourceManager::getTexture(const std::string &key) const {
-  std::lock_guard<std::mutex> lock(textureMutex_);
-
-  auto it = textureCache_.find(key);
-  if (it != textureCache_.end()) {
-    return it->second.lock();
+  // 解析路径获取完整路径
+  std::string fullPath = resolveResourcePath(key);
+  if (fullPath.empty()) {
+    return nullptr;
   }
-  return nullptr;
+
+  // 从纹理池获取纹理
+  return TexturePool::getInstance().get(fullPath);
 }
 
 bool ResourceManager::hasTexture(const std::string &key) const {
-  std::lock_guard<std::mutex> lock(textureMutex_);
-
-  auto it = textureCache_.find(key);
-  if (it != textureCache_.end()) {
-    return !it->second.expired();
+  // 解析路径获取完整路径
+  std::string fullPath = resolveResourcePath(key);
+  if (fullPath.empty()) {
+    return false;
   }
-  return false;
+
+  // 检查纹理池是否有此纹理
+  return TexturePool::getInstance().has(fullPath);
 }
 
 void ResourceManager::unloadTexture(const std::string &key) {
-  std::lock_guard<std::mutex> lock(textureMutex_);
-  textureCache_.erase(key);
+  // 解析路径获取完整路径
+  std::string fullPath = resolveResourcePath(key);
+  if (fullPath.empty()) {
+    return;
+  }
+
+  // 从纹理池移除
+  TexturePool::getInstance().remove(fullPath);
   E2D_LOG_DEBUG("ResourceManager: unloaded texture: {}", key);
 }
 
@@ -540,18 +468,9 @@ void ResourceManager::unloadSound(const std::string &key) {
 // ============================================================================
 
 void ResourceManager::purgeUnused() {
-  // 清理纹理缓存
-  {
-    std::lock_guard<std::mutex> lock(textureMutex_);
-    for (auto it = textureCache_.begin(); it != textureCache_.end();) {
-      if (it->second.expired()) {
-        E2D_LOG_TRACE("ResourceManager: purging unused texture: {}", it->first);
-        it = textureCache_.erase(it);
-      } else {
-        ++it;
-      }
-    }
-  }
+  // 纹理缓存由 TexturePool 自动管理，无需手动清理
+  // 但我们可以触发 TexturePool 的清理
+  TexturePool::getInstance().trim(TexturePool::getInstance().getCacheSize() * 0.8f);
 
   // 清理字体缓存
   {
@@ -581,10 +500,8 @@ void ResourceManager::purgeUnused() {
 }
 
 void ResourceManager::clearTextureCache() {
-  std::lock_guard<std::mutex> lock(textureMutex_);
-  size_t count = textureCache_.size();
-  textureCache_.clear();
-  E2D_LOG_INFO("ResourceManager: cleared {} textures from cache", count);
+  TexturePool::getInstance().clear();
+  E2D_LOG_INFO("ResourceManager: texture cache cleared via TexturePool");
 }
 
 void ResourceManager::clearFontCache() {
@@ -614,8 +531,7 @@ void ResourceManager::clearAllCaches() {
 }
 
 size_t ResourceManager::getTextureCacheSize() const {
-  std::lock_guard<std::mutex> lock(textureMutex_);
-  return textureCache_.size();
+  return TexturePool::getInstance().getTextureCount();
 }
 
 size_t ResourceManager::getFontCacheSize() const {
@@ -626,6 +542,29 @@ size_t ResourceManager::getFontCacheSize() const {
 size_t ResourceManager::getSoundCacheSize() const {
   std::lock_guard<std::mutex> lock(soundMutex_);
   return soundCache_.size();
+}
+
+// ============================================================================
+// 异步加载控制（已弃用，保留接口兼容性）
+// ============================================================================
+
+void ResourceManager::initAsyncLoader() {
+  // 纹理池已内置异步加载，无需额外初始化
+  E2D_LOG_DEBUG("ResourceManager: async loader is handled by TexturePool");
+}
+
+void ResourceManager::shutdownAsyncLoader() {
+  // 纹理池在 shutdown 时处理
+}
+
+void ResourceManager::waitForAsyncLoads() {
+  // 纹理池异步加载通过回调处理，无需等待
+  // 如需等待，可通过回调机制实现
+}
+
+bool ResourceManager::hasPendingAsyncLoads() const {
+  // 纹理池异步加载通过回调处理，无法直接查询
+  return false;
 }
 
 } // namespace extra2d
