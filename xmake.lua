@@ -6,7 +6,7 @@
 
 -- 项目元信息
 set_project("Extra2D")
-set_version("1.1.0")
+set_version("1.2.0")
 set_license("MIT")
 
 -- 语言和编码设置

@@ -39,11 +39,11 @@ addChild(text);
 ### 节点属性
 
 ```cpp
-// 位置
+// 位置（相对于父节点的本地坐标）
 node->setPosition(Vec2(x, y));
 Vec2 pos = node->getPosition();
 
-// 旋转（角度）
+// 旋转（角度，单位：度）
 node->setRotation(45.0f);
 float angle = node->getRotation();
 
@@ -62,16 +62,152 @@ bool visible = node->isVisible();
 node->setZOrder(10);
 ```
 
-### 链式调用（Builder 模式）
+## ⚠️ 重要：坐标系与变换系统
+
+### 坐标系说明
+
+Extra2D 使用以下坐标系：
+
+1. **本地坐标系（Local Space）**：相对于父节点的坐标
+   - 原点 `(0, 0)` 是父节点的锚点位置
+   - `setPosition(x, y)` 设置的是本地坐标
+
+2. **世界坐标系（World Space）**：相对于场景根节点的绝对坐标
+   - 通过 `convertToWorldSpace()` 转换
+   - 通过 `getWorldTransform()` 获取变换矩阵
+
+3. **屏幕坐标系（Screen Space）**：相对于屏幕左上角的坐标
+   - 原点 `(0, 0)` 在屏幕左上角
+   - Y轴向下为正方向
+
+### 锚点（Anchor）机制
+
+**锚点定义了节点的原点位置**：
 
 ```cpp
-// 使用链式调用快速配置节点
-auto text = Text::create("标题", font)
-    ->withPosition(640.0f, 100.0f)
-    ->withAnchor(0.5f, 0.5f)
-    ->withTextColor(Color(1.0f, 1.0f, 0.0f, 1.0f))
-    ->withCoordinateSpace(CoordinateSpace::Screen);
-addChild(text);
+// 锚点 (0, 0) - 左上角为原点
+sprite->setAnchor(Vec2(0.0f, 0.0f));
+sprite->setPosition(Vec2(100, 100));  // 左上角在 (100, 100)
+
+// 锚点 (0.5, 0.5) - 中心为原点（推荐）
+sprite->setAnchor(Vec2(0.5f, 0.5f));
+sprite->setPosition(Vec2(100, 100));  // 中心在 (100, 100)
+
+// 锚点 (1, 1) - 右下角为原点
+sprite->setAnchor(Vec2(1.0f, 1.0f));
+sprite->setPosition(Vec2(100, 100));  // 右下角在 (100, 100)
+```
+
+**⚠️ 重要：锚点偏移在渲染时处理，不在本地变换中**
+
+这意味着：
+- `getLocalTransform()` 返回的矩阵**不包含**锚点偏移
+- 锚点偏移在 `GLSpriteBatch::addVertices()` 中应用
+- 这样可以避免锚点偏移被父节点的缩放影响
+
+### 父子变换传递
+
+**变换层级**：
+```
+Scene (世界坐标系)
+└── GameOverLayer (本地坐标 + 父变换 = 世界坐标)
+    └── Panel (本地坐标 + 父变换 = 世界坐标)
+        └── ScoreNumber (本地坐标 + 父变换 = 世界坐标)
+```
+
+**关键方法**：
+
+```cpp
+// 获取本地变换矩阵（不包含锚点偏移）
+glm::mat4 localTransform = node->getLocalTransform();
+
+// 获取世界变换矩阵（包含所有父节点的变换）
+glm::mat4 worldTransform = node->getWorldTransform();
+
+// 本地坐标转世界坐标
+Vec2 worldPos = node->convertToWorldSpace(Vec2::Zero());
+
+// 世界坐标转本地坐标
+Vec2 localPos = node->convertToNodeSpace(worldPos);
+```
+
+**变换更新流程**：
+
+1. **标记脏状态**：当位置、旋转、缩放改变时
+   ```cpp
+   void Node::setPosition(const Vec2& pos) {
+       position_ = pos;
+       markTransformDirty();  // 标记变换需要更新
+   }
+   ```
+
+2. **递归标记**：`markTransformDirty()` 会递归标记所有子节点
+   ```cpp
+   void Node::markTransformDirty() {
+       transformDirty_ = true;
+       worldTransformDirty_ = true;
+       for (auto& child : children_) {
+           child->markTransformDirty();  // 递归标记子节点
+       }
+   }
+   ```
+
+3. **批量更新**：在渲染前，`Scene::renderContent()` 调用 `batchUpdateTransforms()`
+   ```cpp
+   void Scene::renderContent(RenderBackend& renderer) {
+       batchUpdateTransforms();  // 更新所有节点的世界变换
+       // ... 渲染
+   }
+   ```
+
+### 正确使用变换的示例
+
+```cpp
+// 创建层级结构
+auto panel = Sprite::create(panelTexture);
+panel->setAnchor(Vec2(0.5f, 0.5f));  // 中心锚点
+panel->setPosition(Vec2(0, 256));     // 相对于父节点的中心
+addChild(panel);
+
+// 添加子节点到 panel
+auto scoreNumber = makePtr<Number>();
+scoreNumber->setPosition(Vec2(95.0f, 10.0f));  // 相对于 panel 中心
+panel->addChild(scoreNumber);
+
+// 当 panel 移动时，scoreNumber 会自动跟随
+// 因为 scoreNumber 的世界变换包含了 panel 的世界变换
+```
+
+### 常见错误
+
+**错误1：混淆本地坐标和世界坐标**
+```cpp
+// ❌ 错误：在世界坐标系中设置位置，但节点是子节点
+child->setPosition(worldPos);  // 这会被解释为本地坐标
+
+// ✅ 正确：使用 convertToNodeSpace 转换
+child->setPosition(parent->convertToNodeSpace(worldPos));
+```
+
+**错误2：锚点设置不当**
+```cpp
+// ❌ 错误：锚点 (0,0) 但期望中心对齐
+sprite->setAnchor(Vec2(0.0f, 0.0f));
+sprite->setPosition(Vec2(100, 100));  // 左上角在 (100, 100)
+
+// ✅ 正确：使用中心锚点
+sprite->setAnchor(Vec2(0.5f, 0.5f));
+sprite->setPosition(Vec2(100, 100));  // 中心在 (100, 100)
+```
+
+**错误3：忽略父节点变换**
+```cpp
+// ❌ 错误：直接设置世界坐标，忽略父节点
+child->setPosition(Vec2(100, 100));  // 这是本地坐标！
+
+// ✅ 正确：考虑父节点的世界变换
+// 如果父节点在 (50, 50)，子节点相对于父节点应该是 (50, 50)
+child->setPosition(Vec2(50, 50));
 ```
 
 ## 精灵（Sprite）
@@ -94,60 +230,39 @@ auto newTexture = resources.loadTexture("assets/player2.png");
 sprite->setTexture(newTexture);
 ```
 
-### 精灵动画
+### 从图集创建精灵（Texture Atlas）
 
 ```cpp
-// 创建帧动画
-auto anim = AnimatedSprite::createFromGrid(
-    "player.png",  // 纹理
-    32, 32,        // 单帧宽高
-    100.0f,        // 帧间隔(ms)
-    8              // 总帧数
-);
+// 加载图集纹理
+auto atlasTexture = resources.loadTexture("assets/atlas.png");
 
-// 播放动画
-anim->play();
-
-// 设置帧范围
-anim->setFrameRange(0, 3);
-
-// 循环播放
-anim->setLoop(true);
-
-// 停止动画
-anim->stop();
+// 创建精灵，指定图集中的矩形区域
+Rect spriteRect(100, 100, 32, 32);  // x, y, width, height
+auto sprite = Sprite::create(atlasTexture, spriteRect);
 ```
 
-## 文本（Text）
-
-### 创建文本
+### 精灵渲染流程
 
 ```cpp
-// 加载字体
-auto font = resources.loadFont("assets/font.ttf", 24, true);
-
-// 创建文本
-auto text = Text::create("Hello World", font);
-text->setPosition(Vec2(400, 300));
-addChild(text);
-
-// 动态修改文本
-text->setText("新的文本内容");
-
-// 使用格式化文本
-text->setFormat("得分: %d", score);
-```
-
-### 文本样式
-
-```cpp
-text->setTextColor(Color(1.0f, 1.0f, 1.0f, 1.0f));  // 颜色
-text->setFontSize(48);                              // 字体大小
-text->setAnchor(Vec2(0.5f, 0.5f));                  // 锚点
-
-// 坐标空间
-text->withCoordinateSpace(CoordinateSpace::Screen)  // 屏幕空间
-      ->withScreenPosition(100.0f, 50.0f);
+void Sprite::onDraw(RenderBackend& renderer) {
+    // 1. 获取世界变换矩阵
+    auto worldTransform = getWorldTransform();
+    
+    // 2. 从世界变换中提取位置和缩放
+    float worldX = worldTransform[3][0];
+    float worldY = worldTransform[3][1];
+    float worldScaleX = glm::length(glm::vec2(worldTransform[0][0], worldTransform[0][1]));
+    float worldScaleY = glm::length(glm::vec2(worldTransform[1][0], worldTransform[1][1]));
+    
+    // 3. 计算目标矩形（不包含锚点偏移）
+    Rect destRect(worldX, worldY, width * worldScaleX, height * worldScaleY);
+    
+    // 4. 提取旋转角度
+    float worldRotation = std::atan2(worldTransform[0][1], worldTransform[0][0]);
+    
+    // 5. 绘制精灵（锚点偏移在 GLSpriteBatch 中处理）
+    renderer.drawSprite(*texture_, destRect, srcRect, color_, worldRotation, anchor);
+}
 ```
 
 ## 按钮（Button）
@@ -170,30 +285,64 @@ button->setBackgroundColor(
 );
 
 // 设置点击回调
-button->onClick([]() {
+button->setOnClick([]() {
     E2D_LOG_INFO("按钮被点击！");
 });
 
 addChild(button);
 ```
 
-### 透明按钮（用于菜单）
+### 使用图片按钮
 
 ```cpp
-// 创建纯文本按钮（透明背景）
-auto menuBtn = Button::create();
-menuBtn->setFont(font);
-menuBtn->setText("菜单项");
-menuBtn->setTextColor(Colors::Black);
-menuBtn->setBackgroundColor(
-    Colors::Transparent,
-    Colors::Transparent,
-    Colors::Transparent
-);
-menuBtn->setBorder(Colors::Transparent, 0.0f);
-menuBtn->setAnchor(0.5f, 0.5f);
-menuBtn->setPosition(centerX, centerY);
-addChild(menuBtn);
+// 从图集创建按钮
+auto buttonFrame = ResLoader::getKeyFrame("button_play");
+if (buttonFrame) {
+    auto button = Button::create();
+    button->setBackgroundImage(
+        buttonFrame->getTexture(),
+        buttonFrame->getRect()  // 使用图集中的矩形区域
+    );
+    button->setPosition(Vec2(screenWidth / 2, 300));
+    button->setOnClick([]() {
+        // 处理点击
+    });
+    addChild(button);
+}
+```
+
+### 按钮坐标空间
+
+**按钮使用世界坐标空间（World Space）**：
+
+```cpp
+// Button::getBoundingBox() 返回世界坐标系的包围盒
+Rect Button::getBoundingBox() const {
+    auto pos = getRenderPosition();  // 获取世界坐标位置
+    // ... 计算包围盒
+    return Rect(x0, y0, w, h);  // 世界坐标
+}
+```
+
+**这意味着**：
+- 按钮的位置是相对于父节点的本地坐标
+- 但按钮的点击检测使用世界坐标
+- 父节点的变换会自动应用到按钮
+
+### 按钮事件处理
+
+```cpp
+// 在 onUpdate 中检测手柄按键
+void GameOverLayer::onUpdate(float dt) {
+    Node::onUpdate(dt);
+    
+    auto& input = Application::instance().input();
+    
+    // A 键触发重新开始按钮
+    if (input.isButtonPressed(GamepadButton::A)) {
+        restartBtn_->getEventDispatcher().dispatch(EventType::UIClicked);
+    }
+}
 ```
 
 ## 节点层级管理
@@ -248,10 +397,13 @@ public:
         return true;
     }
     
-    void update(float dt) override {
+    void onUpdate(float dt) override {
         // 更新逻辑
         velocity_.y += gravity_ * dt;
         setPosition(getPosition() + velocity_ * dt);
+        
+        // 重要：调用父类的 onUpdate，确保子节点也被更新
+        Node::onUpdate(dt);
     }
     
     void jump() {
@@ -270,81 +422,111 @@ auto player = Player::create(texture);
 scene->addChild(player);
 ```
 
-## 空间索引（碰撞检测）
-
-### 启用空间索引
+## 完整示例：GameOverLayer
 
 ```cpp
-class CollidableNode : public Node {
-public:
-    CollidableNode() {
-        // 启用空间索引
-        setSpatialIndexed(true);
+void GameOverLayer::onEnter() {
+    Node::onEnter();
+    
+    auto& app = extra2d::Application::instance();
+    float screenWidth = static_cast<float>(app.getConfig().width);
+    float screenHeight = static_cast<float>(app.getConfig().height);
+    
+    // 整体居中（x 坐标相对于屏幕中心）
+    setPosition(extra2d::Vec2(screenWidth / 2.0f, screenHeight));
+    
+    // 显示 "Game Over" 文字
+    auto gameOverFrame = ResLoader::getKeyFrame("text_game_over");
+    if (gameOverFrame) {
+        auto gameOver = extra2d::Sprite::create(
+            gameOverFrame->getTexture(),
+            gameOverFrame->getRect()
+        );
+        gameOver->setAnchor(extra2d::Vec2(0.5f, 0.0f));
+        gameOver->setPosition(extra2d::Vec2(0.0f, 120.0f));
+        addChild(gameOver);
     }
     
-    // 必须实现 getBoundingBox
-    Rect getBoundingBox() const override {
-        Vec2 pos = getPosition();
-        return Rect(pos.x - 25, pos.y - 25, 50, 50);
-    }
-};
-```
-
-### 查询碰撞
-
-```cpp
-// 在场景中查询所有碰撞
-auto collisions = scene->queryCollisions();
-
-for (const auto& [nodeA, nodeB] : collisions) {
-    // 处理碰撞
-    handleCollision(nodeA, nodeB);
+    // 初始化得分面板
+    initPanel(score_, screenHeight);
+    
+    // 初始化按钮
+    initButtons();
+    
+    // 创建向上移动的动画
+    auto moveAction = extra2d::makePtr<extra2d::MoveBy>(
+        1.0f, extra2d::Vec2(0.0f, -screenHeight)
+    );
+    runAction(moveAction);
 }
-```
 
-## 完整示例
-
-参考 `examples/push_box/PlayScene.cpp` 中的节点使用：
-
-```cpp
-void PlayScene::onEnter() {
-    Scene::onEnter();
+void GameOverLayer::initPanel(int score, float screenHeight) {
+    // 显示得分板
+    auto panelFrame = ResLoader::getKeyFrame("score_panel");
+    if (!panelFrame) return;
     
-    auto& resources = app.resources();
+    auto panel = extra2d::Sprite::create(
+        panelFrame->getTexture(),
+        panelFrame->getRect()
+    );
+    panel->setAnchor(extra2d::Vec2(0.5f, 0.5f));
+    panel->setPosition(extra2d::Vec2(0.0f, screenHeight / 2.0f));
+    addChild(panel);
     
-    // 加载纹理资源
-    texWall_ = resources.loadTexture("assets/images/wall.gif");
-    texBox_ = resources.loadTexture("assets/images/box.gif");
+    // 显示本局得分（相对于 panel 的本地坐标）
+    auto scoreNumber = extra2d::makePtr<Number>();
+    scoreNumber->setLittleNumber(score);
+    scoreNumber->setPosition(extra2d::Vec2(95.0f, 10.0f));
+    panel->addChild(scoreNumber);
     
-    // 创建地图层
-    mapLayer_ = makePtr<Node>();
-    addChild(mapLayer_);
+    // 显示最高分
+    static int bestScore = 0;
+    if (score > bestScore) bestScore = score;
     
-    // 创建地图元素
-    for (int y = 0; y < mapHeight; ++y) {
-        for (int x = 0; x < mapWidth; ++x) {
-            char cell = map_[y][x];
-            
-            if (cell == '#') {
-                auto wall = Sprite::create(texWall_);
-                wall->setPosition(x * tileSize, y * tileSize);
-                mapLayer_->addChild(wall);
-            }
-            else if (cell == '$') {
-                auto box = Sprite::create(texBox_);
-                box->setPosition(x * tileSize, y * tileSize);
-                mapLayer_->addChild(box);
-            }
+    auto bestNumber = extra2d::makePtr<Number>();
+    bestNumber->setLittleNumber(bestScore);
+    bestNumber->setPosition(extra2d::Vec2(95.0f, 50.0f));
+    panel->addChild(bestNumber);
+    
+    // 显示 "New" 标记（如果破了记录）
+    if (score >= bestScore && score > 0) {
+        auto newFrame = ResLoader::getKeyFrame("new");
+        if (newFrame) {
+            auto newSprite = extra2d::Sprite::create(
+                newFrame->getTexture(),
+                newFrame->getRect()
+            );
+            newSprite->setAnchor(extra2d::Vec2(0.5f, 0.5f));
+            newSprite->setPosition(extra2d::Vec2(80.0f, 25.0f));
+            panel->addChild(newSprite);
         }
     }
-    
-    // 创建UI文本
-    font28_ = resources.loadFont("assets/font.ttf", 28, true);
-    levelText_ = Text::create("Level: 1", font28_);
-    levelText_->setPosition(50, 30);
-    addChild(levelText_);
 }
 ```
+
+## 最佳实践
+
+1. **始终使用中心锚点（0.5, 0.5）**：除非有特殊需求，否则使用中心锚点可以使定位更直观
+
+2. **理解本地坐标和世界坐标**：
+   - `setPosition()` 设置的是本地坐标
+   - 使用 `convertToWorldSpace()` 和 `convertToNodeSpace()` 进行转换
+
+3. **利用父子关系**：
+   - 将相关的 UI 元素组织为父子关系
+   - 父节点移动时，子节点会自动跟随
+
+4. **在 onEnter 中初始化**：
+   - 不要在构造函数中创建子节点
+   - 在 `onEnter()` 中初始化，此时 `weak_from_this()` 可用
+
+5. **调用父类的虚函数**：
+   - 重写 `onUpdate()` 时，记得调用 `Node::onUpdate(dt)`
+   - 重写 `onEnter()` 时，记得调用 `Node::onEnter()`
+
+6. **使用 batchUpdateTransforms**：
+   - 引擎会自动在渲染前调用
+   - 如果需要强制更新变换，可以手动调用
 
 ## 下一步
 

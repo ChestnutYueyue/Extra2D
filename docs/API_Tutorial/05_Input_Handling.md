@@ -33,22 +33,25 @@ if (input.isButtonReleased(GamepadButton::A)) {
 
 ### 常用按键
 
-| 按键 | 说明 | Switch 对应 |
-|------|------|------------|
-| `GamepadButton::A` | A 键 | A 键 |
-| `GamepadButton::B` | B 键 | B 键 |
-| `GamepadButton::X` | X 键 | X 键 |
-| `GamepadButton::Y` | Y 键 | Y 键 |
-| `GamepadButton::Start` | 开始键 | + 键 |
-| `GamepadButton::Select` | 选择键 | - 键 |
-| `GamepadButton::DPadUp` | 方向上 | 方向键上 |
-| `GamepadButton::DPadDown` | 方向下 | 方向键下 |
-| `GamepadButton::DPadLeft` | 方向左 | 方向键左 |
-| `GamepadButton::DPadRight` | 方向右 | 方向键右 |
-| `GamepadButton::LeftStick` | 左摇杆按下 | L3 |
-| `GamepadButton::RightStick` | 右摇杆按下 | R3 |
-| `GamepadButton::LeftShoulder` | 左肩键 | L |
-| `GamepadButton::RightShoulder` | 右肩键 | R |
+| 按键 | 说明 | Xbox 对应 | Switch 对应 |
+|------|------|-----------|-------------|
+| `GamepadButton::A` | A 键 | A 键 | A 键 |
+| `GamepadButton::B` | B 键 | B 键 | B 键 |
+| `GamepadButton::X` | X 键 | X 键 | X 键 |
+| `GamepadButton::Y` | Y 键 | Y 键 | Y 键 |
+| `GamepadButton::Start` | 开始键 | Menu 键 | + 键 |
+| `GamepadButton::Back` | 返回键 | View 键 | - 键 |
+| `GamepadButton::Guide` | 导航键 | Xbox 键 | Home 键 |
+| `GamepadButton::DPadUp` | 方向上 | 方向键上 | 方向键上 |
+| `GamepadButton::DPadDown` | 方向下 | 方向键下 | 方向键下 |
+| `GamepadButton::DPadLeft` | 方向左 | 方向键左 | 方向键左 |
+| `GamepadButton::DPadRight` | 方向右 | 方向键右 | 方向键右 |
+| `GamepadButton::LeftStick` | 左摇杆按下 | L3 | L3 |
+| `GamepadButton::RightStick` | 右摇杆按下 | R3 | R3 |
+| `GamepadButton::LeftShoulder` | 左肩键 | LB | L |
+| `GamepadButton::RightShoulder` | 右肩键 | RB | R |
+| `GamepadButton::LeftTrigger` | 左扳机键 | LT | ZL |
+| `GamepadButton::RightTrigger` | 右扳机键 | RT | ZR |
 
 ## 摇杆输入
 
@@ -77,7 +80,7 @@ input.setStickDeadZone(0.2f);
 
 ### 菜单导航
 
-参考 `examples/push_box/StartScene.cpp`：
+参考 `examples/flappy_bird/StartScene.cpp`：
 
 ```cpp
 void StartScene::onUpdate(float dt) {
@@ -85,26 +88,46 @@ void StartScene::onUpdate(float dt) {
 
     auto& input = Application::instance().input();
 
-    // 方向键上下切换选择
-    if (input.isButtonPressed(GamepadButton::DPadUp)) {
-        selectedIndex_ = (selectedIndex_ - 1 + menuCount_) % menuCount_;
-        updateMenuColors();
-    } 
-    else if (input.isButtonPressed(GamepadButton::DPadDown)) {
-        selectedIndex_ = (selectedIndex_ + 1) % menuCount_;
-        updateMenuColors();
-    }
-
-    // A键确认
+    // A 键开始游戏
     if (input.isButtonPressed(GamepadButton::A)) {
-        executeMenuItem();
+        ResLoader::playMusic(MusicType::Click);
+        startGame();
     }
 
-    // X键切换音效
-    if (input.isButtonPressed(GamepadButton::X)) {
-        g_SoundOpen = !g_SoundOpen;
-        AudioManager::instance().setEnabled(g_SoundOpen);
-        updateSoundIcon();
+    // BACK 键退出游戏
+    if (input.isButtonPressed(GamepadButton::Back)) {
+        ResLoader::playMusic(MusicType::Click);
+        auto &app = Application::instance();
+        app.quit();
+    }
+}
+```
+
+### Game Over 界面手柄控制
+
+参考 `examples/flappy_bird/GameOverLayer.cpp`：
+
+```cpp
+void GameOverLayer::onUpdate(float dt) {
+    Node::onUpdate(dt);
+
+    // 检测手柄按键
+    auto &input = extra2d::Application::instance().input();
+    
+    // A 键重新开始游戏
+    if (input.isButtonPressed(extra2d::GamepadButton::A)) {
+        ResLoader::playMusic(MusicType::Click);
+        auto &app = extra2d::Application::instance();
+        app.scenes().replaceScene(extra2d::makePtr<GameScene>(),
+                                  extra2d::TransitionType::Fade, 0.5f);
+    }
+    
+    // B 键返回主菜单
+    if (input.isButtonPressed(extra2d::GamepadButton::B)) {
+        ResLoader::playMusic(MusicType::Click);
+        auto &app = extra2d::Application::instance();
+        app.scenes().replaceScene(extra2d::makePtr<StartScene>(),
+                                  extra2d::TransitionType::Fade, 0.5f);
     }
 }
 ```
@@ -182,6 +205,11 @@ bool isActionPressed(Action action) {
 2. **使用 isButtonDown 进行移动控制** - 实现流畅移动
 3. **支持多种输入方式** - 同时支持方向键和摇杆
 4. **添加输入缓冲** - 提升操作手感
+5. **为常用操作分配标准按键**：
+   - **A 键**：确认、跳跃、主要动作
+   - **B 键**：取消、返回、次要动作
+   - **Start 键**：暂停菜单
+   - **Back 键**：返回上一级/退出
 
 ## 下一步
 
