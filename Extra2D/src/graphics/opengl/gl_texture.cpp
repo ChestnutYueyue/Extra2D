@@ -1,4 +1,5 @@
 #include <extra2d/graphics/opengl/gl_texture.h>
+#include <extra2d/graphics/gpu_context.h>
 #include <extra2d/graphics/vram_manager.h>
 #define STB_IMAGE_IMPLEMENTATION
 #include <cstring>
@@ -130,8 +131,12 @@ GLTexture::GLTexture(const std::string &filepath)
 
 GLTexture::~GLTexture() {
   if (textureID_ != 0) {
-    glDeleteTextures(1, &textureID_);
-    // VRAM 跟踪: 释放纹理显存
+    // 检查 GPU 上下文是否仍然有效
+    // 如果 OpenGL 上下文已销毁，则跳过 glDeleteTextures 调用
+    if (GPUContext::getInstance().isValid()) {
+      glDeleteTextures(1, &textureID_);
+    }
+    // VRAM 跟踪: 释放纹理显存（无论上下文是否有效都需要更新统计）
     if (dataSize_ > 0) {
       VRAMManager::getInstance().freeTexture(dataSize_);
     }

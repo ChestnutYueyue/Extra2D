@@ -176,24 +176,36 @@ void Application::shutdown() {
     sceneManager_->end();
   }
 
-  // 清理子系统
-  sceneManager_.reset();
-  resourceManager_.reset();
+  // ========================================
+  // 1. 先清理所有持有 GPU 资源的子系统
+  // 必须在渲染器关闭前释放纹理等资源
+  // ========================================
+  sceneManager_.reset();       // 场景持有纹理引用
+  resourceManager_.reset();    // 纹理缓存持有 GPU 纹理
+  camera_.reset();             // 相机可能持有渲染目标
+
+  // ========================================
+  // 2. 关闭音频（不依赖 GPU）
+  // ========================================
+  AudioEngine::getInstance().shutdown();
+
+  // ========================================
+  // 3. 清理其他子系统
+  // ========================================
   timerManager_.reset();
   eventQueue_.reset();
   eventDispatcher_.reset();
-  camera_.reset();
 
-  // 关闭音频
-  AudioEngine::getInstance().shutdown();
-
-  // 关闭渲染器
+  // ========================================
+  // 4. 最后关闭渲染器和窗口
+  // 必须在所有 GPU 资源释放后才能关闭 OpenGL 上下文
+  // ========================================
   if (renderer_) {
     renderer_->shutdown();
     renderer_.reset();
   }
 
-  // 销毁窗口（包含 SDL_Quit）
+  // 销毁窗口（包含 SDL_Quit，会销毁 OpenGL 上下文）
   if (window_) {
     window_->destroy();
     window_.reset();
@@ -313,11 +325,6 @@ void Application::update() {
 
   if (sceneManager_) {
     sceneManager_->update(deltaTime_);
-  }
-
-  // 更新资源管理器（触发纹理池自动清理）
-  if (resourceManager_) {
-    resourceManager_->update(deltaTime_);
   }
 }
 

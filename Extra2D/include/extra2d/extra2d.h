@@ -19,7 +19,7 @@
 #include <extra2d/graphics/font.h>
 #include <extra2d/graphics/camera.h>
 #include <extra2d/graphics/shader_system.h>
-#include <extra2d/graphics/texture_pool.h>
+
 #include <extra2d/graphics/render_target.h>
 #include <extra2d/graphics/vram_manager.h>
 

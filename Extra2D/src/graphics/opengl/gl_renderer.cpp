@@ -3,6 +3,7 @@
 #include <cmath>
 #include <cstring>
 #include <extra2d/core/string.h>
+#include <extra2d/graphics/gpu_context.h>
 #include <extra2d/graphics/opengl/gl_font_atlas.h>
 #include <extra2d/graphics/opengl/gl_renderer.h>
 #include <extra2d/graphics/opengl/gl_texture.h>
@@ -62,6 +63,9 @@ bool GLRenderer::init(Window *window) {
   glEnable(GL_BLEND);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
+  // 标记 GPU 上下文为有效
+  GPUContext::getInstance().markValid();
+
   E2D_LOG_INFO("OpenGL Renderer initialized");
   E2D_LOG_INFO("OpenGL Version: {}",
                reinterpret_cast<const char *>(glGetString(GL_VERSION)));
@@ -70,6 +74,10 @@ bool GLRenderer::init(Window *window) {
 }
 
 void GLRenderer::shutdown() {
+  // 标记 GPU 上下文为无效
+  // 这会在销毁 OpenGL 上下文之前通知所有 GPU 资源
+  GPUContext::getInstance().markInvalid();
+
   spriteBatch_.shutdown();
 
   if (shapeVbo_ != 0) {

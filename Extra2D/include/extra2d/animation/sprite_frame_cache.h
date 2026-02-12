@@ -1,7 +1,9 @@
 #pragma once
 
 #include <extra2d/animation/sprite_frame.h>
-#include <extra2d/graphics/texture_pool.h>
+#include <extra2d/graphics/opengl/gl_texture.h>
+#include <extra2d/utils/logger.h>
+#include <stb/stb_image.h>
 #include <mutex>
 #include <string>
 #include <unordered_map>
@@ -39,7 +41,7 @@ public:
   void addSpriteFramesFromGrid(const std::string &texturePath, int frameWidth,
                                int frameHeight, int frameCount = -1,
                                int spacing = 0, int margin = 0) {
-    auto texture = TexturePool::getInstance().get(texturePath);
+    auto texture = loadTextureFromFile(texturePath);
     if (!texture)
       return;
     addSpriteFramesFromGrid(texture, texturePath, frameWidth, frameHeight,
@@ -104,8 +106,8 @@ public:
         return it->second;
     }
 
-    // 缓存未命中，从 TexturePool 加载纹理并创建 SpriteFrame
-    auto texture = TexturePool::getInstance().get(texturePath);
+    // 缓存未命中，加载纹理并创建 SpriteFrame
+    auto texture = loadTextureFromFile(texturePath);
     if (!texture)
       return nullptr;
 
@@ -160,6 +162,34 @@ private:
   ~SpriteFrameCache() = default;
   SpriteFrameCache(const SpriteFrameCache &) = delete;
   SpriteFrameCache &operator=(const SpriteFrameCache &) = delete;
+
+  /**
+   * @brief 从文件加载纹理
+   * @param filepath 纹理文件路径
+   * @return 纹理对象，失败返回nullptr
+   */
+  Ptr<Texture> loadTextureFromFile(const std::string &filepath) {
+    // 使用stb_image加载图像
+    stbi_set_flip_vertically_on_load(false);
+    int width, height, channels;
+    unsigned char *pixels =
+        stbi_load(filepath.c_str(), &width, &height, &channels, 4);
+    if (!pixels) {
+      E2D_ERROR("加载纹理失败: {} - {}", filepath, stbi_failure_reason());
+      return nullptr;
+    }
+
+    // 创建GLTexture
+    auto texture = makePtr<GLTexture>(width, height, pixels, 4);
+    stbi_image_free(pixels);
+
+    if (!texture || !texture->isValid()) {
+      E2D_ERROR("创建纹理失败: {}", filepath);
+      return nullptr;
+    }
+
+    return texture;
+  }
 
   mutable std::mutex mutex_;
   std::unordered_map<std::string, Ptr<SpriteFrame>> frames_;

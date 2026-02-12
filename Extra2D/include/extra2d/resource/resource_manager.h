@@ -6,16 +6,21 @@
 #include <extra2d/graphics/font.h>
 #include <extra2d/graphics/texture.h>
 #include <functional>
+#include <future>
 #include <mutex>
 #include <string>
 #include <unordered_map>
+#include <queue>
+#include <thread>
+#include <atomic>
+#include <list>
 #include <vector>
 
 namespace extra2d {
 
 // ============================================================================
 // 资源管理器 - 统一管理纹理、字体、音效等资源
-// 使用 TexturePool 作为纹理管理后端
+// 支持异步加载和纹理压缩
 // ============================================================================
 
 // 纹理格式枚举
@@ -30,6 +35,16 @@ enum class TextureFormat {
   ASTC8x8,      // ASTC 8x8 压缩（高压缩率）
 };
 
+// ============================================================================
+// 纹理LRU缓存项
+// ============================================================================
+struct TextureCacheEntry {
+  Ptr<Texture> texture;
+  size_t size = 0;                          // 纹理大小（字节）
+  float lastAccessTime = 0.0f;              // 最后访问时间
+  uint32_t accessCount = 0;                 // 访问次数
+};
+
 // 异步加载回调类型
 using TextureLoadCallback = std::function<void(Ptr<Texture>)>;
 
@@ -39,13 +54,6 @@ public:
   // 单例访问
   // ------------------------------------------------------------------------
   static ResourceManager &getInstance();
-
-  // ------------------------------------------------------------------------
-  // 更新（在主循环中调用）
-  // ------------------------------------------------------------------------
-  
-  /// 更新资源管理器，触发纹理池自动清理等
-  void update(float dt);
 
   // ------------------------------------------------------------------------
   // 纹理资源 - 同步加载
@@ -146,24 +154,39 @@ public:
   size_t getSoundCacheSize() const;
 
   // ------------------------------------------------------------------------
-  // 异步加载控制（已弃用，保留接口兼容性）
-  // 纹理异步加载由 TexturePool 内部处理
+  // LRU 缓存管理
   // ------------------------------------------------------------------------
-  
+
+  /// 设置纹理缓存参数
+  void setTextureCache(size_t maxCacheSize, size_t maxTextureCount,
+                       float unloadInterval);
+
+  /// 获取当前缓存的总大小（字节）
+  size_t getTextureCacheMemoryUsage() const;
+
+  /// 获取缓存命中率
+  float getTextureCacheHitRate() const;
+
+  /// 打印缓存统计信息
+  void printTextureCacheStats() const;
+
+  /// 更新缓存（在主循环中调用，用于自动清理）
+  void update(float dt);
+
+  // ------------------------------------------------------------------------
+  // 异步加载控制
+  // ------------------------------------------------------------------------
+
   /// 初始化异步加载系统（可选，自动在首次异步加载时初始化）
-  /// @deprecated 纹理池已内置异步加载，无需调用
   void initAsyncLoader();
-  
+
   /// 关闭异步加载系统
-  /// @deprecated 纹理池自动管理生命周期，无需调用
   void shutdownAsyncLoader();
-  
+
   /// 等待所有异步加载完成
-  /// @deprecated 使用回调机制处理异步加载结果
   void waitForAsyncLoads();
-  
+
   /// 检查是否有正在进行的异步加载
-  /// @deprecated 始终返回 false
   bool hasPendingAsyncLoads() const;
 
   ResourceManager();
@@ -186,14 +209,91 @@ private:
   std::vector<uint8_t> compressTexture(const uint8_t* data, int width, int height, 
                                        int channels, TextureFormat format);
 
-  // 互斥锁保护缓存（字体和音效缓存仍需锁保护）
+  // 互斥锁保护缓存
+  mutable std::mutex textureMutex_;
   mutable std::mutex fontMutex_;
   mutable std::mutex soundMutex_;
 
   // 资源缓存 - 使用弱指针实现自动清理
-  // 纹理缓存已移至 TexturePool，此处仅保留字体和音效缓存
   std::unordered_map<std::string, WeakPtr<FontAtlas>> fontCache_;
   std::unordered_map<std::string, WeakPtr<Sound>> soundCache_;
+
+  // ============================================================================
+  // 纹理LRU缓存
+  // ============================================================================
+
+  // LRU链表节点
+  struct LRUNode {
+    std::string key;
+    uint32_t prev = 0;   // 数组索引，0表示无效
+    uint32_t next = 0;   // 数组索引，0表示无效
+    bool valid = false;
+  };
+
+  // 纹理缓存配置
+  size_t maxCacheSize_ = 64 * 1024 * 1024;  // 最大缓存大小 (64MB)
+  size_t maxTextureCount_ = 256;             // 最大纹理数量
+  float unloadInterval_ = 30.0f;             // 自动清理间隔 (秒)
+
+  // 纹理缓存 - 使用强指针保持引用
+  std::unordered_map<std::string, TextureCacheEntry> textureCache_;
+
+  // 侵入式LRU链表 - 使用数组索引代替指针，提高缓存局部性
+  std::vector<LRUNode> lruNodes_;
+  uint32_t lruHead_ = 0;   // 最近使用
+  uint32_t lruTail_ = 0;   // 最久未使用
+  uint32_t freeList_ = 0;  // 空闲节点链表
+
+  // 统计
+  size_t totalTextureSize_ = 0;
+  uint64_t textureHitCount_ = 0;
+  uint64_t textureMissCount_ = 0;
+  float autoUnloadTimer_ = 0.0f;
+  
+  // 异步加载相关
+  struct AsyncLoadTask {
+    std::string filepath;
+    TextureFormat format;
+    TextureLoadCallback callback;
+    std::promise<Ptr<Texture>> promise;
+  };
+  
+  std::queue<AsyncLoadTask> asyncTaskQueue_;
+  std::mutex asyncQueueMutex_;
+  std::condition_variable asyncCondition_;
+  std::unique_ptr<std::thread> asyncThread_;
+  std::atomic<bool> asyncRunning_{false};
+  std::atomic<int> pendingAsyncLoads_{0};
+  
+  void asyncLoadLoop();
+
+  // ============================================================================
+  // LRU 缓存内部方法
+  // ============================================================================
+
+  /// 分配LRU节点
+  uint32_t allocateLRUNode(const std::string &key);
+
+  /// 释放LRU节点
+  void freeLRUNode(uint32_t index);
+
+  /// 将节点移到链表头部（最近使用）
+  void moveToFront(uint32_t index);
+
+  /// 从链表中移除节点
+  void removeFromList(uint32_t index);
+
+  /// 驱逐最久未使用的纹理
+  std::string evictLRU();
+
+  /// 访问纹理（更新LRU位置）
+  void touchTexture(const std::string &key);
+
+  /// 驱逐纹理直到满足大小限制
+  void evictTexturesIfNeeded();
+
+  /// 计算纹理大小
+  size_t calculateTextureSize(int width, int height, PixelFormat format) const;
 };
 
 } // namespace extra2d
