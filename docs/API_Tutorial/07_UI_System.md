@@ -149,6 +149,103 @@ menuBtn->setPosition(centerX, centerY);
 addChild(menuBtn);
 ```
 
+### 按钮启用/禁用
+
+Widget 基类提供了 `setEnabled()` 方法控制按钮的交互状态：
+
+```cpp
+// 禁用按钮
+button->setEnabled(false);
+
+// 启用按钮
+button->setEnabled(true);
+
+// 检查按钮状态
+bool isEnabled = button->isEnabled();
+```
+
+### 完整示例：动画完成后启用按钮
+
+参考 `examples/flappy_bird/GameOverLayer.cpp`：
+
+```cpp
+// GameOverLayer.h
+class GameOverLayer : public extra2d::Node {
+public:
+    GameOverLayer(int score);
+    void onEnter() override;
+    void onUpdate(float dt) override;
+
+private:
+    void initButtons();
+    
+    int score_ = 0;
+    bool animationDone_ = false;
+    extra2d::Ptr<extra2d::Button> restartBtn_;
+    extra2d::Ptr<extra2d::Button> menuBtn_;
+};
+
+// GameOverLayer.cpp
+void GameOverLayer::onEnter() {
+    Node::onEnter();
+    
+    // 初始化按钮（初始禁用）
+    initButtons();
+    
+    // 创建动画
+    auto moveAction = extra2d::makePtr<extra2d::MoveBy>(
+        1.0f, extra2d::Vec2(0.0f, -screenHeight));
+    
+    // 动画完成后启用按钮
+    moveAction->setCompletionCallback([this]() {
+        animationDone_ = true;
+        if (restartBtn_)
+            restartBtn_->setEnabled(true);
+        if (menuBtn_)
+            menuBtn_->setEnabled(true);
+    });
+    
+    runAction(moveAction);
+}
+
+void GameOverLayer::initButtons() {
+    auto restartFrame = ResLoader::getKeyFrame("button_restart");
+    if (restartFrame) {
+        restartBtn_ = extra2d::Button::create();
+        restartBtn_->setBackgroundImage(restartFrame->getTexture(),
+                                        restartFrame->getRect());
+        restartBtn_->setAnchor(extra2d::Vec2(0.5f, 0.5f));
+        restartBtn_->setPosition(extra2d::Vec2(0.0f, 360.0f));
+        restartBtn_->setEnabled(false);  // 初始禁用
+        restartBtn_->setOnClick([]() {
+            // 处理点击
+        });
+        addChild(restartBtn_);
+    }
+    
+    // 菜单按钮类似...
+}
+
+void GameOverLayer::onUpdate(float dt) {
+    Node::onUpdate(dt);
+    
+    // 动画完成后才响应手柄输入
+    if (!animationDone_)
+        return;
+    
+    auto &input = extra2d::Application::instance().input();
+    if (input.isButtonPressed(extra2d::GamepadButton::A)) {
+        // 重新开始
+    }
+}
+```
+
+### 使用场景
+
+- **动画播放期间**：禁用按钮，防止用户过早操作
+- **加载过程中**：禁用按钮，显示加载状态
+- **条件限制**：当条件不满足时禁用按钮（如未选择关卡）
+
 ## 文本（Text）
 
 ### 创建文本

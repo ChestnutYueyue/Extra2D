@@ -76,6 +76,109 @@ player->setPosition(player->getPosition() + leftStick * speed * dt);
 input.setStickDeadZone(0.2f);
 ```
 
+## 鼠标输入
+
+### 鼠标按钮检测
+
+```cpp
+auto& input = Application::instance().input();
+
+// 检测鼠标按钮按下（单次触发）
+if (input.isMousePressed(MouseButton::Left)) {
+    // 左键刚按下
+}
+
+if (input.isMousePressed(MouseButton::Right)) {
+    // 右键刚按下
+}
+
+// 检测鼠标按钮状态（持续触发）
+if (input.isMouseDown(MouseButton::Left)) {
+    // 左键保持按下
+}
+
+// 检测鼠标按钮释放
+if (input.isMouseReleased(MouseButton::Left)) {
+    // 左键刚释放
+}
+```
+
+### 鼠标位置
+
+```cpp
+// 获取鼠标位置（屏幕坐标）
+Vec2 mousePos = input.getMousePosition();
+
+// 获取鼠标在游戏视口中的位置（考虑视口适配）
+// 参考 examples/flappy_bird 的 BaseScene 实现
+```
+
+### 鼠标按钮枚举
+
+| 枚举值 | 说明 |
+|--------|------|
+| `MouseButton::Left` | 左键 |
+| `MouseButton::Right` | 右键 |
+| `MouseButton::Middle` | 中键 |
+
+### 完整示例：Flappy Bird 输入处理
+
+参考 `examples/flappy_bird/GameScene.cpp`：
+
+```cpp
+void GameScene::onUpdate(float dt) {
+  if (!gameOver_) {
+    auto &input = extra2d::Application::instance().input();
+
+    // 同时支持手柄 A 键和鼠标左键
+    if (input.isButtonPressed(extra2d::GamepadButton::A) ||
+        input.isMousePressed(extra2d::MouseButton::Left)) {
+      if (!started_) {
+        started_ = true;
+        startGame();
+      }
+      bird_->jump();
+    }
+
+    // 游戏逻辑更新...
+  }
+
+  BaseScene::onUpdate(dt);
+}
+```
+
+### 完整示例：Game Over 界面输入
+
+参考 `examples/flappy_bird/GameOverLayer.cpp`：
+
+```cpp
+void GameOverLayer::onUpdate(float dt) {
+  Node::onUpdate(dt);
+
+  // 动画完成后才响应输入
+  if (!animationDone_)
+    return;
+
+  auto &input = extra2d::Application::instance().input();
+
+  // A 键重新开始游戏
+  if (input.isButtonPressed(extra2d::GamepadButton::A)) {
+    ResLoader::playMusic(MusicType::Click);
+    auto &app = extra2d::Application::instance();
+    app.scenes().replaceScene(extra2d::makePtr<GameScene>(),
+                              extra2d::TransitionType::Fade, 0.5f);
+  }
+
+  // B 键返回主菜单
+  if (input.isButtonPressed(extra2d::GamepadButton::B)) {
+    ResLoader::playMusic(MusicType::Click);
+    auto &app = extra2d::Application::instance();
+    app.scenes().replaceScene(extra2d::makePtr<StartScene>(),
+                              extra2d::TransitionType::Fade, 0.5f);
+  }
+}
+```
+
 ## 完整示例
 
 ### 菜单导航

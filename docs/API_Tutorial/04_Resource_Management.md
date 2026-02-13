@@ -204,6 +204,194 @@ atlas->addTexture("icon", iconTexture);
 atlas->pack();  // 执行打包
 ```
 
+## 精灵帧（SpriteFrame）
+
+### 什么是精灵帧？
+
+精灵帧是纹理图集中的一个矩形区域，用于从单个大纹理中提取小图像。使用精灵帧可以：
+
+- 减少纹理切换，提高渲染性能
+- 方便管理动画帧和 UI 元素
+- 支持从 JSON 文件加载精灵帧数据
+
+### 完整示例：资源加载器
+
+参考 `examples/flappy_bird/ResLoader.h/cpp`：
+
+```cpp
+// ResLoader.h
+#pragma once
+
+#include <extra2d/extra2d.h>
+#include <map>
+#include <string>
+
+namespace flappybird {
+
+/**
+ * @brief 音频类型枚举
+ */
+enum class MusicType {
+    Click,  // 按键声音
+    Hit,    // 小鸟死亡声音
+    Fly,    // 小鸟飞翔声音
+    Point,  // 得分声音
+    Swoosh  // 转场声音
+};
+
+/**
+ * @brief 资源加载器类
+ * 管理纹理图集、精灵帧和音频资源的加载
+ */
+class ResLoader {
+public:
+    static void init();
+    
+    static extra2d::Ptr<extra2d::SpriteFrame> getKeyFrame(const std::string& name);
+    
+    static void playMusic(MusicType type);
+
+private:
+    struct ImageInfo {
+        float width, height, x, y;
+    };
+
+    static extra2d::Ptr<extra2d::Texture> atlasTexture_;
+    static std::map<std::string, ImageInfo> imageMap_;
+    static std::map<MusicType, extra2d::Ptr<extra2d::Sound>> soundMap_;
+};
+
+} // namespace flappybird
+```
+
+```cpp
+// ResLoader.cpp
+#include "ResLoader.h"
+#include <json/json.hpp>
+
+namespace flappybird {
+
+extra2d::Ptr<extra2d::Texture> ResLoader::atlasTexture_;
+std::map<std::string, ResLoader::ImageInfo> ResLoader::imageMap_;
+std::map<MusicType, extra2d::Ptr<extra2d::Sound>> ResLoader::soundMap_;
+
+void ResLoader::init() {
+  auto &resources = extra2d::Application::instance().resources();
+
+  // 加载图集纹理
+  atlasTexture_ = resources.loadTexture("assets/images/atlas.png");
+  if (!atlasTexture_) {
+    E2D_LOG_ERROR("无法加载图集纹理 atlas.png");
+    return;
+  }
+
+  // 加载 JSON 文件
+  std::string jsonContent = resources.loadJsonFile("assets/images/atlas.json");
+  if (jsonContent.empty()) {
+    E2D_LOG_ERROR("无法加载 atlas.json 文件");
+    return;
+  }
+
+  // 解析 JSON 图集数据
+  try {
+    nlohmann::json jsonData = nlohmann::json::parse(jsonContent);
+
+    for (const auto &sprite : jsonData["sprites"]) {
+      std::string name = sprite["name"];
+      float x = sprite["x"];
+      float y = sprite["y"];
+      float width = sprite["width"];
+      float height = sprite["height"];
+
+      ImageInfo info = {width, height, x, y};
+      imageMap_[name] = info;
+    }
+
+    E2D_LOG_INFO("成功加载 {} 个精灵帧", imageMap_.size());
+  } catch (const std::exception &e) {
+    E2D_LOG_ERROR("解析 atlas.json 失败: {}", e.what());
+    return;
+  }
+
+  // 加载音效
+  soundMap_[MusicType::Click] = resources.loadSound("assets/sound/click.wav");
+  soundMap_[MusicType::Hit] = resources.loadSound("assets/sound/hit.wav");
+  soundMap_[MusicType::Fly] = resources.loadSound("assets/sound/fly.wav");
+  soundMap_[MusicType::Point] = resources.loadSound("assets/sound/point.wav");
+  soundMap_[MusicType::Swoosh] = resources.loadSound("assets/sound/swoosh.wav");
+
+  E2D_LOG_INFO("资源加载完成");
+}
+
+extra2d::Ptr<extra2d::SpriteFrame>
+ResLoader::getKeyFrame(const std::string &name) {
+  auto it = imageMap_.find(name);
+  if (it == imageMap_.end()) {
+    E2D_LOG_WARN("找不到精灵帧: %s", name.c_str());
+    return nullptr;
+  }
+
+  const ImageInfo &info = it->second;
+  return extra2d::makePtr<extra2d::SpriteFrame>(
+      atlasTexture_, extra2d::Rect(info.x, info.y, info.width, info.height));
+}
+
+void ResLoader::playMusic(MusicType type) {
+  auto it = soundMap_.find(type);
+  if (it != soundMap_.end() && it->second) {
+    it->second->play();
+  }
+}
+
+} // namespace flappybird
+```
+
+### 使用精灵帧创建精灵
+
+```cpp
+// 参考 examples/flappy_bird/GameScene.cpp
+void GameScene::onEnter() {
+  BaseScene::onEnter();
+
+  // 从图集获取精灵帧
+  auto bgFrame = ResLoader::getKeyFrame("bg_day");
+  if (bgFrame) {
+    // 使用精灵帧创建精灵
+    auto background = extra2d::Sprite::create(
+        bgFrame->getTexture(), 
+        bgFrame->getRect());
+    background->setAnchor(extra2d::Vec2(0.0f, 0.0f));
+    background->setPosition(extra2d::Vec2(0.0f, 0.0f));
+    addChild(background);
+  }
+
+  // 创建按钮
+  auto buttonFrame = ResLoader::getKeyFrame("button_play");
+  if (buttonFrame) {
+    auto button = extra2d::Button::create();
+    button->setBackgroundImage(buttonFrame->getTexture(), buttonFrame->getRect());
+    button->setAnchor(extra2d::Vec2(0.5f, 0.5f));
+    button->setPosition(extra2d::Vec2(screenWidth / 2.0f, 300.0f));
+    button->setOnClick([]() {
+      // 处理点击
+    });
+    addChild(button);
+  }
+}
+```
+
+### JSON 图集格式
+
+```json
+{
+  "sprites": [
+    { "name": "bg_day", "x": 0, "y": 0, "width": 288, "height": 512 },
+    { "name": "bird0_0", "x": 288, "y": 0, "width": 34, "height": 24 },
+    { "name": "button_play", "x": 322, "y": 0, "width": 116, "height": 70 }
+  ]
+}
+```
+
 ## 字体加载
 
 ### 基本用法

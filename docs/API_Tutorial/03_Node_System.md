@@ -564,6 +564,120 @@ void GameOverLayer::initPanel(int score, float screenHeight) {
    };
    ```
 
+## 动画系统
+
+### 动作类型
+
+Extra2D 提供了丰富的动作类：
+
+| 动作类 | 说明 |
+|--------|------|
+| `MoveTo` | 移动到指定位置 |
+| `MoveBy` | 移动指定偏移量 |
+| `ScaleTo` | 缩放到指定比例 |
+| `ScaleBy` | 缩放指定比例 |
+| `RotateTo` | 旋转到指定角度 |
+| `RotateBy` | 旋转指定角度 |
+| `FadeIn` | 淡入 |
+| `FadeOut` | 淡出 |
+| `FadeTo` | 淡化到指定透明度 |
+| `Delay` | 延迟 |
+| `Sequence` | 顺序执行多个动作 |
+| `Spawn` | 同时执行多个动作 |
+| `Loop` | 循环执行动作 |
+| `CallFunc` | 回调函数 |
+
+### 运行动作
+
+```cpp
+// 移动动画
+auto moveAction = makePtr<MoveBy>(1.0f, Vec2(0.0f, -100.0f));
+node->runAction(moveAction);
+
+// 缩放动画
+auto scaleAction = makePtr<ScaleTo>(0.5f, 2.0f);
+node->runAction(scaleAction);
+
+// 淡入淡出
+auto fadeOut = makePtr<FadeOut>(0.3f);
+auto fadeIn = makePtr<FadeIn>(0.3f);
+node->runAction(fadeOut);
+```
+
+### 动画完成回调
+
+使用 `setCompletionCallback` 在动画完成时执行回调：
+
+```cpp
+// 参考 examples/flappy_bird/GameOverLayer.cpp
+void GameOverLayer::onEnter() {
+    Node::onEnter();
+
+    // 创建向上移动的动画
+    auto moveAction = extra2d::makePtr<extra2d::MoveBy>(
+        1.0f, extra2d::Vec2(0.0f, -screenHeight));
+    
+    // 设置动画完成回调
+    moveAction->setCompletionCallback([this]() {
+        animationDone_ = true;
+        
+        // 动画完成后启用按钮
+        if (restartBtn_)
+            restartBtn_->setEnabled(true);
+        if (menuBtn_)
+            menuBtn_->setEnabled(true);
+    });
+    
+    runAction(moveAction);
+}
+```
+
+### 顺序和并行动画
+
+```cpp
+// 顺序执行：先移动，再缩放，最后淡出
+auto sequence = makePtr<Sequence>({
+    new MoveTo(1.0f, Vec2(100, 100)),
+    new ScaleTo(0.5f, 2.0f),
+    new FadeOut(0.3f)
+});
+node->runAction(sequence);
+
+// 并行执行：同时移动和旋转
+auto spawn = makePtr<Spawn>({
+    new MoveTo(1.0f, Vec2(100, 100)),
+    new RotateBy(1.0f, 360.0f)
+});
+node->runAction(spawn);
+
+// 循环执行
+auto loop = makePtr<Loop(new RotateBy(1.0f, 360.0f), 5);  // 旋转5次
+node->runAction(loop);
+```
+
+### 动画进度回调
+
+```cpp
+auto action = makePtr<MoveTo>(2.0f, Vec2(100, 100));
+action->setProgressCallback([](float progress) {
+    // progress: 0.0 - 1.0
+    E2D_LOG_INFO("动画进度: {}%", progress * 100);
+});
+node->runAction(action);
+```
+
+### 停止动画
+
+```cpp
+// 停止所有动画
+node->stopAllActions();
+
+// 停止特定动画（需要先设置 tag）
+action->setTag(1);
+node->runAction(action);
+node->stopActionByTag(1);
+```
+
 ## 下一步
 
 - [04. 资源管理](./04_Resource_Management.md) - 深入了解资源加载

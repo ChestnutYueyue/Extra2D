@@ -90,6 +90,96 @@ audio.unloadAllSounds();
 
 ## 完整示例
 
+### Flappy Bird 音效管理器
+
+参考 `examples/flappy_bird/ResLoader.h/cpp`：
+
+```cpp
+// ResLoader.h
+#pragma once
+
+#include <extra2d/extra2d.h>
+#include <map>
+
+namespace flappybird {
+
+enum class MusicType {
+    Click,  // 按键声音
+    Hit,    // 小鸟死亡声音
+    Fly,    // 小鸟飞翔声音
+    Point,  // 得分声音
+    Swoosh  // 转场声音
+};
+
+class ResLoader {
+public:
+    static void init();
+    static void playMusic(MusicType type);
+
+private:
+    static std::map<MusicType, extra2d::Ptr<extra2d::Sound>> soundMap_;
+};
+
+} // namespace flappybird
+```
+
+```cpp
+// ResLoader.cpp
+#include "ResLoader.h"
+
+namespace flappybird {
+
+std::map<MusicType, extra2d::Ptr<extra2d::Sound>> ResLoader::soundMap_;
+
+void ResLoader::init() {
+  auto &resources = extra2d::Application::instance().resources();
+
+  // 加载所有音效
+  soundMap_[MusicType::Click] = resources.loadSound("assets/sound/click.wav");
+  soundMap_[MusicType::Hit] = resources.loadSound("assets/sound/hit.wav");
+  soundMap_[MusicType::Fly] = resources.loadSound("assets/sound/fly.wav");
+  soundMap_[MusicType::Point] = resources.loadSound("assets/sound/point.wav");
+  soundMap_[MusicType::Swoosh] = resources.loadSound("assets/sound/swoosh.wav");
+}
+
+void ResLoader::playMusic(MusicType type) {
+  auto it = soundMap_.find(type);
+  if (it != soundMap_.end() && it->second) {
+    it->second->play();
+  }
+}
+
+} // namespace flappybird
+```
+
+### 在游戏中使用
+
+```cpp
+// GameScene.cpp - 得分时播放音效
+if (pipeX <= birdX) {
+  score_++;
+  scoreNumber_->setNumber(score_);
+  firstPipe->scored = true;
+  ResLoader::playMusic(MusicType::Point);  // 播放得分音效
+}
+
+// bird.cpp - 跳跃时播放音效
+void Bird::jump() {
+  velocity_.y = jumpForce_;
+  ResLoader::playMusic(MusicType::Fly);  // 播放飞翔音效
+}
+
+// GameOverLayer.cpp - 按钮点击时播放音效
+restartBtn_->setOnClick([]() {
+  ResLoader::playMusic(MusicType::Click);  // 播放点击音效
+  auto &app = extra2d::Application::instance();
+  app.scenes().replaceScene(extra2d::makePtr<GameScene>(),
+                            extra2d::TransitionType::Fade, 0.5f);
+});
+```
+
+### 推箱子音效管理器
+
 ```cpp
 // audio_manager.h
 #pragma once
