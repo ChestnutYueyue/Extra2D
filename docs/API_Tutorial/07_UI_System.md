@@ -109,12 +109,57 @@ button->setBorder(Colors::White, 2.0f);
 button->setRoundedCornersEnabled(true);
 button->setCornerRadius(8.0f);
 
-// 图片背景
+// 图片背景（普通按钮）
 button->setBackgroundImage(normalTex, hoverTex, pressedTex);
 button->setBackgroundImageScaleMode(ImageScaleMode::ScaleFit);
 
 // 悬停光标
 button->setHoverCursor(CursorShape::Hand);
+```
+
+### 切换按钮模式（Toggle Button）
+
+按钮支持切换模式，可以在 on/off 两种状态间切换：
+
+```cpp
+// 创建切换按钮
+auto toggleBtn = Button::create();
+toggleBtn->setToggleMode(true);  // 启用切换模式
+
+// 设置状态图片（off状态图片, on状态图片）
+toggleBtn->setStateBackgroundImage(soundOffTex, soundOnTex);
+
+// 或设置带悬停/按下效果的状态图片
+toggleBtn->setStateBackgroundImage(
+    soundOffTex, soundOnTex,           // 普通状态
+    soundOffHoverTex, soundOnHoverTex, // 悬停状态（可选）
+    soundOffPressedTex, soundOnPressedTex  // 按下状态（可选）
+);
+
+// 设置状态文字
+toggleBtn->setStateText("关闭", "开启");
+
+// 设置状态文字颜色
+toggleBtn->setStateTextColor(Colors::Red, Colors::Green);
+
+// 设置初始状态
+toggleBtn->setOn(true);
+
+// 获取当前状态
+bool isOn = toggleBtn->isOn();
+
+// 手动切换状态
+toggleBtn->toggle();
+
+// 状态改变回调
+toggleBtn->setOnStateChange([](bool isOn) {
+    E2D_LOG_INFO("切换按钮状态: {}", isOn ? "开启" : "关闭");
+});
+
+// 点击回调（切换模式也会触发此回调）
+toggleBtn->setOnClick([]() {
+    E2D_LOG_INFO("按钮被点击");
+});
 ```
 
 ### 图片缩放模式
@@ -245,6 +290,7 @@ void GameOverLayer::onUpdate(float dt) {
 - **动画播放期间**：禁用按钮，防止用户过早操作
 - **加载过程中**：禁用按钮，显示加载状态
 - **条件限制**：当条件不满足时禁用按钮（如未选择关卡）
+- **切换按钮**：音效开关、设置开关等需要显示两种状态的按钮
 
 ## 文本（Text）
 
@@ -350,11 +396,11 @@ checkBox->setPosition(Vec2(100, 200));
 checkBox->setChecked(true);
 
 // 方式2：带标签
-auto checkBox = CheckBox::create("启用音效");
+checkBox = CheckBox::create("启用音效");
 checkBox->setPosition(Vec2(100, 200));
 
 // 方式3：链式调用
-auto checkBox = CheckBox::create("启用音效")
+checkBox = CheckBox::create("启用音效")
     ->withPosition(100, 200)
     ->withFont(font)
     ->withTextColor(Colors::White);
@@ -620,18 +666,24 @@ public:
         title->setAlignment(Alignment::Center);
         addChild(title);
         
-        // 音效开关
+        // 音效开关（使用切换按钮）
         auto soundLabel = Label::create("音效", font_);
         soundLabel->setPosition(Vec2(200, 200));
         addChild(soundLabel);
         
-        soundCheck_ = CheckBox::create();
-        soundCheck_->setPosition(Vec2(350, 200));
-        soundCheck_->setChecked(true);
-        soundCheck_->setOnStateChange([this](bool checked) {
-            E2D_LOG_INFO("音效: {}", checked ? "开启" : "关闭");
+        auto soundOn = resources.loadTexture("assets/sound_on.png");
+        auto soundOff = resources.loadTexture("assets/sound_off.png");
+        
+        soundToggle_ = Button::create();
+        soundToggle_->setPosition(Vec2(350, 200));
+        soundToggle_->setToggleMode(true);
+        soundToggle_->setStateBackgroundImage(soundOff, soundOn);
+        soundToggle_->setOn(true);
+        soundToggle_->setOnStateChange([](bool isOn) {
+            E2D_LOG_INFO("音效: {}", isOn ? "开启" : "关闭");
+            AudioManager::instance().setEnabled(isOn);
         });
-        addChild(soundCheck_);
+        addChild(soundToggle_);
         
         // 音量滑块
         auto volumeLabel = Label::create("音量", font_);
@@ -685,7 +737,7 @@ public:
     
 private:
     Ptr<FontAtlas> font_;
-    Ptr<CheckBox> soundCheck_;
+    Ptr<Button> soundToggle_;
     Ptr<Slider> volumeSlider_;
 };
 ```
@@ -697,6 +749,7 @@ private:
 3. **设置合适的锚点** - 使用锚点（0.5, 0.5）让控件中心对齐，方便布局
 4. **复用字体资源** - 避免重复加载相同字体
 5. **使用回调函数** - 使用 `setOnClick`、`setOnValueChange` 等回调响应用户操作
+6. **使用切换按钮** - 对于需要显示两种状态的按钮（如开关），使用 `setToggleMode(true)`
 
 ## 下一步
 

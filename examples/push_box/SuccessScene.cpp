@@ -1,15 +1,20 @@
+// ============================================================================
+// SuccessScene.cpp - Push Box 通关场景实现
+// ============================================================================
+
 #include "SuccessScene.h"
 
 #include <extra2d/extra2d.h>
 
 namespace pushbox {
 
-SuccessScene::SuccessScene() {
-    auto& app = extra2d::Application::instance();
-    auto& config = app.getConfig();
-    setViewportSize(static_cast<float>(config.width), static_cast<float>(config.height));
+SuccessScene::SuccessScene() : BaseScene() {
+    // BaseScene 已处理视口设置
 }
 
+/**
+ * @brief 加载菜单字体
+ */
 static extra2d::Ptr<extra2d::FontAtlas> loadMenuFont() {
     auto& resources = extra2d::Application::instance().resources();
     auto font = resources.loadFont("assets/font.ttf", 28);
@@ -17,16 +22,15 @@ static extra2d::Ptr<extra2d::FontAtlas> loadMenuFont() {
 }
 
 void SuccessScene::onEnter() {
-    Scene::onEnter();
+    BaseScene::onEnter();
 
     auto& app = extra2d::Application::instance();
     auto& resources = app.resources();
-    setBackgroundColor(extra2d::Colors::Black);
 
     if (getChildren().empty()) {
-        // 获取窗口尺寸
-        float screenW = static_cast<float>(app.getConfig().width);
-        float screenH = static_cast<float>(app.getConfig().height);
+        // 使用游戏逻辑分辨率
+        float screenW = GAME_WIDTH;
+        float screenH = GAME_HEIGHT;
 
         auto bgTex = resources.loadTexture("assets/images/success.jpg");
         if (bgTex) {
@@ -61,7 +65,7 @@ void SuccessScene::onEnter() {
 }
 
 void SuccessScene::onUpdate(float dt) {
-    Scene::onUpdate(dt);
+    BaseScene::onUpdate(dt);
 
     auto& app = extra2d::Application::instance();
     auto& input = app.input();
@@ -69,8 +73,8 @@ void SuccessScene::onUpdate(float dt) {
     // A键确认返回主菜单
     if (input.isButtonPressed(extra2d::GamepadButton::A)) {
         auto& scenes = extra2d::Application::instance().scenes();
-        scenes.popScene(extra2d::TransitionType::Fade, 0.2f);
-        scenes.popScene(extra2d::TransitionType::Fade, 0.2f);
+        scenes.popScene(extra2d::TransitionType::Fade, 0.5f);
+        scenes.popScene(extra2d::TransitionType::Fade, 0.5f);
     }
 }
 

@@ -95,6 +95,8 @@ public:
   // 边框设置
   // ------------------------------------------------------------------------
   void setBorder(const Color &color, float width);
+  float getBorderWidth() const { return borderWidth_; }
+  Color getBorderColor() const { return borderColor_; }
 
   // ------------------------------------------------------------------------
   // 图片背景设置
@@ -102,6 +104,22 @@ public:
   void setBackgroundImage(Ptr<Texture> normal, Ptr<Texture> hover = nullptr,
                           Ptr<Texture> pressed = nullptr);
   void setBackgroundImage(Ptr<Texture> texture, const Rect &rect);
+
+  /**
+   * @brief 为切换按钮的两种状态设置图片背景
+   * @param offNormal 关闭状态的普通图片
+   * @param onNormal 开启状态的普通图片
+   * @param offHover 关闭状态的悬停图片（可选）
+   * @param onHover 开启状态的悬停图片（可选）
+   * @param offPressed 关闭状态的按下图片（可选）
+   * @param onPressed 开启状态的按下图片（可选）
+   */
+  void setStateBackgroundImage(Ptr<Texture> offNormal, Ptr<Texture> onNormal,
+                               Ptr<Texture> offHover = nullptr,
+                               Ptr<Texture> onHover = nullptr,
+                               Ptr<Texture> offPressed = nullptr,
+                               Ptr<Texture> onPressed = nullptr);
+
   void setBackgroundImageScaleMode(ImageScaleMode mode);
   void setCustomSize(const Vec2 &size);
   void setCustomSize(float width, float height);
@@ -130,6 +148,63 @@ public:
   // 点击回调
   // ------------------------------------------------------------------------
   void setOnClick(Function<void()> callback);
+
+  // ------------------------------------------------------------------------
+  // 切换模式支持（Toggle Button）
+  // ------------------------------------------------------------------------
+
+  /**
+   * @brief 设置是否为切换模式
+   * @param enabled true 表示启用切换模式，点击时自动切换 on/off 状态
+   */
+  void setToggleMode(bool enabled);
+
+  /**
+   * @brief 获取当前是否为切换模式
+   * @return true 表示处于切换模式
+   */
+  bool isToggleMode() const { return toggleMode_; }
+
+  /**
+   * @brief 设置当前状态（仅切换模式有效）
+   * @param on true 表示开启状态，false 表示关闭状态
+   */
+  void setOn(bool on);
+
+  /**
+   * @brief 获取当前状态
+   * @return true 表示开启状态，false 表示关闭状态
+   */
+  bool isOn() const { return isOn_; }
+
+  /**
+   * @brief 切换当前状态
+   */
+  void toggle();
+
+  /**
+   * @brief 设置状态改变回调
+   * @param callback 状态改变时调用的回调函数，参数为新状态
+   */
+  void setOnStateChange(Function<void(bool)> callback);
+
+  // ------------------------------------------------------------------------
+  // 状态文字设置（用于切换按钮）
+  // ------------------------------------------------------------------------
+
+  /**
+   * @brief 为两种状态设置不同的文字
+   * @param textOff 关闭状态显示的文字
+   * @param textOn 开启状态显示的文字
+   */
+  void setStateText(const std::string &textOff, const std::string &textOn);
+
+  /**
+   * @brief 为两种状态设置不同的文字颜色
+   * @param colorOff 关闭状态的文字颜色
+   * @param colorOn 开启状态的文字颜色
+   */
+  void setStateTextColor(const Color &colorOff, const Color &colorOn);
 
   Rect getBoundingBox() const override;
 
@@ -170,6 +245,12 @@ private:
   bool useImageBackground_ = false;
   bool useTextureRect_ = false;
 
+  // 切换按钮状态图片
+  Ptr<Texture> imgOffNormal_, imgOnNormal_;
+  Ptr<Texture> imgOffHover_, imgOnHover_;
+  Ptr<Texture> imgOffPressed_, imgOnPressed_;
+  bool useStateImages_ = false;
+
   // 边框
   Color borderColor_ = Color(0.6f, 0.6f, 0.6f, 1.0f);
   float borderWidth_ = 1.0f;
@@ -188,48 +269,10 @@ private:
   bool hovered_ = false;
   bool pressed_ = false;
 
-  Function<void()> onClick_;
-};
-
-// ============================================================================
-// 切换按钮 - 点击切换两种状态（支持图片和文字）
-// ============================================================================
-class ToggleImageButton : public Button {
-public:
-  ToggleImageButton();
-  ~ToggleImageButton() override = default;
-
-  static Ptr<ToggleImageButton> create();
-
-  // 设置两种状态的图片
-  void setStateImages(Ptr<Texture> stateOffNormal, Ptr<Texture> stateOnNormal,
-                      Ptr<Texture> stateOffHover = nullptr,
-                      Ptr<Texture> stateOnHover = nullptr,
-                      Ptr<Texture> stateOffPressed = nullptr,
-                      Ptr<Texture> stateOnPressed = nullptr);
-
-  // 设置两种状态的文字
-  void setStateText(const std::string &textOff, const std::string &textOn);
-
-  // 设置两种状态的文字颜色
-  void setStateTextColor(const Color &colorOff, const Color &colorOn);
-
-  // 获取/设置当前状态
-  bool isOn() const { return isOn_; }
-  void setOn(bool on);
-  void toggle();
-
-  // 设置状态改变回调
-  void setOnStateChange(Function<void(bool)> callback);
-
-protected:
-  void onDrawWidget(RenderBackend &renderer) override;
-
-private:
-  // 状态图片
-  Ptr<Texture> imgOffNormal_, imgOnNormal_;
-  Ptr<Texture> imgOffHover_, imgOnHover_;
-  Ptr<Texture> imgOffPressed_, imgOnPressed_;
+  // 切换模式相关
+  bool toggleMode_ = false;
+  bool isOn_ = false;
+  Function<void(bool)> onStateChange_;
 
   // 状态文字
   std::string textOff_, textOn_;
@@ -240,8 +283,7 @@ private:
   Color textColorOn_ = Colors::White;
   bool useStateTextColor_ = false;
 
-  bool isOn_ = false;
-  Function<void(bool)> onStateChange_;
+  Function<void()> onClick_;
 };
 
 } // namespace extra2d

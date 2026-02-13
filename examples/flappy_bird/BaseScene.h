@@ -35,6 +35,12 @@ public:
    */
   void onRender(extra2d::RenderBackend &renderer) override;
 
+  /**
+   * @brief 渲染场景内容，确保视口正确设置
+   * @param renderer 渲染后端
+   */
+  void renderContent(extra2d::RenderBackend &renderer) override;
+
 protected:
   /**
    * @brief 更新视口计算，使游戏内容在窗口中居中显示

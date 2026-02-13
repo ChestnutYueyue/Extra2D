@@ -4,56 +4,15 @@
 #include <extra2d/graphics/render_command.h>
 #include <extra2d/platform/input.h>
 #include <extra2d/scene/scene_manager.h>
-#include <extra2d/scene/transition.h>
+#include <extra2d/scene/transition_box_scene.h>
+#include <extra2d/scene/transition_fade_scene.h>
+#include <extra2d/scene/transition_flip_scene.h>
+#include <extra2d/scene/transition_scale_scene.h>
+#include <extra2d/scene/transition_scene.h>
+#include <extra2d/scene/transition_slide_scene.h>
 #include <extra2d/utils/logger.h>
 
 namespace extra2d {
-
-// ============================================================================
-// Transition 工厂映射 - 使用函数指针数组替代 switch
-// ============================================================================
-using TransitionFactory = Ptr<Transition> (*)(float);
-
-static Ptr<Transition> createFadeTransition(float duration) {
-  return makePtr<FadeTransition>(duration);
-}
-
-static Ptr<Transition> createSlideLeftTransition(float duration) {
-  return makePtr<SlideTransition>(duration, TransitionDirection::Left);
-}
-
-static Ptr<Transition> createSlideRightTransition(float duration) {
-  return makePtr<SlideTransition>(duration, TransitionDirection::Right);
-}
-
-static Ptr<Transition> createSlideUpTransition(float duration) {
-  return makePtr<SlideTransition>(duration, TransitionDirection::Up);
-}
-
-static Ptr<Transition> createSlideDownTransition(float duration) {
-  return makePtr<SlideTransition>(duration, TransitionDirection::Down);
-}
-
-static Ptr<Transition> createScaleTransition(float duration) {
-  return makePtr<ScaleTransition>(duration);
-}
-
-static Ptr<Transition> createFlipTransition(float duration) {
-  return makePtr<FlipTransition>(duration);
-}
-
-// 工厂函数指针数组，索引对应 TransitionType 枚举值
-static constexpr TransitionFactory TRANSITION_FACTORIES[] = {
-  createFadeTransition,      // TransitionType::Fade = 0
-  createSlideLeftTransition, // TransitionType::SlideLeft = 1
-  createSlideRightTransition,// TransitionType::SlideRight = 2
-  createSlideUpTransition,   // TransitionType::SlideUp = 3
-  createSlideDownTransition, // TransitionType::SlideDown = 4
-  createScaleTransition,     // TransitionType::Scale = 5
-  createFlipTransition       // TransitionType::Flip = 6
-};
-
-static constexpr size_t TRANSITION_FACTORY_COUNT = sizeof(TRANSITION_FACTORIES) / sizeof(TRANSITION_FACTORIES[0]);
 
 namespace {
 
@@ -150,17 +109,22 @@ void SceneManager::enterScene(Ptr<Scene> scene) {
 }
 
 void SceneManager::enterScene(Ptr<Scene> scene,
-                              Ptr<class Transition> transition) {
+                              Ptr<TransitionScene> transitionScene) {
   if (!scene || isTransitioning_) {
     return;
   }
 
-  if (!transition) {
+  // 如果没有过渡场景，使用无过渡切换
+  if (!transitionScene) {
     enterScene(scene);
     return;
   }
 
   auto current = getCurrentScene();
+  if (!current) {
+    enterScene(scene);
+    return;
+  }
 
   // 在过渡开始前，发送 UIHoverExit 给当前悬停的节点，重置按钮状态
   if (hoverTarget_) {
@@ -173,32 +137,39 @@ void SceneManager::enterScene(Ptr<Scene> scene,
   captureTarget_ = nullptr;
   hasLastPointerWorld_ = false;
 
-  transition->start(current, scene);
-  outgoingScene_ = current;
-  incomingScene_ = scene;
-  activeTransition_ = transition;
-  currentTransition_ = TransitionType::None;
+  // 设置过渡场景
+  transitionScene->setOutScene(current);
+  transitionScene->setFinishCallback([this]() { finishTransition(); });
+
+  // 暂停当前场景
+  current->pause();
+
+  // 推入过渡场景（作为中介场景）
+  transitionScene->onEnter();
+  transitionScene->onAttachToScene(transitionScene.get());
+  sceneStack_.push(transitionScene);
+
   isTransitioning_ = true;
-  transitionStackAction_ = [this]() {
+  activeTransitionScene_ = transitionScene;
+  transitionStackAction_ = [this, transitionScene]() {
     // 退出旧场景
-    auto outgoing = outgoingScene_;
-    if (!sceneStack_.empty() && outgoing && sceneStack_.top() == outgoing) {
-      outgoing->onExit();
-      outgoing->onDetachFromScene();
-      sceneStack_.pop();
-    }
-    // 推入新场景并调用 onEnter
-    auto incoming = incomingScene_;
-    if (incoming) {
-      sceneStack_.push(incoming);
-      if (!incoming->isRunning()) {
-        incoming->onEnter();
-        incoming->onAttachToScene(incoming.get());
+    auto outScene = transitionScene->getOutScene();
+    if (!sceneStack_.empty() && outScene) {
+      // 过渡场景已经在栈顶，弹出它
+      if (sceneStack_.top().get() == transitionScene.get()) {
+        sceneStack_.pop();
       }
+      outScene->onExit();
+      outScene->onDetachFromScene();
+    }
+
+    // 推入新场景
+    auto inScene = transitionScene->getInScene();
+    if (inScene) {
+      inScene->onAttachToScene(inScene.get());
+      sceneStack_.push(inScene);
     }
   };
-  // 注意：不在此处调用新场景的 onEnter，由 transitionStackAction_
-  // 在过渡完成后调用
 }
 
 void SceneManager::replaceScene(Ptr<Scene> scene, TransitionType transition,
@@ -216,19 +187,26 @@ void SceneManager::replaceScene(Ptr<Scene> scene, TransitionType transition,
 
   startTransition(oldScene, scene, transition, duration, [this]() {
     // 过渡完成后，退出旧场景并从堆栈中移除
-    auto outgoing = outgoingScene_;
-    auto incoming = incomingScene_;
-    if (!sceneStack_.empty() && outgoing && sceneStack_.top() == outgoing) {
-      outgoing->onExit();
-      outgoing->onDetachFromScene();
-      sceneStack_.pop();
+    if (!sceneStack_.empty() && activeTransitionScene_) {
+      // 弹出过渡场景
+      if (sceneStack_.top().get() == activeTransitionScene_.get()) {
+        sceneStack_.pop();
+      }
+
+      // 退出旧场景
+      auto outScene = activeTransitionScene_->getOutScene();
+      if (outScene) {
+        outScene->onExit();
+        outScene->onDetachFromScene();
+      }
     }
-    // 将新场景推入堆栈并调用 onEnter
-    if (incoming) {
-      sceneStack_.push(incoming);
-      if (!incoming->isRunning()) {
-        incoming->onEnter();
-        incoming->onAttachToScene(incoming.get());
+
+    // 将新场景推入堆栈
+    if (activeTransitionScene_) {
+      auto inScene = activeTransitionScene_->getInScene();
+      if (inScene) {
+        inScene->onAttachToScene(inScene.get());
+        sceneStack_.push(inScene);
       }
     }
   });
@@ -267,12 +245,19 @@ void SceneManager::pushScene(Ptr<Scene> scene, TransitionType transition,
   auto currentScene = sceneStack_.top();
 
   startTransition(currentScene, scene, transition, duration, [this]() {
-    // 过渡完成后，将新场景推入堆栈并调用 onEnter
-    if (incomingScene_) {
-      sceneStack_.push(incomingScene_);
-      if (!incomingScene_->isRunning()) {
-        incomingScene_->onEnter();
-        incomingScene_->onAttachToScene(incomingScene_.get());
+    // 过渡完成后，将新场景推入堆栈
+    if (!sceneStack_.empty() && activeTransitionScene_) {
+      // 弹出过渡场景
+      if (sceneStack_.top().get() == activeTransitionScene_.get()) {
+        sceneStack_.pop();
+      }
+    }
+
+    if (activeTransitionScene_) {
+      auto inScene = activeTransitionScene_->getInScene();
+      if (inScene) {
+        inScene->onAttachToScene(inScene.get());
+        sceneStack_.push(inScene);
       }
     }
   });
@@ -304,20 +289,26 @@ void SceneManager::popScene(TransitionType transition, float duration) {
 
   startTransition(current, previous, transition, duration, [this]() {
     // 过渡完成后，退出当前场景并从堆栈中移除
-    auto outgoing = outgoingScene_;
-    if (!sceneStack_.empty() && outgoing && sceneStack_.top() == outgoing) {
-      outgoing->onExit();
-      outgoing->onDetachFromScene();
-      sceneStack_.pop();
-    }
-    // 恢复前一个场景
-    auto incoming = incomingScene_;
-    if (!sceneStack_.empty() && incoming && sceneStack_.top() == incoming) {
-      if (!incoming->isRunning()) {
-        incoming->onEnter();
-        incoming->onAttachToScene(incoming.get());
+    if (!sceneStack_.empty() && activeTransitionScene_) {
+      // 弹出过渡场景
+      if (sceneStack_.top().get() == activeTransitionScene_.get()) {
+        sceneStack_.pop();
       }
-      incoming->resume();
+
+      // 退出当前场景
+      auto outScene = activeTransitionScene_->getOutScene();
+      if (outScene) {
+        outScene->onExit();
+        outScene->onDetachFromScene();
+      }
+    }
+
+    // 恢复前一个场景
+    if (activeTransitionScene_) {
+      auto inScene = activeTransitionScene_->getInScene();
+      if (inScene && !sceneStack_.empty() && sceneStack_.top() == inScene) {
+        inScene->resume();
+      }
     }
   });
 }
@@ -349,18 +340,15 @@ void SceneManager::popToRootScene(TransitionType transition, float duration) {
 
   startTransition(current, root, transition, duration, [this, root]() {
     // 退出所有场景直到根场景
-    while (!sceneStack_.empty() && sceneStack_.top() != root) {
+    while (!sceneStack_.empty() && sceneStack_.top().get() != root.get()) {
       auto scene = sceneStack_.top();
       scene->onExit();
       scene->onDetachFromScene();
       sceneStack_.pop();
     }
+
     // 恢复根场景
-    if (!sceneStack_.empty() && sceneStack_.top() == root) {
-      if (!root->isRunning()) {
-        root->onEnter();
-        root->onAttachToScene(root.get());
-      }
+    if (!sceneStack_.empty() && sceneStack_.top().get() == root.get()) {
       root->resume();
     }
   });
@@ -409,12 +397,9 @@ void SceneManager::popToScene(const std::string &name,
         scene->onDetachFromScene();
         sceneStack_.pop();
       }
+
       // 恢复目标场景
       if (!sceneStack_.empty() && sceneStack_.top() == target) {
-        if (!target->isRunning()) {
-          target->onEnter();
-          target->onAttachToScene(target.get());
-        }
         target->resume();
       }
     });
@@ -479,7 +464,7 @@ bool SceneManager::hasScene(const std::string &name) const {
 
 void SceneManager::update(float dt) {
   if (isTransitioning_) {
-    updateTransition(dt);
+    // 过渡场景在栈顶，正常更新即可
     hoverTarget_ = nullptr;
     captureTarget_ = nullptr;
     hasLastPointerWorld_ = false;
@@ -496,13 +481,7 @@ void SceneManager::update(float dt) {
 
 void SceneManager::render(RenderBackend &renderer) {
   Color clearColor = Colors::Black;
-  if (isTransitioning_) {
-    if (outgoingScene_) {
-      clearColor = outgoingScene_->getBackgroundColor();
-    } else if (incomingScene_) {
-      clearColor = incomingScene_->getBackgroundColor();
-    }
-  } else if (!sceneStack_.empty()) {
+  if (!sceneStack_.empty()) {
     clearColor = sceneStack_.top()->getBackgroundColor();
   }
 
@@ -510,10 +489,7 @@ void SceneManager::render(RenderBackend &renderer) {
                 clearColor.r, clearColor.g, clearColor.b);
   renderer.beginFrame(clearColor);
 
-  if (isTransitioning_ && activeTransition_) {
-    E2D_LOG_TRACE("SceneManager::render - rendering transition");
-    activeTransition_->render(renderer);
-  } else if (!sceneStack_.empty()) {
+  if (!sceneStack_.empty()) {
     E2D_LOG_TRACE("SceneManager::render - rendering scene content");
     sceneStack_.top()->renderContent(renderer);
   } else {
@@ -525,13 +501,7 @@ void SceneManager::render(RenderBackend &renderer) {
 }
 
 void SceneManager::collectRenderCommands(std::vector<RenderCommand> &commands) {
-  if (isTransitioning_ && outgoingScene_) {
-    // During transition, collect commands from both scenes
-    outgoingScene_->collectRenderCommands(commands, 0);
-    if (incomingScene_) {
-      incomingScene_->collectRenderCommands(commands, 0);
-    }
-  } else if (!sceneStack_.empty()) {
+  if (!sceneStack_.empty()) {
     sceneStack_.top()->collectRenderCommands(commands, 0);
   }
 }
@@ -555,17 +525,13 @@ void SceneManager::startTransition(Ptr<Scene> from, Ptr<Scene> to,
     return;
   }
 
-  // 使用工厂映射替代 switch
-  Ptr<Transition> transition;
-  size_t typeIndex = static_cast<size_t>(type);
-  if (typeIndex < TRANSITION_FACTORY_COUNT) {
-    transition = TRANSITION_FACTORIES[typeIndex](duration);
-  } else {
-    // 默认使用 Fade 过渡
-    transition = TRANSITION_FACTORIES[0](duration);
+  // 创建过渡场景
+  auto transitionScene = createTransitionScene(type, duration, to);
+  if (!transitionScene) {
+    // 回退到无过渡切换
+    replaceScene(to);
+    return;
   }
-
-  transition->start(from, to);
 
   // 在过渡开始前，发送 UIHoverExit 给当前悬停的节点，重置按钮状态
   if (hoverTarget_) {
@@ -578,29 +544,55 @@ void SceneManager::startTransition(Ptr<Scene> from, Ptr<Scene> to,
   captureTarget_ = nullptr;
   hasLastPointerWorld_ = false;
 
+  // 设置过渡场景
+  transitionScene->setOutScene(from);
+  transitionScene->setFinishCallback([this]() { finishTransition(); });
+
+  // 暂停当前场景
+  from->pause();
+
+  // 推入过渡场景（作为中介场景）
+  transitionScene->onEnter();
+  transitionScene->onAttachToScene(transitionScene.get());
+  sceneStack_.push(transitionScene);
+
   isTransitioning_ = true;
   currentTransition_ = type;
-  transitionDuration_ = duration;
-  transitionElapsed_ = 0.0f;
-  outgoingScene_ = from;
-  incomingScene_ = to;
-  activeTransition_ = transition;
+  activeTransitionScene_ = transitionScene;
   transitionStackAction_ = std::move(stackAction);
-
-  // 注意：不在此处调用新场景的 onEnter，由 transitionStackAction_
-  // 在过渡完成后调用
 }
 
-void SceneManager::updateTransition(float dt) {
-  transitionElapsed_ += dt;
+Ptr<TransitionScene> SceneManager::createTransitionScene(TransitionType type,
+                                                         float duration,
+                                                         Ptr<Scene> inScene) {
+  if (!inScene) {
+    return nullptr;
+  }
 
-  if (activeTransition_) {
-    activeTransition_->update(dt);
-    if (activeTransition_->isFinished()) {
-      finishTransition();
-    }
-  } else {
-    finishTransition();
+  switch (type) {
+  case TransitionType::Fade:
+    return TransitionFadeScene::create(duration, inScene);
+  case TransitionType::SlideLeft:
+    return TransitionSlideScene::create(duration, inScene,
+                                        TransitionDirection::Left);
+  case TransitionType::SlideRight:
+    return TransitionSlideScene::create(duration, inScene,
+                                        TransitionDirection::Right);
+  case TransitionType::SlideUp:
+    return TransitionSlideScene::create(duration, inScene,
+                                        TransitionDirection::Up);
+  case TransitionType::SlideDown:
+    return TransitionSlideScene::create(duration, inScene,
+                                        TransitionDirection::Down);
+  case TransitionType::Scale:
+    return TransitionScaleScene::create(duration, inScene);
+  case TransitionType::Flip:
+    return TransitionFlipScene::create(duration, inScene);
+  case TransitionType::Box:
+    return TransitionBoxScene::create(duration, inScene);
+  default:
+    // 默认使用淡入淡出
+    return TransitionFadeScene::create(duration, inScene);
   }
 }
 
@@ -625,9 +617,7 @@ void SceneManager::finishTransition() {
     dispatchToNode(lastHoverTarget, evt);
   }
 
-  outgoingScene_.reset();
-  incomingScene_.reset();
-  activeTransition_.reset();
+  activeTransitionScene_.reset();
   transitionStackAction_ = nullptr;
 
   if (transitionCallback_) {

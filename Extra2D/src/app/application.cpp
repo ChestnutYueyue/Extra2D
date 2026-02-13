@@ -364,11 +364,11 @@ Camera &Application::camera() { return *camera_; }
 void Application::enterScene(Ptr<Scene> scene) { enterScene(scene, nullptr); }
 
 void Application::enterScene(Ptr<Scene> scene,
-                             Ptr<class Transition> transition) {
+                             Ptr<class TransitionScene> transitionScene) {
   if (sceneManager_ && scene) {
     scene->setViewportSize(static_cast<float>(window_->getWidth()),
                            static_cast<float>(window_->getHeight()));
-    sceneManager_->enterScene(scene, transition);
+    sceneManager_->enterScene(scene, transitionScene);
   }
 }
 

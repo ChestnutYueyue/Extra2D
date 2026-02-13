@@ -43,7 +43,7 @@ void SplashScene::onUpdate(float dt) {
 void SplashScene::gotoStartScene() {
   auto &app = extra2d::Application::instance();
   app.scenes().replaceScene(extra2d::makePtr<StartScene>(),
-                            extra2d::TransitionType::Fade, 0.5f);
+                            extra2d::TransitionType::Fade, 2.0f);
 }
 
 } // namespace flappybird

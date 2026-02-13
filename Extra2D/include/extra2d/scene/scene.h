@@ -56,7 +56,7 @@ public:
   // 渲染和更新
   // ------------------------------------------------------------------------
   void renderScene(RenderBackend &renderer);
-  void renderContent(RenderBackend &renderer);
+  virtual void renderContent(RenderBackend &renderer);
   void updateScene(float dt);
   void collectRenderCommands(std::vector<RenderCommand> &commands,
                             int parentZOrder = 0) override;
@@ -92,7 +92,12 @@ protected:
   void onEnter() override;
   void onExit() override;
 
+  // 过渡场景生命周期回调（供 TransitionScene 使用）
+  virtual void onExitTransitionDidStart() {}
+  virtual void onEnterTransitionDidFinish() {}
+
   friend class SceneManager;
+  friend class TransitionScene;
 
 private:
   Color backgroundColor_ = Colors::Black;

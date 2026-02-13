@@ -2,6 +2,7 @@
 
 #include <extra2d/core/types.h>
 #include <extra2d/scene/scene.h>
+#include <extra2d/scene/transition_scene.h>
 #include <functional>
 #include <stack>
 #include <string>
@@ -12,21 +13,7 @@ namespace extra2d {
 
 // 前向声明
 struct RenderCommand;
-class Transition;
-
-// ============================================================================
-// 场景切换特效类型
-// ============================================================================
-enum class TransitionType {
-  None,
-  Fade,
-  SlideLeft,
-  SlideRight,
-  SlideUp,
-  SlideDown,
-  Scale,
-  Flip
-};
+class TransitionScene;
 
 // ============================================================================
 // 场景管理器 - 管理场景的生命周期和切换
@@ -116,15 +103,19 @@ public:
 
   // 场景切换（供 Application 使用）
   void enterScene(Ptr<Scene> scene);
-  void enterScene(Ptr<Scene> scene, Ptr<class Transition> transition);
+  void enterScene(Ptr<Scene> scene, Ptr<TransitionScene> transitionScene);
 
 private:
   void doSceneSwitch();
   void startTransition(Ptr<Scene> from, Ptr<Scene> to, TransitionType type,
                        float duration, Function<void()> stackAction);
-  void updateTransition(float dt);
   void finishTransition();
   void dispatchPointerEvents(Scene &scene);
+
+  // 创建过渡场景
+  Ptr<TransitionScene> createTransitionScene(TransitionType type,
+                                              float duration,
+                                              Ptr<Scene> inScene);
 
   std::stack<Ptr<Scene>> sceneStack_;
   std::unordered_map<std::string, Ptr<Scene>> namedScenes_;
@@ -132,11 +123,7 @@ private:
   // Transition state
   bool isTransitioning_ = false;
   TransitionType currentTransition_ = TransitionType::None;
-  float transitionDuration_ = 0.0f;
-  float transitionElapsed_ = 0.0f;
-  Ptr<Scene> outgoingScene_;
-  Ptr<Scene> incomingScene_;
-  Ptr<Transition> activeTransition_;
+  Ptr<TransitionScene> activeTransitionScene_;
   Function<void()> transitionStackAction_;
   TransitionCallback transitionCallback_;
 

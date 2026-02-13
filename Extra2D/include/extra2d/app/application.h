@@ -90,7 +90,7 @@ public:
   // 便捷方法
   // ------------------------------------------------------------------------
   void enterScene(Ptr<class Scene> scene);
-  void enterScene(Ptr<class Scene> scene, Ptr<class Transition> transition);
+  void enterScene(Ptr<class Scene> scene, Ptr<class TransitionScene> transitionScene);
 
   float deltaTime() const { return deltaTime_; }
   float totalTime() const { return totalTime_; }

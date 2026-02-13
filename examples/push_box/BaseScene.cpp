@@ -1,12 +1,12 @@
 // ============================================================================
-// BaseScene.cpp - Flappy Bird 基础场景实现
+// BaseScene.cpp - Push Box 基础场景实现
 // ============================================================================
 
 #include "BaseScene.h"
 #include <extra2d/scene/transition_scene.h>
 #include <extra2d/utils/logger.h>
 
-namespace flappybird {
+namespace pushbox {
 
 BaseScene::BaseScene() {
   // 设置背景颜色为黑色（窗口四周会显示这个颜色）
@@ -19,6 +19,9 @@ void BaseScene::onEnter() {
   updateViewport();
 }
 
+/**
+ * @brief 更新视口计算，使游戏内容在窗口中居中显示
+ */
 void BaseScene::updateViewport() {
   auto &app = extra2d::Application::instance();
   float windowWidth = static_cast<float>(app.window().getWidth());
@@ -48,6 +51,10 @@ void BaseScene::updateViewport() {
   setCamera(camera);
 }
 
+/**
+ * @brief 渲染时调用，设置居中视口
+ * @param renderer 渲染后端
+ */
 void BaseScene::onRender(extra2d::RenderBackend &renderer) {
   // 检查窗口大小是否改变，如果改变则更新视口
   auto &app = extra2d::Application::instance();
@@ -75,6 +82,10 @@ void BaseScene::onRender(extra2d::RenderBackend &renderer) {
   extra2d::Scene::onRender(renderer);
 }
 
+/**
+ * @brief 渲染场景内容，确保视口正确设置
+ * @param renderer 渲染后端
+ */
 void BaseScene::renderContent(extra2d::RenderBackend &renderer) {
   // 如果视口参数未初始化（onEnter 还没被调用），先初始化
   if (scaledGameWidth_ <= 0.0f || scaledGameHeight_ <= 0.0f) {
@@ -124,4 +135,4 @@ void BaseScene::renderContent(extra2d::RenderBackend &renderer) {
   }
 }
 
-} // namespace flappybird
+} // namespace pushbox

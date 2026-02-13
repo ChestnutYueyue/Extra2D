@@ -29,7 +29,12 @@
 #include <extra2d/scene/sprite.h>
 #include <extra2d/scene/shape_node.h>
 #include <extra2d/scene/scene_manager.h>
-#include <extra2d/scene/transition.h>
+#include <extra2d/scene/transition_scene.h>
+#include <extra2d/scene/transition_fade_scene.h>
+#include <extra2d/scene/transition_slide_scene.h>
+#include <extra2d/scene/transition_scale_scene.h>
+#include <extra2d/scene/transition_flip_scene.h>
+#include <extra2d/scene/transition_box_scene.h>
 
 // Animation
 #include <extra2d/animation/sprite_frame.h>

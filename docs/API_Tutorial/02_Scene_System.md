@@ -4,7 +4,7 @@ Extra2D 的场景系统提供了游戏内容的分层管理和切换功能。本
 
 ## 完整示例
 
-参考 `examples/flappy_bird/` 中的实现：
+参考 `examples/flappy_bird/` 和 `examples/push_box/` 中的实现：
 
 - `BaseScene.h/cpp` - 基础场景类（视口适配）
 - `StartScene.h/cpp` - 开始菜单场景
@@ -193,6 +193,14 @@ void GameScene::onUpdate(float dt) {
 4. **所有坐标使用逻辑分辨率** - 不依赖窗口实际大小
 5. **处理窗口大小变化** - 在 `onRender()` 中检测并更新
 
+### 注意事项
+
+1. **相机设置必须正确** - 使用 `camera->setViewport(0.0f, GAME_WIDTH, GAME_HEIGHT, 0.0f)` 确保相机覆盖整个游戏区域
+2. **渲染器视口与相机视口不同** - 渲染器视口控制实际渲染到屏幕的区域，相机视口控制世界坐标到屏幕坐标的映射
+3. **窗口大小变化检测** - 在 `onRender()` 中检测窗口大小变化并重新计算视口，确保窗口调整时正确适配
+4. **子类必须调用父类方法** - `onEnter()` 和 `onUpdate()` 中必须调用 `BaseScene::onEnter()` 和 `BaseScene::onUpdate()`
+5. **UI元素坐标空间** - UI控件通常使用 `CoordinateSpace::Screen` 固定在屏幕上，不受视口适配影响
+
 ## 场景基础
 
 ### 创建场景
@@ -230,23 +238,37 @@ public:
 };
 ```
 
-### 场景切换
+### 场景切换（新API）
+
+通过 `SceneManager` 进行场景切换：
 
 ```cpp
-// 进入场景（无过渡）
-app.enterScene(makePtr<GameScene>());
+auto& scenes = app.scenes();
 
-// 进入场景（有过渡效果）
-app.enterScene(makePtr<GameScene>(), TransitionType::Fade, 0.5f);
+// 运行第一个场景
+scenes.runWithScene(makePtr<GameScene>());
 
-// 替换当前场景
-app.scenes().replaceScene(makePtr<NewScene>());
+// 替换当前场景（无过渡）
+scenes.replaceScene(makePtr<GameScene>());
+
+// 替换当前场景（有过渡效果）
+scenes.replaceScene(makePtr<GameScene>(), TransitionType::Fade, 0.5f);
 
 // 推入场景（保留当前场景）
-app.scenes().pushScene(makePtr<NewScene>());
+scenes.pushScene(makePtr<NewScene>());
+scenes.pushScene(makePtr<NewScene>(), TransitionType::SlideLeft, 0.5f);
 
 // 弹出场景（返回上一个场景）
-app.scenes().popScene();
+scenes.popScene();
+scenes.popScene(TransitionType::Fade, 0.5f);
+
+// 弹出到根场景
+scenes.popToRootScene();
+scenes.popToRootScene(TransitionType::Fade, 0.5f);
+
+// 弹出到指定场景
+scenes.popToScene("SceneName");
+scenes.popToScene("SceneName", TransitionType::Fade, 0.5f);
 ```
 
 ### 过渡效果类型
@@ -258,11 +280,14 @@ enum class TransitionType {
     SlideLeft,  // 向左滑动
     SlideRight, // 向右滑动
     SlideUp,    // 向上滑动
-    SlideDown   // 向下滑动
+    SlideDown,  // 向下滑动
+    Scale,      // 缩放过渡
+    Flip,       // 翻转过渡
+    Box         // 盒子过渡
 };
 ```
 
-## 场景管理器
+### 场景管理器
 
 通过 `app.scenes()` 访问场景管理器：
 
@@ -270,13 +295,25 @@ enum class TransitionType {
 auto& scenes = app.scenes();
 
 // 获取当前场景
-auto current = scenes.currentScene();
+auto current = scenes.getCurrentScene();
+
+// 获取上一个场景
+auto previous = scenes.getPreviousScene();
+
+// 获取根场景
+auto root = scenes.getRootScene();
+
+// 通过名称获取场景
+auto scene = scenes.getSceneByName("SceneName");
 
 // 获取场景栈深度
-size_t depth = scenes.stackDepth();
+size_t count = scenes.getSceneCount();
+
+// 检查是否正在过渡
+bool transitioning = scenes.isTransitioning();
 
 // 清空场景栈
-scenes.clearStack();
+scenes.end();
 ```
 
 ## 场景生命周期
@@ -284,7 +321,7 @@ scenes.clearStack();
 ```
 创建场景 (makePtr<Scene>)
     ↓
-进入场景 (enterScene)
+进入场景 (runWithScene/replaceScene/pushScene)
     ↓
 onEnter() - 初始化资源
     ↓
@@ -411,10 +448,12 @@ private:
     }
     
     void executeMenuItem() {
+        auto& scenes = Application::instance().scenes();
+        
         switch (selectedIndex_) {
             case 0:
-                Application::instance().scenes().replaceScene(
-                    makePtr<GameScene>(), TransitionType::Fade, 0.25f);
+                scenes.replaceScene(makePtr<GameScene>(), 
+                                    TransitionType::Fade, 0.25f);
                 break;
             case 1:
                 // 打开设置
@@ -438,6 +477,8 @@ private:
 2. **在 onExit 中清理资源** - 避免内存泄漏
 3. **使用过渡效果** - 提升用户体验
 4. **分离场景逻辑** - 每个场景负责自己的功能
+5. **使用视口适配** - 确保游戏在不同分辨率下正确显示
+6. **正确处理窗口大小变化** - 在 `onRender()` 中检测并更新视口
 
 ## 下一步
 
