@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "GameOverLayer.h"
+#include "BaseScene.h"
 #include "GameScene.h"
 #include "Number.h"
 #include "ResLoader.h"
@@ -19,9 +20,9 @@ void GameOverLayer::onEnter() {
   Node::onEnter();
 
   // 在 onEnter 中初始化，此时 weak_from_this() 可用
-  auto &app = extra2d::Application::instance();
-  float screenWidth = static_cast<float>(app.getConfig().width);
-  float screenHeight = static_cast<float>(app.getConfig().height);
+  // 使用游戏逻辑分辨率
+  float screenWidth = GAME_WIDTH;
+  float screenHeight = GAME_HEIGHT;
 
   // 整体居中（x 坐标相对于屏幕中心）
   setPosition(extra2d::Vec2(screenWidth / 2.0f, screenHeight));
@@ -45,6 +46,15 @@ void GameOverLayer::onEnter() {
   // 创建向上移动的动画（从屏幕底部移动到正常位置）
   auto moveAction = extra2d::makePtr<extra2d::MoveBy>(
       1.0f, extra2d::Vec2(0.0f, -screenHeight));
+  moveAction->setCompletionCallback([this]() {
+    animationDone_ = true;
+    if (restartBtn_)
+      restartBtn_->setEnabled(true);
+    if (menuBtn_)
+      menuBtn_->setEnabled(true);
+    if (shareBtn_)
+      shareBtn_->setEnabled(true);
+  });
   runAction(moveAction);
 }
 
@@ -107,63 +117,60 @@ void GameOverLayer::initPanel(int score, float screenHeight) {
 }
 
 void GameOverLayer::initButtons() {
-  // 创建重新开始按钮（y=360）
   auto restartFrame = ResLoader::getKeyFrame("button_restart");
   if (restartFrame) {
-    auto restartBtn = extra2d::Button::create();
-    restartBtn->setBackgroundImage(restartFrame->getTexture(),
-                                   restartFrame->getRect());
-    restartBtn->setAnchor(extra2d::Vec2(0.5f, 0.5f));
-    restartBtn->setPosition(
-        extra2d::Vec2(0.0f, 360.0f)); // x=0 表示相对于中心点
-    restartBtn->setOnClick([]() {
+    restartBtn_ = extra2d::Button::create();
+    restartBtn_->setBackgroundImage(restartFrame->getTexture(),
+                                    restartFrame->getRect());
+    restartBtn_->setAnchor(extra2d::Vec2(0.5f, 0.5f));
+    restartBtn_->setPosition(extra2d::Vec2(0.0f, 360.0f));
+    restartBtn_->setEnabled(false);
+    restartBtn_->setOnClick([]() {
       ResLoader::playMusic(MusicType::Click);
       auto &app = extra2d::Application::instance();
       app.scenes().replaceScene(extra2d::makePtr<GameScene>(),
                                 extra2d::TransitionType::Fade, 0.5f);
     });
-    addChild(restartBtn);
+    addChild(restartBtn_);
   }
 
-  // 创建返回主菜单按钮（y=420）
   auto menuFrame = ResLoader::getKeyFrame("button_menu");
   if (menuFrame) {
-    auto menuBtn = extra2d::Button::create();
-    menuBtn->setBackgroundImage(menuFrame->getTexture(), menuFrame->getRect());
-    menuBtn->setAnchor(extra2d::Vec2(0.5f, 0.5f));
-    menuBtn->setPosition(extra2d::Vec2(0.0f, 420.0f)); // x=0 表示相对于中心点
-    menuBtn->setOnClick([]() {
+    menuBtn_ = extra2d::Button::create();
+    menuBtn_->setBackgroundImage(menuFrame->getTexture(), menuFrame->getRect());
+    menuBtn_->setAnchor(extra2d::Vec2(0.5f, 0.5f));
+    menuBtn_->setPosition(extra2d::Vec2(0.0f, 420.0f));
+    menuBtn_->setEnabled(false);
+    menuBtn_->setOnClick([]() {
       ResLoader::playMusic(MusicType::Click);
       auto &app = extra2d::Application::instance();
       app.scenes().replaceScene(extra2d::makePtr<StartScene>(),
                                 extra2d::TransitionType::Fade, 0.5f);
     });
-    addChild(menuBtn);
+    addChild(menuBtn_);
   }
 
-  // 创建分享按钮（y=480，在 MENU 按钮下方）
   auto shareFrame = ResLoader::getKeyFrame("button_share");
   if (shareFrame) {
-    auto shareBtn = extra2d::Button::create();
-    shareBtn->setBackgroundImage(shareFrame->getTexture(),
-                                 shareFrame->getRect());
-    shareBtn->setAnchor(extra2d::Vec2(0.5f, 0.5f));
-    shareBtn->setPosition(extra2d::Vec2(0.0f, 460.0f)); // x=0 表示相对于中心点
-    shareBtn->setOnClick([]() {
-      ResLoader::playMusic(MusicType::Click);
-      // TODO: 实现分享功能
-    });
-    addChild(shareBtn);
+    shareBtn_ = extra2d::Button::create();
+    shareBtn_->setBackgroundImage(shareFrame->getTexture(),
+                                  shareFrame->getRect());
+    shareBtn_->setAnchor(extra2d::Vec2(0.5f, 0.5f));
+    shareBtn_->setPosition(extra2d::Vec2(0.0f, 460.0f));
+    shareBtn_->setEnabled(false);
+    shareBtn_->setOnClick([]() { ResLoader::playMusic(MusicType::Click); });
+    addChild(shareBtn_);
   }
 }
 
 void GameOverLayer::onUpdate(float dt) {
   Node::onUpdate(dt);
 
-  // 检测手柄按键
+  if (!animationDone_)
+    return;
+
   auto &input = extra2d::Application::instance().input();
 
-  // A 键重新开始游戏
   if (input.isButtonPressed(extra2d::GamepadButton::A)) {
     ResLoader::playMusic(MusicType::Click);
     auto &app = extra2d::Application::instance();
@@ -171,7 +178,6 @@ void GameOverLayer::onUpdate(float dt) {
                               extra2d::TransitionType::Fade, 0.5f);
   }
 
-  // B 键返回主菜单
   if (input.isButtonPressed(extra2d::GamepadButton::B)) {
     ResLoader::playMusic(MusicType::Click);
     auto &app = extra2d::Application::instance();

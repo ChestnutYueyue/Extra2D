@@ -4,14 +4,15 @@
 
 #include "Ground.h"
 #include "ResLoader.h"
+#include "BaseScene.h"
 
 namespace flappybird {
 
 Ground::Ground() {
     moving_ = true;
 
-    auto& app = extra2d::Application::instance();
-    float screenHeight = static_cast<float>(app.getConfig().height);
+    // 使用游戏逻辑高度，而不是窗口高度
+    float screenHeight = GAME_HEIGHT;
 
     // 获取地面纹理帧
     auto landFrame = ResLoader::getKeyFrame("land");

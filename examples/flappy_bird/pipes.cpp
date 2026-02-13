@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "Pipes.h"
+#include "BaseScene.h"
 
 namespace flappybird {
 
@@ -76,9 +77,8 @@ void Pipes::addPipe() {
     // 设置水管位置
     if (pipeCount_ == 0) {
         // 第一个水管在屏幕外 130 像素处
-        auto& app = extra2d::Application::instance();
         pipe->setPosition(extra2d::Vec2(
-            static_cast<float>(app.getConfig().width) + 130.0f,
+            GAME_WIDTH + 130.0f,
             0.0f
         ));
     } else {

@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include <extra2d/extra2d.h>
+#include "BaseScene.h"
 #include "Bird.h"
 #include "Pipes.h"
 #include "Ground.h"
@@ -17,7 +17,7 @@ namespace flappybird {
  * @brief 游戏主场景类
  * 游戏的核心场景，处理游戏逻辑、碰撞检测和得分
  */
-class GameScene : public extra2d::Scene {
+class GameScene : public BaseScene {
 public:
     /**
      * @brief 构造函数

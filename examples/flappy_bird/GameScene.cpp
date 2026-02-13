@@ -10,20 +10,15 @@
 namespace flappybird {
 
 GameScene::GameScene() {
-  auto &app = extra2d::Application::instance();
-  auto &config = app.getConfig();
-  setViewportSize(static_cast<float>(config.width),
-                  static_cast<float>(config.height));
-  // 设置背景颜色为黑色
-  setBackgroundColor(extra2d::Color(0.0f, 0.0f, 0.0f, 1.0f));
+  // 基类 BaseScene 已经处理了视口设置和背景颜色
 }
 
 void GameScene::onEnter() {
-  extra2d::Scene::onEnter();
+  BaseScene::onEnter();
 
-  auto &app = extra2d::Application::instance();
-  float screenWidth = static_cast<float>(app.getConfig().width);
-  float screenHeight = static_cast<float>(app.getConfig().height);
+  // 游戏坐标系：使用游戏逻辑分辨率
+  float screenWidth = GAME_WIDTH;
+  float screenHeight = GAME_HEIGHT;
 
   // 添加背景（使用左上角锚点，与原游戏一致）
   auto bgFrame = ResLoader::getKeyFrame("bg_day");
@@ -91,69 +86,52 @@ void GameScene::onEnter() {
 }
 
 void GameScene::onUpdate(float dt) {
-  // 注意：这里要先调用父类的 onUpdate，以确保 GameOverLayer 的动画能播放
-  extra2d::Scene::onUpdate(dt);
+  if (!gameOver_) {
+    if (!bird_)
+      return;
 
-  // 游戏结束后不再更新游戏逻辑（但子节点的动画继续）
-  if (gameOver_)
-    return;
+    auto &input = extra2d::Application::instance().input();
 
-  if (!bird_)
-    return;
-
-  auto &input = extra2d::Application::instance().input();
-
-  // 检测跳跃按键（A键或空格）
-  if (input.isButtonPressed(extra2d::GamepadButton::A) ||
-      input.isMousePressed(extra2d::MouseButton::Left)) {
-    if (!started_) {
-      // 游戏还没开始，开始游戏
-      started_ = true;
-      startGame();
+    if (input.isButtonPressed(extra2d::GamepadButton::A) ||
+        input.isMousePressed(extra2d::MouseButton::Left)) {
+      if (!started_) {
+        started_ = true;
+        startGame();
+      }
+      bird_->jump();
     }
-    bird_->jump();
-  }
 
-  // 游戏已经开始
-  if (started_) {
-    // 模拟小鸟下落
-    bird_->fall(dt);
+    if (started_) {
+      bird_->fall(dt);
 
-    // 检查得分（小鸟飞过水管）
-    if (pipes_) {
-      Pipe *firstPipe = pipes_->getPipe(0);
-      if (firstPipe && !firstPipe->scored) {
-        float birdX = bird_->getPosition().x;
-        float pipeX = firstPipe->getPosition().x;
-        if (pipeX <= birdX) {
-          // 小鸟飞过了水管
-          score_++;
-          scoreNumber_->setNumber(score_);
-          firstPipe->scored = true;
-          ResLoader::playMusic(MusicType::Point);
+      if (pipes_) {
+        Pipe *firstPipe = pipes_->getPipe(0);
+        if (firstPipe && !firstPipe->scored) {
+          float birdX = bird_->getPosition().x;
+          float pipeX = firstPipe->getPosition().x;
+          if (pipeX <= birdX) {
+            score_++;
+            scoreNumber_->setNumber(score_);
+            firstPipe->scored = true;
+            ResLoader::playMusic(MusicType::Point);
+          }
         }
       }
-    }
 
-    // 检查碰撞
-    if (bird_->isLiving() && checkCollision()) {
-      onHit();
-    }
+      if (bird_->isLiving() && checkCollision()) {
+        onHit();
+      }
 
-    // 检查是否撞到地面（原游戏使用 123 作为地面高度）
-    auto &app = extra2d::Application::instance();
-    float screenHeight = static_cast<float>(app.getConfig().height);
-
-    if (screenHeight - bird_->getPosition().y <= 123.0f) {
-      // 小鸟撞到地面
-      bird_->setPosition(
-          extra2d::Vec2(bird_->getPosition().x, screenHeight - 123.0f));
-      bird_->setStatus(Bird::Status::Still);
-      onHit();
-
-      gameOver();
+      if (bird_->isLiving() && GAME_HEIGHT - bird_->getPosition().y <= 123.0f) {
+        bird_->setPosition(
+            extra2d::Vec2(bird_->getPosition().x, GAME_HEIGHT - 123.0f));
+        bird_->setStatus(Bird::Status::Still);
+        onHit();
+      }
     }
   }
+
+  BaseScene::onUpdate(dt);
 }
 
 void GameScene::startGame() {
@@ -232,18 +210,16 @@ void GameScene::onHit() {
     scoreNumber_->setVisible(false);
   }
 
-  // 设置游戏结束标志
-  gameOver_ = true;
-
-  // 延迟显示游戏结束界面
   gameOver();
 }
 
 void GameScene::gameOver() {
+  if (gameOver_)
+    return;
+
   started_ = false;
   gameOver_ = true;
 
-  // 显示游戏结束层
   auto gameOverLayer = extra2d::makePtr<GameOverLayer>(score_);
   addChild(gameOverLayer);
 }

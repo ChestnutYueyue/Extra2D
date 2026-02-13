@@ -1,5 +1,6 @@
 #include <SDL2/SDL_mixer.h>
 #include <extra2d/audio/sound.h>
+#include <extra2d/utils/logger.h>
 
 namespace extra2d {
 
@@ -20,22 +21,20 @@ Sound::~Sound() {
 
 bool Sound::play() {
   if (!chunk_) {
+    E2D_LOG_WARN("Sound::play() failed: chunk is null for {}", name_);
     return false;
-  }
-
-  // 如果已在播放，先停止
-  if (channel_ >= 0 && Mix_Playing(channel_)) {
-    Mix_HaltChannel(channel_);
   }
 
   int loops = looping_ ? -1 : 0;
-  channel_ = Mix_PlayChannel(-1, chunk_, loops); // -1 = 自动分配通道
+  int newChannel = Mix_PlayChannel(-1, chunk_, loops);
 
-  if (channel_ < 0) {
+  if (newChannel < 0) {
+    E2D_LOG_WARN("Sound::play() failed: no free channel for {} ({})", name_, Mix_GetError());
     return false;
   }
 
-  // 设置音量
+  channel_ = newChannel;
+
   int mixVol = static_cast<int>(volume_ * MIX_MAX_VOLUME);
   Mix_Volume(channel_, mixVol);
 

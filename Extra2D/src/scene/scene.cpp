@@ -13,8 +13,7 @@ void Scene::setViewportSize(float width, float height) {
   viewportSize_ = Size(width, height);
   if (defaultCamera_) {
     defaultCamera_->setViewport(0, width, height, 0);
-  }
-  if (camera_) {
+  } else if (camera_) {
     camera_->setViewport(0, width, height, 0);
   }
 }
@@ -119,7 +118,7 @@ std::vector<std::pair<Node *, Node *>> Scene::queryCollisions() const {
 }
 
 void Scene::collectRenderCommands(std::vector<RenderCommand> &commands,
-                                   int parentZOrder) {
+                                  int parentZOrder) {
   if (!isVisible())
     return;
 

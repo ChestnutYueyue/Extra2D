@@ -856,4 +856,220 @@ size_t ResourceManager::getSoundCacheSize() const {
   return soundCache_.size();
 }
 
+// ============================================================================
+// 文本文件资源
+// ============================================================================
+
+std::string ResourceManager::loadTextFile(const std::string &filepath) {
+  return loadTextFile(filepath, "UTF-8");
+}
+
+std::string ResourceManager::loadTextFile(const std::string &filepath, const std::string &encoding) {
+  (void)encoding; // 目前只支持 UTF-8
+
+  std::lock_guard<std::mutex> lock(textFileMutex_);
+
+  // 检查缓存
+  auto it = textFileCache_.find(filepath);
+  if (it != textFileCache_.end()) {
+    E2D_LOG_TRACE("ResourceManager: text file cache hit: {}", filepath);
+    return it->second;
+  }
+
+  // 解析资源路径
+  std::string resolvedPath = resolveResourcePath(filepath);
+  if (resolvedPath.empty()) {
+    E2D_LOG_ERROR("ResourceManager: text file not found: {}", filepath);
+    return "";
+  }
+
+  // 打开文件
+  FILE *file = nullptr;
+#ifdef _WIN32
+  errno_t err = fopen_s(&file, resolvedPath.c_str(), "rb");
+  if (err != 0 || !file) {
+    E2D_LOG_ERROR("ResourceManager: failed to open text file: {}", resolvedPath);
+    return "";
+  }
+#else
+  file = fopen(resolvedPath.c_str(), "rb");
+  if (!file) {
+    E2D_LOG_ERROR("ResourceManager: failed to open text file: {}", resolvedPath);
+    return "";
+  }
+#endif
+
+  // 获取文件大小
+  fseek(file, 0, SEEK_END);
+  long fileSize = ftell(file);
+  fseek(file, 0, SEEK_SET);
+
+  if (fileSize <= 0) {
+    fclose(file);
+    E2D_LOG_WARN("ResourceManager: text file is empty: {}", resolvedPath);
+    return "";
+  }
+
+  // 读取文件内容
+  std::string content;
+  content.resize(fileSize);
+  size_t readSize = fread(&content[0], 1, fileSize, file);
+  fclose(file);
+
+  if (readSize != static_cast<size_t>(fileSize)) {
+    E2D_LOG_ERROR("ResourceManager: failed to read text file: {}", resolvedPath);
+    return "";
+  }
+
+  // 缓存内容
+  textFileCache_[filepath] = content;
+  E2D_LOG_DEBUG("ResourceManager: loaded text file: {} ({} bytes)", filepath, content.size());
+
+  return content;
+}
+
+std::string ResourceManager::getTextFile(const std::string &key) const {
+  std::lock_guard<std::mutex> lock(textFileMutex_);
+  auto it = textFileCache_.find(key);
+  if (it != textFileCache_.end()) {
+    return it->second;
+  }
+  return "";
+}
+
+bool ResourceManager::hasTextFile(const std::string &key) const {
+  std::lock_guard<std::mutex> lock(textFileMutex_);
+  return textFileCache_.find(key) != textFileCache_.end();
+}
+
+void ResourceManager::unloadTextFile(const std::string &key) {
+  std::lock_guard<std::mutex> lock(textFileMutex_);
+  auto it = textFileCache_.find(key);
+  if (it != textFileCache_.end()) {
+    textFileCache_.erase(it);
+    E2D_LOG_DEBUG("ResourceManager: unloaded text file: {}", key);
+  }
+}
+
+void ResourceManager::clearTextFileCache() {
+  std::lock_guard<std::mutex> lock(textFileMutex_);
+  size_t count = textFileCache_.size();
+  textFileCache_.clear();
+  E2D_LOG_INFO("ResourceManager: cleared {} text files from cache", count);
+}
+
+size_t ResourceManager::getTextFileCacheSize() const {
+  std::lock_guard<std::mutex> lock(textFileMutex_);
+  return textFileCache_.size();
+}
+
+// ============================================================================
+// JSON 文件资源
+// ============================================================================
+
+std::string ResourceManager::loadJsonFile(const std::string &filepath) {
+  std::lock_guard<std::mutex> lock(jsonFileMutex_);
+
+  // 检查缓存
+  auto it = jsonFileCache_.find(filepath);
+  if (it != jsonFileCache_.end()) {
+    E2D_LOG_TRACE("ResourceManager: JSON file cache hit: {}", filepath);
+    return it->second;
+  }
+
+  // 解析资源路径
+  std::string resolvedPath = resolveResourcePath(filepath);
+  if (resolvedPath.empty()) {
+    E2D_LOG_ERROR("ResourceManager: JSON file not found: {}", filepath);
+    return "";
+  }
+
+  // 打开文件
+  FILE *file = nullptr;
+#ifdef _WIN32
+  errno_t err = fopen_s(&file, resolvedPath.c_str(), "rb");
+  if (err != 0 || !file) {
+    E2D_LOG_ERROR("ResourceManager: failed to open JSON file: {}", resolvedPath);
+    return "";
+  }
+#else
+  file = fopen(resolvedPath.c_str(), "rb");
+  if (!file) {
+    E2D_LOG_ERROR("ResourceManager: failed to open JSON file: {}", resolvedPath);
+    return "";
+  }
+#endif
+
+  // 获取文件大小
+  fseek(file, 0, SEEK_END);
+  long fileSize = ftell(file);
+  fseek(file, 0, SEEK_SET);
+
+  if (fileSize <= 0) {
+    fclose(file);
+    E2D_LOG_WARN("ResourceManager: JSON file is empty: {}", resolvedPath);
+    return "";
+  }
+
+  // 读取文件内容
+  std::string content;
+  content.resize(fileSize);
+  size_t readSize = fread(&content[0], 1, fileSize, file);
+  fclose(file);
+
+  if (readSize != static_cast<size_t>(fileSize)) {
+    E2D_LOG_ERROR("ResourceManager: failed to read JSON file: {}", resolvedPath);
+    return "";
+  }
+
+  // 简单验证 JSON 格式（检查是否以 { 或 [ 开头）
+  size_t firstValid = content.find_first_not_of(" \t\n\r");
+  if (firstValid == std::string::npos ||
+      (content[firstValid] != '{' && content[firstValid] != '[')) {
+    E2D_LOG_WARN("ResourceManager: file may not be valid JSON: {}", filepath);
+    // 不阻止加载，只是警告
+  }
+
+  // 缓存内容
+  jsonFileCache_[filepath] = content;
+  E2D_LOG_DEBUG("ResourceManager: loaded JSON file: {} ({} bytes)", filepath, content.size());
+
+  return content;
+}
+
+std::string ResourceManager::getJsonFile(const std::string &key) const {
+  std::lock_guard<std::mutex> lock(jsonFileMutex_);
+  auto it = jsonFileCache_.find(key);
+  if (it != jsonFileCache_.end()) {
+    return it->second;
+  }
+  return "";
+}
+
+bool ResourceManager::hasJsonFile(const std::string &key) const {
+  std::lock_guard<std::mutex> lock(jsonFileMutex_);
+  return jsonFileCache_.find(key) != jsonFileCache_.end();
+}
+
+void ResourceManager::unloadJsonFile(const std::string &key) {
+  std::lock_guard<std::mutex> lock(jsonFileMutex_);
+  auto it = jsonFileCache_.find(key);
+  if (it != jsonFileCache_.end()) {
+    jsonFileCache_.erase(it);
+    E2D_LOG_DEBUG("ResourceManager: unloaded JSON file: {}", key);
+  }
+}
+
+void ResourceManager::clearJsonFileCache() {
+  std::lock_guard<std::mutex> lock(jsonFileMutex_);
+  size_t count = jsonFileCache_.size();
+  jsonFileCache_.clear();
+  E2D_LOG_INFO("ResourceManager: cleared {} JSON files from cache", count);
+}
+
+size_t ResourceManager::getJsonFileCacheSize() const {
+  std::lock_guard<std::mutex> lock(jsonFileMutex_);
+  return jsonFileCache_.size();
+}
+
 } // namespace extra2d

@@ -4,6 +4,7 @@
 
 #include "Pipe.h"
 #include "ResLoader.h"
+#include "BaseScene.h"
 
 namespace flappybird {
 
@@ -18,8 +19,8 @@ void Pipe::onEnter() {
     
     // 在 onEnter 中创建子节点，此时 weak_from_this() 可用
     if (!topPipe_ && !bottomPipe_) {
-        auto& app = extra2d::Application::instance();
-        float screenHeight = static_cast<float>(app.getConfig().height);
+        // 使用游戏逻辑高度
+        float screenHeight = GAME_HEIGHT;
 
         // 获取地面高度
         auto landFrame = ResLoader::getKeyFrame("land");
@@ -62,8 +63,8 @@ extra2d::Rect Pipe::getBoundingBox() const {
     float pipeWidth = 52.0f;
     float halfWidth = pipeWidth / 2.0f;
     
-    auto& app = extra2d::Application::instance();
-    float screenHeight = static_cast<float>(app.getConfig().height);
+    // 使用游戏逻辑高度
+    float screenHeight = GAME_HEIGHT;
     
     return extra2d::Rect(
         pos.x - halfWidth,

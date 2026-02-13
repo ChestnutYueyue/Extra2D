@@ -134,6 +134,55 @@ public:
   void unloadSound(const std::string &key);
 
   // ------------------------------------------------------------------------
+  // 文本文件资源
+  // ------------------------------------------------------------------------
+
+  /// 加载文本文件（带缓存）
+  /// @param filepath 文件路径，支持 romfs:/ 前缀
+  /// @return 文件内容字符串，加载失败返回空字符串
+  std::string loadTextFile(const std::string &filepath);
+
+  /// 加载文本文件（指定编码）
+  /// @param filepath 文件路径
+  /// @param encoding 文件编码（默认 UTF-8）
+  /// @return 文件内容字符串
+  std::string loadTextFile(const std::string &filepath, const std::string &encoding);
+
+  /// 通过key获取已缓存的文本内容
+  std::string getTextFile(const std::string &key) const;
+
+  /// 检查文本文件是否已缓存
+  bool hasTextFile(const std::string &key) const;
+
+  /// 卸载指定文本文件
+  void unloadTextFile(const std::string &key);
+
+  /// 清理所有文本文件缓存
+  void clearTextFileCache();
+
+  // ------------------------------------------------------------------------
+  // JSON 文件资源
+  // ------------------------------------------------------------------------
+
+  /// 加载并解析 JSON 文件
+  /// @param filepath 文件路径，支持 romfs:/ 前缀
+  /// @return JSON 字符串内容，加载或解析失败返回空字符串
+  /// @note 返回的是原始 JSON 字符串，需要自行解析
+  std::string loadJsonFile(const std::string &filepath);
+
+  /// 通过key获取已缓存的 JSON 内容
+  std::string getJsonFile(const std::string &key) const;
+
+  /// 检查 JSON 文件是否已缓存
+  bool hasJsonFile(const std::string &key) const;
+
+  /// 卸载指定 JSON 文件
+  void unloadJsonFile(const std::string &key);
+
+  /// 清理所有 JSON 文件缓存
+  void clearJsonFileCache();
+
+  // ------------------------------------------------------------------------
   // 缓存清理
   // ------------------------------------------------------------------------
 
@@ -152,6 +201,8 @@ public:
   size_t getTextureCacheSize() const;
   size_t getFontCacheSize() const;
   size_t getSoundCacheSize() const;
+  size_t getTextFileCacheSize() const;
+  size_t getJsonFileCacheSize() const;
 
   // ------------------------------------------------------------------------
   // LRU 缓存管理
@@ -213,10 +264,16 @@ private:
   mutable std::mutex textureMutex_;
   mutable std::mutex fontMutex_;
   mutable std::mutex soundMutex_;
+  mutable std::mutex textFileMutex_;
+  mutable std::mutex jsonFileMutex_;
 
   // 资源缓存 - 使用弱指针实现自动清理
   std::unordered_map<std::string, WeakPtr<FontAtlas>> fontCache_;
   std::unordered_map<std::string, WeakPtr<Sound>> soundCache_;
+
+  // 文本文件缓存 - 使用强引用（字符串值类型）
+  std::unordered_map<std::string, std::string> textFileCache_;
+  std::unordered_map<std::string, std::string> jsonFileCache_;
 
   // ============================================================================
   // 纹理LRU缓存

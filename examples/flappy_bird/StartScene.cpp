@@ -12,21 +12,15 @@
 namespace flappybird {
 
 StartScene::StartScene() {
-  auto &app = extra2d::Application::instance();
-  auto &config = app.getConfig();
-  setViewportSize(static_cast<float>(config.width),
-                  static_cast<float>(config.height));
+  // 基类 BaseScene 已经处理了视口设置和背景颜色
 }
 
 void StartScene::onEnter() {
-  extra2d::Scene::onEnter();
+  BaseScene::onEnter();
 
-  // 设置背景颜色为黑色（防止透明）
-  setBackgroundColor(extra2d::Color(0.0f, 0.0f, 0.0f, 1.0f));
-
-  auto &app = extra2d::Application::instance();
-  float screenWidth = static_cast<float>(app.getConfig().width);
-  float screenHeight = static_cast<float>(app.getConfig().height);
+  // 使用游戏逻辑分辨率
+  float screenWidth = GAME_WIDTH;
+  float screenHeight = GAME_HEIGHT;
 
   // 添加背景（使用左上角锚点）
   auto bgFrame = ResLoader::getKeyFrame("bg_day");
@@ -125,7 +119,7 @@ void StartScene::onEnter() {
 }
 
 void StartScene::onUpdate(float dt) {
-  extra2d::Scene::onUpdate(dt);
+  BaseScene::onUpdate(dt);
 
   // 检测 A 键或空格开始游戏
   auto &input = extra2d::Application::instance().input();

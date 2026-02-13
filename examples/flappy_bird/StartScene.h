@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include <extra2d/extra2d.h>
+#include "BaseScene.h"
 
 namespace flappybird {
 
@@ -13,7 +13,7 @@ namespace flappybird {
  * @brief 开始场景类
  * 游戏主菜单，包含开始游戏按钮和版权信息
  */
-class StartScene : public extra2d::Scene {
+class StartScene : public BaseScene {
 public:
     /**
      * @brief 构造函数
