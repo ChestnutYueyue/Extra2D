@@ -478,6 +478,131 @@ if (resources.hasPendingAsyncLoads()) {
 
 ## 内存管理
 
+### 对象池（Object Pool）
+
+Extra2D 提供高性能的对象池系统，用于高效分配和回收小对象，减少频繁的内存分配/释放开销。
+
+#### 特性
+
+| 特性 | 说明 |
+|------|------|
+| **自动内存对齐** | 自动使用 `alignof(T)` 确保对象正确对齐 |
+| **侵入式空闲链表** | 零额外内存开销管理空闲对象 |
+| **线程本地缓存** | 自动为每个线程提供本地缓存，减少锁竞争 |
+| **自动容量管理** | 根据使用模式自动扩展和收缩 |
+| **自动预热** | 首次使用时智能预分配 |
+| **异常安全** | 自动处理析构异常 |
+
+#### 基本用法
+
+```cpp
+#include <extra2d/utils/object_pool.h>
+
+// 方式1：直接使用对象池
+extra2d::ObjectPool<MyObject> pool;
+MyObject* obj = pool.allocate();
+pool.deallocate(obj);
+
+// 方式2：使用智能指针自动管理（推荐）
+auto obj = E2D_MAKE_POOLED(MyObject, arg1, arg2);
+// 离开作用域自动回收
+
+// 方式3：使用 PooledAllocator
+extra2d::PooledAllocator<MyObject> allocator;
+auto obj = allocator.makeShared(arg1, arg2);
+```
+
+#### 完整示例：游戏撤销系统
+
+```cpp
+// 定义移动记录结构体
+struct MoveRecord {
+    int fromX, fromY;
+    int toX, toY;
+    int boxFromX, boxFromY;
+    int boxToX, boxToY;
+    bool pushedBox;
+    
+    MoveRecord() = default;
+    MoveRecord(int fx, int fy, int tx, int ty, bool pushed = false)
+        : fromX(fx), fromY(fy), toX(tx), toY(ty)
+        , boxFromX(-1), boxFromY(-1), boxToX(-1), boxToY(-1)
+        , pushedBox(pushed) {}
+};
+
+// 使用对象池创建移动记录
+class GameScene : public Scene {
+private:
+    std::stack<extra2d::Ptr<MoveRecord>> moveHistory_;
+    
+    void move(int dx, int dy) {
+        // 使用对象池创建记录（自动管理内存）
+        auto record = E2D_MAKE_POOLED(MoveRecord, playerX, playerY, 
+                                       playerX + dx, playerY + dy);
+        
+        // 记录推箱子信息
+        if (pushedBox) {
+            record->pushedBox = true;
+            record->boxFromX = boxX;
+            record->boxFromY = boxY;
+            record->boxToX = newBoxX;
+            record->boxToY = newBoxY;
+        }
+        
+        // 保存到历史栈
+        moveHistory_.push(record);
+    }
+    
+    void undoMove() {
+        if (moveHistory_.empty()) return;
+        
+        auto record = moveHistory_.top();
+        moveHistory_.pop();
+        
+        // 恢复游戏状态
+        playerX = record->fromX;
+        playerY = record->fromY;
+        
+        if (record->pushedBox) {
+            // 恢复箱子位置
+        }
+        
+        // record 离开作用域后自动回收到对象池
+    }
+};
+```
+
+#### 内存统计
+
+```cpp
+// 获取对象池内存使用情况
+auto pool = extra2d::ObjectPoolManager::getInstance().getPool<MyObject>();
+size_t allocated = pool->allocatedCount();  // 已分配对象数
+size_t capacity = pool->capacity();          // 总容量
+size_t memory = pool->memoryUsage();         // 内存使用量（字节）
+```
+
+#### 配置参数
+
+```cpp
+// 对象池配置（在 PoolConfig 中定义）
+struct PoolConfig {
+    static constexpr size_t DEFAULT_BLOCK_SIZE = 64;      // 每块对象数
+    static constexpr size_t THREAD_CACHE_SIZE = 16;       // 线程缓存大小
+    static constexpr size_t SHRINK_THRESHOLD_MS = 30000;  // 收缩检查间隔
+    static constexpr double SHRINK_RATIO = 0.5;           // 收缩阈值
+};
+```
+
+#### 性能优势
+
+| 场景 | 传统分配 | 对象池 |
+|------|---------|--------|
+| 频繁分配/释放 | 大量内存碎片 | 零碎片 |
+| 多线程竞争 | 锁竞争严重 | 线程本地缓存 |
+| 内存对齐 | 手动处理 | 自动对齐 |
+| 首次分配延迟 | 可能卡顿 | 自动预热 |
+
 ### 内存池（内部自动管理）
 
 Extra2D 使用内存池优化小对象分配，无需用户干预：

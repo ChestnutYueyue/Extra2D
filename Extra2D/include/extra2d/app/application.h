@@ -106,6 +106,7 @@ private:
   void mainLoop();
   void update();
   void render();
+  void prewarmObjectPools();
 
   // 配置
   AppConfig config_;

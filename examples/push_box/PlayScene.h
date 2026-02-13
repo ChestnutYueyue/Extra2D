@@ -7,6 +7,8 @@
 #include "BaseScene.h"
 #include "data.h"
 #include <extra2d/extra2d.h>
+#include <extra2d/utils/object_pool.h>
+#include <stack>
 
 namespace pushbox {
 
@@ -72,6 +74,11 @@ private:
      * @brief 游戏通关
      */
     void gameOver();
+    
+    /**
+     * @brief 撤销上一步移动（对象池使用示例）
+     */
+    void undoMove();
 
     int step_ = 0;
     int menuIndex_ = 0;
@@ -85,6 +92,7 @@ private:
     extra2d::Ptr<extra2d::Text> bestText_;
     extra2d::Ptr<extra2d::Text> restartText_;
     extra2d::Ptr<extra2d::Text> soundToggleText_;
+    extra2d::Ptr<extra2d::Text> undoText_;
     extra2d::Ptr<extra2d::Node> mapLayer_;
 
     extra2d::Ptr<extra2d::Button> soundBtn_;
@@ -97,6 +105,9 @@ private:
 
     extra2d::Ptr<extra2d::Texture> texMan_[5];
     extra2d::Ptr<extra2d::Texture> texManPush_[5];
+    
+    // 对象池使用示例：使用智能指针管理 MoveRecord
+    std::stack<extra2d::Ptr<MoveRecord>> moveHistory_;
 };
 
 } // namespace pushbox

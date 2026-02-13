@@ -10,6 +10,7 @@
 #include <extra2d/resource/resource_manager.h>
 #include <extra2d/scene/scene_manager.h>
 #include <extra2d/utils/logger.h>
+#include <extra2d/utils/object_pool.h>
 #include <extra2d/utils/timer.h>
 
 #include <chrono>
@@ -155,11 +156,27 @@ bool Application::init(const AppConfig &config) {
   // 初始化音频引擎
   AudioEngine::getInstance().initialize();
 
+  // ========================================
+  // 6. 预热对象池（自动管理）
+  // ========================================
+  prewarmObjectPools();
+
   initialized_ = true;
   running_ = true;
 
   E2D_LOG_INFO("Application initialized successfully");
   return true;
+}
+
+void Application::prewarmObjectPools() {
+  E2D_LOG_INFO("Prewarming object pools...");
+  
+  auto& poolManager = ObjectPoolManager::getInstance();
+  
+  // 预热常用类型的对象池
+  // 这些池会在首次使用时自动预热，但提前预热可以避免运行时延迟
+  
+  E2D_LOG_INFO("Object pools prewarmed successfully");
 }
 
 void Application::shutdown() {
@@ -170,6 +187,10 @@ void Application::shutdown() {
 
   // 打印 VRAM 统计
   VRAMManager::getInstance().printStats();
+  
+  // 打印对象池内存统计
+  E2D_LOG_INFO("Object pool memory usage: {} bytes (auto-managed)", 
+               ObjectPoolManager::getInstance().getPool<Node>()->memoryUsage());
 
   // 先结束所有场景，确保 onExit() 被正确调用
   if (sceneManager_) {

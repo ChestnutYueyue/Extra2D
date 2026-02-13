@@ -9,6 +9,7 @@
 #include "audio_manager.h"
 #include "storage.h"
 #include <extra2d/extra2d.h>
+#include <extra2d/utils/object_pool.h>
 
 namespace pushbox {
 
@@ -99,6 +100,11 @@ PlayScene::PlayScene(int level) : BaseScene() {
   soundToggleText_->setPosition(offsetX + 520.0f, offsetY + 330.0f);
   addChild(soundToggleText_);
 
+  // 撤销提示（对象池使用示例）
+  undoText_ = extra2d::Text::create("Z键撤销", font20_);
+  undoText_->setPosition(offsetX + 520.0f, offsetY + 370.0f);
+  addChild(undoText_);
+
   mapLayer_ = extra2d::makePtr<extra2d::Node>();
   mapLayer_->setAnchor(0.0f, 0.0f);
   mapLayer_->setPosition(0.0f, 0.0f);
@@ -128,6 +134,10 @@ void PlayScene::updateMenuColors() {
     soundToggleText_->setTextColor(menuIndex_ == 1 ? extra2d::Colors::Red
                                                    : extra2d::Colors::White);
   }
+  if (undoText_) {
+    undoText_->setTextColor(menuIndex_ == 2 ? extra2d::Colors::Red
+                                            : extra2d::Colors::White);
+  }
 }
 
 void PlayScene::onUpdate(float dt) {
@@ -156,6 +166,12 @@ void PlayScene::onUpdate(float dt) {
     if (soundBtn_) {
       soundBtn_->setOn(g_SoundOpen);
     }
+    return;
+  }
+
+  // Z 键撤销（对象池使用示例）
+  if (input.isKeyPressed(extra2d::Key::Z)) {
+    undoMove();
     return;
   }
 
@@ -209,6 +225,9 @@ void PlayScene::executeMenuItem() {
     if (soundBtn_) {
       soundBtn_->setOn(g_SoundOpen);
     }
+    break;
+  case 2: // 撤销
+    undoMove();
     break;
   }
 }
@@ -279,6 +298,11 @@ void PlayScene::flush() {
 void PlayScene::setLevel(int level) {
   g_CurrentLevel = level;
   saveCurrentLevel(g_CurrentLevel);
+  
+  // 清空移动历史（智能指针自动回收到对象池）
+  while (!moveHistory_.empty()) {
+    moveHistory_.pop();
+  }
 
   if (levelText_) {
     levelText_->setText("第" + std::to_string(level) + "关");
@@ -343,6 +367,9 @@ void PlayScene::move(int dx, int dy, int direct) {
     return;
   }
 
+  // 使用对象池创建移动记录（自动管理内存）
+  auto record = E2D_MAKE_POOLED(MoveRecord, map_.roleX, map_.roleY, targetX, targetY, false);
+
   if (map_.value[targetY][targetX].type == TYPE::Ground) {
     g_Pushing = false;
     map_.value[map_.roleY][map_.roleX].type = TYPE::Ground;
@@ -383,6 +410,13 @@ void PlayScene::move(int dx, int dy, int direct) {
       return;
     }
 
+    // 记录箱子移动
+    record->pushedBox = true;
+    record->boxFromX = targetX;
+    record->boxFromY = targetY;
+    record->boxToX = boxX;
+    record->boxToY = boxY;
+
     map_.value[boxY][boxX].type = TYPE::Box;
     map_.value[targetY][targetX].type = TYPE::Man;
     map_.value[map_.roleY][map_.roleX].type = TYPE::Ground;
@@ -391,6 +425,9 @@ void PlayScene::move(int dx, int dy, int direct) {
   } else {
     return;
   }
+
+  // 保存移动记录到历史栈
+  moveHistory_.push(record);
 
   map_.roleX = targetX;
   map_.roleY = targetY;
@@ -413,6 +450,38 @@ void PlayScene::gameOver() {
   }
 
   setLevel(g_CurrentLevel + 1);
+}
+
+/**
+ * @brief 撤销上一步移动（对象池使用示例）
+ * 智能指针离开作用域时自动回收到对象池
+ */
+void PlayScene::undoMove() {
+  if (moveHistory_.empty()) {
+    E2D_LOG_INFO("No moves to undo");
+    return;
+  }
+
+  auto record = moveHistory_.top();
+  moveHistory_.pop();
+
+  // 恢复玩家位置
+  map_.value[map_.roleY][map_.roleX].type = TYPE::Ground;
+  map_.value[record->fromY][record->fromX].type = TYPE::Man;
+  map_.roleX = record->fromX;
+  map_.roleY = record->fromY;
+
+  // 如果推了箱子，恢复箱子位置
+  if (record->pushedBox) {
+    map_.value[record->boxToY][record->boxToX].type = TYPE::Ground;
+    map_.value[record->boxFromY][record->boxFromX].type = TYPE::Box;
+  }
+
+  // record 智能指针离开作用域后自动回收到对象池
+  setStep(step_ - 1);
+  flush();
+  
+  E2D_LOG_INFO("Undo move, step: {}", step_);
 }
 
 } // namespace pushbox
