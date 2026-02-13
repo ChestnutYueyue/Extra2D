@@ -33,22 +33,21 @@ enum class CoordinateSpace {
 // 屏幕空间（UI 常用）
 button->setCoordinateSpace(CoordinateSpace::Screen);
 button->setScreenPosition(100.0f, 50.0f);
-
-// 或使用链式调用
-button->withCoordinateSpace(CoordinateSpace::Screen)
-       ->withScreenPosition(100.0f, 50.0f);
 ```
 
-## 通用链式调用方法
+## 通用设置方法
 
-所有 UI 组件都支持以下链式调用方法：
+所有 UI 组件都支持以下设置方法（来自基类 Node 和 Widget）：
 
 ```cpp
-widget->withPosition(x, y)           // 设置位置
-       ->withAnchor(x, y)            // 设置锚点 (0-1)
-       ->withCoordinateSpace(space)  // 设置坐标空间
-       ->withScreenPosition(x, y)    // 设置屏幕位置
-       ->withCameraOffset(x, y);     // 设置相机偏移
+// 来自 Node 基类
+widget->setPosition(x, y);           // 设置位置
+widget->setAnchor(x, y);             // 设置锚点 (0-1)
+
+// 来自 Widget 基类
+widget->setCoordinateSpace(space);   // 设置坐标空间
+widget->setScreenPosition(x, y);     // 设置屏幕位置
+widget->setCameraOffset(x, y);       // 设置相机偏移
 ```
 
 ## 按钮（Button）
@@ -59,21 +58,15 @@ widget->withPosition(x, y)           // 设置位置
 auto& resources = Application::instance().resources();
 auto font = resources.loadFont("assets/font.ttf", 24);
 
-// 方式1：简单创建
+// 创建按钮
 auto button = Button::create();
 button->setText("点击我");
 button->setFont(font);
 button->setPosition(Vec2(400, 300));
-
-// 方式2：链式调用创建
-auto button = Button::create()
-    ->withText("点击我")
-    ->withFont(font)
-    ->withPosition(400, 300)
-    ->withSize(200, 60)
-    ->withTextColor(Colors::White)
-    ->withBackgroundColor(Colors::Blue, Colors::Green, Colors::Red)
-    ->withBorder(Colors::White, 2.0f);
+button->setSize(200, 60);
+button->setTextColor(Colors::White);
+button->setBackgroundColor(Colors::Blue, Colors::Green, Colors::Red);
+button->setBorder(Colors::White, 2.0f);
 
 // 设置点击回调
 button->setOnClick([]() {
@@ -297,17 +290,12 @@ void GameOverLayer::onUpdate(float dt) {
 ### 创建文本
 
 ```cpp
-// 方式1：简单创建
+// 创建文本
 auto text = Text::create("Hello World", font);
 text->setPosition(Vec2(100, 50));
-
-// 方式2：链式调用
-auto text = Text::create("Hello World")
-    ->withFont(font)
-    ->withPosition(100, 50)
-    ->withTextColor(Colors::White)
-    ->withFontSize(24)
-    ->withAlignment(Alignment::Center);
+text->setTextColor(Colors::White);
+text->setFontSize(24);
+text->setAlignment(Alignment::Center);
 
 addChild(text);
 ```
@@ -352,13 +340,6 @@ auto label = Label::create("玩家名称", font);
 label->setPosition(Vec2(100, 50));
 label->setTextColor(Colors::White);
 
-// 链式调用
-auto label = Label::create("玩家名称")
-    ->withFont(font)
-    ->withPosition(100, 50)
-    ->withTextColor(Colors::White)
-    ->withFontSize(24);
-
 addChild(label);
 ```
 
@@ -398,12 +379,8 @@ checkBox->setChecked(true);
 // 方式2：带标签
 checkBox = CheckBox::create("启用音效");
 checkBox->setPosition(Vec2(100, 200));
-
-// 方式3：链式调用
-checkBox = CheckBox::create("启用音效")
-    ->withPosition(100, 200)
-    ->withFont(font)
-    ->withTextColor(Colors::White);
+checkBox->setFont(font);
+checkBox->setTextColor(Colors::White);
 
 // 状态改变回调
 checkBox->setOnStateChange([](bool checked) {
@@ -510,14 +487,6 @@ slider->setValue(50.0f);
 // 方式2：带初始值创建
 auto slider = Slider::create(0.0f, 100.0f, 50.0f);
 
-// 方式3：链式调用
-auto slider = Slider::create()
-    ->withPosition(200, 400)
-    ->withSize(200, 20)
-    ->withMinValue(0.0f)
-    ->withMaxValue(100.0f)
-    ->withValue(50.0f);
-
 // 值改变回调
 slider->setOnValueChange([](float value) {
     E2D_LOG_INFO("滑块值: {}", value);
@@ -581,12 +550,6 @@ progressBar->setValue(75.0f);  // 75%
 
 // 方式2：带范围创建
 auto progressBar = ProgressBar::create(0.0f, 100.0f, 75.0f);
-
-// 方式3：链式调用
-auto progressBar = ProgressBar::create()
-    ->withPosition(200, 500)
-    ->withSize(300, 30)
-    ->withProgress(0.75f);  // 0-1 的进度值
 
 addChild(progressBar);
 ```
@@ -745,11 +708,10 @@ private:
 ## 最佳实践
 
 1. **使用屏幕空间** - UI 控件通常使用 `CoordinateSpace::Screen` 固定在屏幕上
-2. **使用链式调用** - 创建控件时优先使用链式调用，代码更简洁
-3. **设置合适的锚点** - 使用锚点（0.5, 0.5）让控件中心对齐，方便布局
-4. **复用字体资源** - 避免重复加载相同字体
-5. **使用回调函数** - 使用 `setOnClick`、`setOnValueChange` 等回调响应用户操作
-6. **使用切换按钮** - 对于需要显示两种状态的按钮（如开关），使用 `setToggleMode(true)`
+2. **设置合适的锚点** - 使用锚点（0.5, 0.5）让控件中心对齐，方便布局
+3. **复用字体资源** - 避免重复加载相同字体
+4. **使用回调函数** - 使用 `setOnClick`、`setOnValueChange` 等回调响应用户操作
+5. **使用切换按钮** - 对于需要显示两种状态的按钮（如开关），使用 `setToggleMode(true)`
 
 ## 下一步
 
