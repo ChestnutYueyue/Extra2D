@@ -11,8 +11,10 @@ namespace extra2d {
 // Button 实现
 // ============================================================================
 
+/**
+ * @brief 默认构造函数
+ */
 Button::Button() {
-  // 按钮默认锚点为左上角，这样setPosition(0, 0)会在左上角显示
   setAnchor(0.0f, 0.0f);
   setSpatialIndexed(false);
 
@@ -46,17 +48,36 @@ Button::Button() {
   });
 }
 
+/**
+ * @brief 带文本的构造函数
+ * @param text 按钮文本
+ */
 Button::Button(const std::string &text) : Button() { text_ = text; }
 
 // ------------------------------------------------------------------------
 // 静态创建方法
 // ------------------------------------------------------------------------
+/**
+ * @brief 创建空按钮对象
+ * @return 按钮对象指针
+ */
 Ptr<Button> Button::create() { return makePtr<Button>(); }
 
+/**
+ * @brief 创建带文本的按钮对象
+ * @param text 按钮文本
+ * @return 按钮对象指针
+ */
 Ptr<Button> Button::create(const std::string &text) {
   return makePtr<Button>(text);
 }
 
+/**
+ * @brief 创建带文本和字体的按钮对象
+ * @param text 按钮文本
+ * @param font 字体图集
+ * @return 按钮对象指针
+ */
 Ptr<Button> Button::create(const std::string &text, Ptr<FontAtlas> font) {
   auto btn = makePtr<Button>(text);
   btn->setFont(font);
@@ -64,115 +85,12 @@ Ptr<Button> Button::create(const std::string &text, Ptr<FontAtlas> font) {
 }
 
 // ------------------------------------------------------------------------
-// 链式调用构建器方法
-// ------------------------------------------------------------------------
-Button *Button::withPosition(float x, float y) {
-  setPosition(x, y);
-  return this;
-}
-
-Button *Button::withPosition(const Vec2 &pos) {
-  setPosition(pos);
-  return this;
-}
-
-Button *Button::withAnchor(float x, float y) {
-  setAnchor(x, y);
-  return this;
-}
-
-Button *Button::withAnchor(const Vec2 &anchor) {
-  setAnchor(anchor);
-  return this;
-}
-
-Button *Button::withText(const std::string &text) {
-  setText(text);
-  return this;
-}
-
-Button *Button::withFont(Ptr<FontAtlas> font) {
-  setFont(font);
-  return this;
-}
-
-Button *Button::withTextColor(const Color &color) {
-  setTextColor(color);
-  return this;
-}
-
-Button *Button::withBackgroundColor(const Color &normal, const Color &hover,
-                                    const Color &pressed) {
-  setBackgroundColor(normal, hover, pressed);
-  return this;
-}
-
-Button *Button::withSize(float width, float height) {
-  setSize(width, height);
-  return this;
-}
-
-Button *Button::withPadding(const Vec2 &padding) {
-  setPadding(padding);
-  return this;
-}
-
-Button *Button::withPadding(float x, float y) {
-  setPadding(Vec2(x, y));
-  return this;
-}
-
-Button *Button::withBorder(const Color &color, float width) {
-  setBorder(color, width);
-  return this;
-}
-
-Button *Button::withCornerRadius(float radius) {
-  setCornerRadius(radius);
-  return this;
-}
-
-Button *Button::withRoundedCornersEnabled(bool enabled) {
-  setRoundedCornersEnabled(enabled);
-  return this;
-}
-
-Button *Button::withHoverCursor(CursorShape cursor) {
-  setHoverCursor(cursor);
-  return this;
-}
-
-// ------------------------------------------------------------------------
-// 链式调用 - 坐标空间设置
-// ------------------------------------------------------------------------
-Button *Button::withCoordinateSpace(CoordinateSpace space) {
-  setCoordinateSpace(space);
-  return this;
-}
-
-Button *Button::withScreenPosition(float x, float y) {
-  setScreenPosition(x, y);
-  return this;
-}
-
-Button *Button::withScreenPosition(const Vec2 &pos) {
-  setScreenPosition(pos);
-  return this;
-}
-
-Button *Button::withCameraOffset(float x, float y) {
-  setCameraOffset(x, y);
-  return this;
-}
-
-Button *Button::withCameraOffset(const Vec2 &offset) {
-  setCameraOffset(offset);
-  return this;
-}
-
-// ------------------------------------------------------------------------
 // 普通设置方法
 // ------------------------------------------------------------------------
+/**
+ * @brief 设置按钮文本
+ * @param text 文本内容
+ */
 void Button::setText(const std::string &text) {
   text_ = text;
   if (font_ && getSize().empty()) {
@@ -181,6 +99,10 @@ void Button::setText(const std::string &text) {
   }
 }
 
+/**
+ * @brief 设置字体
+ * @param font 字体图集指针
+ */
 void Button::setFont(Ptr<FontAtlas> font) {
   font_ = font;
   if (font_ && getSize().empty() && !text_.empty()) {
@@ -189,6 +111,10 @@ void Button::setFont(Ptr<FontAtlas> font) {
   }
 }
 
+/**
+ * @brief 设置内边距（Vec2版本）
+ * @param padding 内边距向量
+ */
 void Button::setPadding(const Vec2 &padding) {
   padding_ = padding;
   if (font_ && getSize().empty() && !text_.empty()) {
@@ -197,8 +123,27 @@ void Button::setPadding(const Vec2 &padding) {
   }
 }
 
+/**
+ * @brief 设置内边距（分量版本）
+ * @param x X方向内边距
+ * @param y Y方向内边距
+ */
+void Button::setPadding(float x, float y) {
+  setPadding(Vec2(x, y));
+}
+
+/**
+ * @brief 设置文本颜色
+ * @param color 文本颜色
+ */
 void Button::setTextColor(const Color &color) { textColor_ = color; }
 
+/**
+ * @brief 设置背景颜色
+ * @param normal 普通状态颜色
+ * @param hover 悬停状态颜色
+ * @param pressed 按下状态颜色
+ */
 void Button::setBackgroundColor(const Color &normal, const Color &hover,
                                 const Color &pressed) {
   bgNormal_ = normal;
@@ -206,29 +151,58 @@ void Button::setBackgroundColor(const Color &normal, const Color &hover,
   bgPressed_ = pressed;
 }
 
+/**
+ * @brief 设置边框
+ * @param color 边框颜色
+ * @param width 边框宽度
+ */
 void Button::setBorder(const Color &color, float width) {
   borderColor_ = color;
   borderWidth_ = width;
 }
 
+/**
+ * @brief 设置圆角半径
+ * @param radius 圆角半径
+ */
 void Button::setCornerRadius(float radius) {
   cornerRadius_ = std::max(0.0f, radius);
 }
 
+/**
+ * @brief 设置是否启用圆角
+ * @param enabled 是否启用
+ */
 void Button::setRoundedCornersEnabled(bool enabled) {
   roundedCornersEnabled_ = enabled;
 }
 
+/**
+ * @brief 设置是否使用Alpha遮罩进行点击检测
+ * @param enabled 是否启用
+ */
 void Button::setUseAlphaMaskForHitTest(bool enabled) {
   useAlphaMaskForHitTest_ = enabled;
 }
 
+/**
+ * @brief 设置点击回调
+ * @param callback 回调函数
+ */
 void Button::setOnClick(Function<void()> callback) {
   onClick_ = std::move(callback);
 }
 
+/**
+ * @brief 设置是否为切换模式
+ * @param enabled 是否启用
+ */
 void Button::setToggleMode(bool enabled) { toggleMode_ = enabled; }
 
+/**
+ * @brief 设置开关状态
+ * @param on 是否开启
+ */
 void Button::setOn(bool on) {
   if (isOn_ != on) {
     isOn_ = on;
@@ -238,12 +212,24 @@ void Button::setOn(bool on) {
   }
 }
 
+/**
+ * @brief 切换状态
+ */
 void Button::toggle() { setOn(!isOn_); }
 
+/**
+ * @brief 设置状态改变回调
+ * @param callback 回调函数
+ */
 void Button::setOnStateChange(Function<void(bool)> callback) {
   onStateChange_ = std::move(callback);
 }
 
+/**
+ * @brief 设置状态文字
+ * @param textOff 关闭状态文字
+ * @param textOn 开启状态文字
+ */
 void Button::setStateText(const std::string &textOff,
                           const std::string &textOn) {
   textOff_ = textOff;
@@ -251,14 +237,29 @@ void Button::setStateText(const std::string &textOff,
   useStateText_ = true;
 }
 
+/**
+ * @brief 设置状态文字颜色
+ * @param colorOff 关闭状态颜色
+ * @param colorOn 开启状态颜色
+ */
 void Button::setStateTextColor(const Color &colorOff, const Color &colorOn) {
   textColorOff_ = colorOff;
   textColorOn_ = colorOn;
   useStateTextColor_ = true;
 }
 
+/**
+ * @brief 设置悬停光标
+ * @param cursor 光标形状
+ */
 void Button::setHoverCursor(CursorShape cursor) { hoverCursor_ = cursor; }
 
+/**
+ * @brief 设置背景图片
+ * @param normal 普通状态图片
+ * @param hover 悬停状态图片
+ * @param pressed 按下状态图片
+ */
 void Button::setBackgroundImage(Ptr<Texture> normal, Ptr<Texture> hover,
                                 Ptr<Texture> pressed) {
   imgNormal_ = normal;
@@ -273,6 +274,11 @@ void Button::setBackgroundImage(Ptr<Texture> normal, Ptr<Texture> hover,
   }
 }
 
+/**
+ * @brief 设置背景图片（带矩形区域）
+ * @param texture 纹理
+ * @param rect 矩形区域
+ */
 void Button::setBackgroundImage(Ptr<Texture> texture, const Rect &rect) {
   imgNormal_ = texture;
   imgHover_ = texture;
@@ -289,6 +295,15 @@ void Button::setBackgroundImage(Ptr<Texture> texture, const Rect &rect) {
   }
 }
 
+/**
+ * @brief 设置状态背景图片
+ * @param offNormal 关闭状态普通图片
+ * @param onNormal 开启状态普通图片
+ * @param offHover 关闭状态悬停图片
+ * @param onHover 开启状态悬停图片
+ * @param offPressed 关闭状态按下图片
+ * @param onPressed 开启状态按下图片
+ */
 void Button::setStateBackgroundImage(
     Ptr<Texture> offNormal, Ptr<Texture> onNormal, Ptr<Texture> offHover,
     Ptr<Texture> onHover, Ptr<Texture> offPressed, Ptr<Texture> onPressed) {
@@ -309,6 +324,10 @@ void Button::setStateBackgroundImage(
   }
 }
 
+/**
+ * @brief 设置背景图片缩放模式
+ * @param mode 缩放模式
+ */
 void Button::setBackgroundImageScaleMode(ImageScaleMode mode) {
   scaleMode_ = mode;
   if (useImageBackground_ && scaleMode_ == ImageScaleMode::Original &&
@@ -318,12 +337,25 @@ void Button::setBackgroundImageScaleMode(ImageScaleMode mode) {
   }
 }
 
+/**
+ * @brief 设置自定义尺寸（Vec2版本）
+ * @param size 尺寸向量
+ */
 void Button::setCustomSize(const Vec2 &size) { setSize(size.x, size.y); }
 
+/**
+ * @brief 设置自定义尺寸（分量版本）
+ * @param width 宽度
+ * @param height 高度
+ */
 void Button::setCustomSize(float width, float height) {
   setSize(width, height);
 }
 
+/**
+ * @brief 获取边界框
+ * @return 边界矩形
+ */
 Rect Button::getBoundingBox() const {
   auto pos = getRenderPosition();
   auto anchor = getAnchor();
@@ -342,6 +374,12 @@ Rect Button::getBoundingBox() const {
   return Rect(x0, y0, w, h);
 }
 
+/**
+ * @brief 计算图片尺寸
+ * @param buttonSize 按钮尺寸
+ * @param imageSize 图片尺寸
+ * @return 计算后的图片尺寸
+ */
 Vec2 Button::calculateImageSize(const Vec2 &buttonSize, const Vec2 &imageSize) {
   switch (scaleMode_) {
   case ImageScaleMode::Original:
@@ -367,11 +405,15 @@ Vec2 Button::calculateImageSize(const Vec2 &buttonSize, const Vec2 &imageSize) {
   return imageSize;
 }
 
+/**
+ * @brief 绘制背景图片
+ * @param renderer 渲染后端
+ * @param rect 绘制区域
+ */
 void Button::drawBackgroundImage(RenderBackend &renderer, const Rect &rect) {
   Texture *texture = nullptr;
   Rect srcRect;
 
-  // 如果使用状态图片，根据 isOn_ 状态选择对应的图片
   if (useStateImages_) {
     if (isOn_) {
       if (pressed_ && imgOnPressed_) {
@@ -395,7 +437,6 @@ void Button::drawBackgroundImage(RenderBackend &renderer, const Rect &rect) {
                      static_cast<float>(texture->getHeight()));
     }
   } else {
-    // 使用普通图片背景
     if (pressed_ && imgPressed_) {
       texture = imgPressed_.get();
       srcRect = useTextureRect_
@@ -433,6 +474,13 @@ void Button::drawBackgroundImage(RenderBackend &renderer, const Rect &rect) {
                       Vec2::Zero());
 }
 
+/**
+ * @brief 绘制圆角矩形边框
+ * @param renderer 渲染后端
+ * @param rect 矩形区域
+ * @param color 颜色
+ * @param radius 圆角半径
+ */
 void Button::drawRoundedRect(RenderBackend &renderer, const Rect &rect,
                              const Color &color, float radius) {
   float maxRadius = std::min(rect.size.width, rect.size.height) * 0.5f;
@@ -489,6 +537,13 @@ void Button::drawRoundedRect(RenderBackend &renderer, const Rect &rect,
   }
 }
 
+/**
+ * @brief 填充圆角矩形
+ * @param renderer 渲染后端
+ * @param rect 矩形区域
+ * @param color 颜色
+ * @param radius 圆角半径
+ */
 void Button::fillRoundedRect(RenderBackend &renderer, const Rect &rect,
                              const Color &color, float radius) {
   float maxRadius = std::min(rect.size.width, rect.size.height) * 0.5f;
@@ -556,6 +611,10 @@ void Button::fillRoundedRect(RenderBackend &renderer, const Rect &rect,
   renderer.fillPolygon(vertices, color);
 }
 
+/**
+ * @brief 绘制组件
+ * @param renderer 渲染后端
+ */
 void Button::onDrawWidget(RenderBackend &renderer) {
   Rect rect = getBoundingBox();
   if (rect.empty()) {
@@ -563,7 +622,6 @@ void Button::onDrawWidget(RenderBackend &renderer) {
   }
 
   if (useImageBackground_) {
-    // 使用图片背景时不绘制纯色背景和边框
     drawBackgroundImage(renderer, rect);
   } else {
     renderer.endSpriteBatch();
@@ -583,7 +641,6 @@ void Button::onDrawWidget(RenderBackend &renderer) {
 
     renderer.beginSpriteBatch();
 
-    // 纯色背景模式下才绘制边框
     renderer.endSpriteBatch();
 
     if (borderWidth_ > 0.0f) {
@@ -598,7 +655,6 @@ void Button::onDrawWidget(RenderBackend &renderer) {
   }
 
   if (font_) {
-    // 确定要显示的文字
     std::string textToDraw;
     if (useStateText_) {
       textToDraw = isOn_ ? textOn_ : textOff_;
@@ -606,7 +662,6 @@ void Button::onDrawWidget(RenderBackend &renderer) {
       textToDraw = text_;
     }
 
-    // 确定文字颜色
     Color colorToUse;
     if (useStateTextColor_) {
       colorToUse = isOn_ ? textColorOn_ : textColorOff_;

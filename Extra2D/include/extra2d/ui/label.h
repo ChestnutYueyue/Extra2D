@@ -24,27 +24,6 @@ public:
     static Ptr<Label> create(const std::string &text, Ptr<FontAtlas> font);
 
     // ------------------------------------------------------------------------
-    // 链式调用构建器方法
-    // ------------------------------------------------------------------------
-    Label *withPosition(float x, float y);
-    Label *withPosition(const Vec2 &pos);
-    Label *withAnchor(float x, float y);
-    Label *withAnchor(const Vec2 &anchor);
-    Label *withText(const std::string &text);
-    Label *withFont(Ptr<FontAtlas> font);
-    Label *withTextColor(const Color &color);
-    Label *withFontSize(int size);
-
-    // ------------------------------------------------------------------------
-    // 坐标空间设置（链式调用）
-    // ------------------------------------------------------------------------
-    Label *withCoordinateSpace(CoordinateSpace space);
-    Label *withScreenPosition(float x, float y);
-    Label *withScreenPosition(const Vec2 &pos);
-    Label *withCameraOffset(float x, float y);
-    Label *withCameraOffset(const Vec2 &offset);
-
-    // ------------------------------------------------------------------------
     // 文本内容
     // ------------------------------------------------------------------------
     void setText(const std::string &text);
@@ -143,17 +122,14 @@ private:
     HorizontalAlign hAlign_ = HorizontalAlign::Left;
     VerticalAlign vAlign_ = VerticalAlign::Top;
     
-    // 阴影
     bool shadowEnabled_ = false;
     Color shadowColor_ = Color(0.0f, 0.0f, 0.0f, 0.5f);
     Vec2 shadowOffset_ = Vec2(2.0f, 2.0f);
     
-    // 描边
     bool outlineEnabled_ = false;
     Color outlineColor_ = Colors::Black;
     float outlineWidth_ = 1.0f;
     
-    // 多行
     bool multiLine_ = false;
     float lineSpacing_ = 1.0f;
     float maxWidth_ = 0.0f;

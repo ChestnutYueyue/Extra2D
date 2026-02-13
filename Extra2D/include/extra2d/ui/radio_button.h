@@ -18,40 +18,44 @@ public:
     static Ptr<RadioButton> create(const std::string &label);
 
     // ------------------------------------------------------------------------
-    // 链式调用构建器方法
+    // 选择状态
     // ------------------------------------------------------------------------
-    RadioButton *withPosition(float x, float y);
-    RadioButton *withPosition(const Vec2 &pos);
-    RadioButton *withAnchor(float x, float y);
-    RadioButton *withAnchor(const Vec2 &anchor);
-    RadioButton *withText(const std::string &text);
-    RadioButton *withFont(Ptr<FontAtlas> font);
-    RadioButton *withTextColor(const Color &color);
-    RadioButton *withSize(float width, float height);
-    RadioButton *withCoordinateSpace(CoordinateSpace space);
-    RadioButton *withScreenPosition(float x, float y);
-    RadioButton *withScreenPosition(const Vec2 &pos);
-    RadioButton *withCameraOffset(float x, float y);
-    RadioButton *withCameraOffset(const Vec2 &offset);
-
     void setSelected(bool selected);
     bool isSelected() const { return selected_; }
 
+    // ------------------------------------------------------------------------
+    // 标签设置
+    // ------------------------------------------------------------------------
     void setLabel(const std::string &label);
     const std::string &getLabel() const { return label_; }
 
+    // ------------------------------------------------------------------------
+    // 字体设置
+    // ------------------------------------------------------------------------
     void setFont(Ptr<FontAtlas> font);
     Ptr<FontAtlas> getFont() const { return font_; }
 
+    // ------------------------------------------------------------------------
+    // 文字颜色
+    // ------------------------------------------------------------------------
     void setTextColor(const Color &color);
     Color getTextColor() const { return textColor_; }
 
+    // ------------------------------------------------------------------------
+    // 圆形尺寸
+    // ------------------------------------------------------------------------
     void setCircleSize(float size);
     float getCircleSize() const { return circleSize_; }
 
+    // ------------------------------------------------------------------------
+    // 间距
+    // ------------------------------------------------------------------------
     void setSpacing(float spacing);
     float getSpacing() const { return spacing_; }
 
+    // ------------------------------------------------------------------------
+    // 颜色设置
+    // ------------------------------------------------------------------------
     void setSelectedColor(const Color &color);
     Color getSelectedColor() const { return selectedColor_; }
 
@@ -61,9 +65,15 @@ public:
     void setDotColor(const Color &color);
     Color getDotColor() const { return dotColor_; }
 
+    // ------------------------------------------------------------------------
+    // 分组
+    // ------------------------------------------------------------------------
     void setGroupId(int groupId);
     int getGroupId() const { return groupId_; }
 
+    // ------------------------------------------------------------------------
+    // 回调设置
+    // ------------------------------------------------------------------------
     void setOnStateChange(Function<void(bool)> callback);
 
     Rect getBoundingBox() const override;
@@ -86,7 +96,7 @@ private:
     Color unselectedColor_ = Color(0.3f, 0.3f, 0.3f, 1.0f);
     Color dotColor_ = Colors::White;
     
-    int groupId_ = 0; // 用于分组，同组内只能选一个
+    int groupId_ = 0;
     
     bool pressed_ = false;
     Function<void(bool)> onStateChange_;

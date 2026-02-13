@@ -18,45 +18,45 @@ public:
     static Ptr<CheckBox> create(const std::string &label);
 
     // ------------------------------------------------------------------------
-    // 链式调用构建器方法
+    // 选中状态
     // ------------------------------------------------------------------------
-    CheckBox *withPosition(float x, float y);
-    CheckBox *withPosition(const Vec2 &pos);
-    CheckBox *withAnchor(float x, float y);
-    CheckBox *withAnchor(const Vec2 &anchor);
-    CheckBox *withText(const std::string &text);
-    CheckBox *withFont(Ptr<FontAtlas> font);
-    CheckBox *withTextColor(const Color &color);
-    CheckBox *withSize(float width, float height);
-
-    // ------------------------------------------------------------------------
-    // 链式调用 - 坐标空间设置
-    // ------------------------------------------------------------------------
-    CheckBox *withCoordinateSpace(CoordinateSpace space);
-    CheckBox *withScreenPosition(float x, float y);
-    CheckBox *withScreenPosition(const Vec2 &pos);
-    CheckBox *withCameraOffset(float x, float y);
-    CheckBox *withCameraOffset(const Vec2 &offset);
-
     void setChecked(bool checked);
     bool isChecked() const { return checked_; }
     void toggle();
 
+    // ------------------------------------------------------------------------
+    // 标签设置
+    // ------------------------------------------------------------------------
     void setLabel(const std::string &label);
     const std::string &getLabel() const { return label_; }
 
+    // ------------------------------------------------------------------------
+    // 字体设置
+    // ------------------------------------------------------------------------
     void setFont(Ptr<FontAtlas> font);
     Ptr<FontAtlas> getFont() const { return font_; }
 
+    // ------------------------------------------------------------------------
+    // 文字颜色
+    // ------------------------------------------------------------------------
     void setTextColor(const Color &color);
     Color getTextColor() const { return textColor_; }
 
+    // ------------------------------------------------------------------------
+    // 复选框尺寸
+    // ------------------------------------------------------------------------
     void setBoxSize(float size);
     float getBoxSize() const { return boxSize_; }
 
+    // ------------------------------------------------------------------------
+    // 间距
+    // ------------------------------------------------------------------------
     void setSpacing(float spacing);
     float getSpacing() const { return spacing_; }
 
+    // ------------------------------------------------------------------------
+    // 颜色设置
+    // ------------------------------------------------------------------------
     void setCheckedColor(const Color &color);
     Color getCheckedColor() const { return checkedColor_; }
 
@@ -66,6 +66,9 @@ public:
     void setCheckMarkColor(const Color &color);
     Color getCheckMarkColor() const { return checkMarkColor_; }
 
+    // ------------------------------------------------------------------------
+    // 回调设置
+    // ------------------------------------------------------------------------
     void setOnStateChange(Function<void(bool)> callback);
 
     Rect getBoundingBox() const override;

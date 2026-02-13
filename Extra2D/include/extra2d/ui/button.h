@@ -33,35 +33,6 @@ public:
   static Ptr<Button> create(const std::string &text, Ptr<FontAtlas> font);
 
   // ------------------------------------------------------------------------
-  // 链式调用构建器方法
-  // ------------------------------------------------------------------------
-  Button *withPosition(float x, float y);
-  Button *withPosition(const Vec2 &pos);
-  Button *withAnchor(float x, float y);
-  Button *withAnchor(const Vec2 &anchor);
-  Button *withText(const std::string &text);
-  Button *withFont(Ptr<FontAtlas> font);
-  Button *withTextColor(const Color &color);
-  Button *withBackgroundColor(const Color &normal, const Color &hover,
-                              const Color &pressed);
-  Button *withSize(float width, float height);
-  Button *withPadding(const Vec2 &padding);
-  Button *withPadding(float x, float y);
-  Button *withBorder(const Color &color, float width);
-  Button *withCornerRadius(float radius);
-  Button *withRoundedCornersEnabled(bool enabled);
-  Button *withHoverCursor(CursorShape cursor);
-
-  // ------------------------------------------------------------------------
-  // 链式调用 - 坐标空间设置
-  // ------------------------------------------------------------------------
-  Button *withCoordinateSpace(CoordinateSpace space);
-  Button *withScreenPosition(float x, float y);
-  Button *withScreenPosition(const Vec2 &pos);
-  Button *withCameraOffset(float x, float y);
-  Button *withCameraOffset(const Vec2 &offset);
-
-  // ------------------------------------------------------------------------
   // 文字内容
   // ------------------------------------------------------------------------
   void setText(const std::string &text);
@@ -77,6 +48,7 @@ public:
   // 内边距
   // ------------------------------------------------------------------------
   void setPadding(const Vec2 &padding);
+  void setPadding(float x, float y);
   Vec2 getPadding() const { return padding_; }
 
   // ------------------------------------------------------------------------

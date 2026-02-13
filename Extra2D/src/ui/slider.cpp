@@ -5,15 +5,29 @@
 
 namespace extra2d {
 
+/**
+ * @brief 默认构造函数
+ */
 Slider::Slider() {
     setAnchor(0.0f, 0.0f);
     setSize(200.0f, 20.0f);
 }
 
+/**
+ * @brief 创建滑动条对象
+ * @return 滑动条对象指针
+ */
 Ptr<Slider> Slider::create() {
     return makePtr<Slider>();
 }
 
+/**
+ * @brief 创建带范围的滑动条对象
+ * @param min 最小值
+ * @param max 最大值
+ * @param value 当前值
+ * @return 滑动条对象指针
+ */
 Ptr<Slider> Slider::create(float min, float max, float value) {
     auto slider = makePtr<Slider>();
     slider->setRange(min, max);
@@ -21,153 +35,21 @@ Ptr<Slider> Slider::create(float min, float max, float value) {
     return slider;
 }
 
-// ============================================================================
-// 链式调用构建器方法实现
-// ============================================================================
-
 /**
- * @brief 设置位置（浮点坐标）
- * @param x X坐标
- * @param y Y坐标
- * @return 返回this指针，支持链式调用
- */
-Slider *Slider::withPosition(float x, float y) {
-    setPosition(x, y);
-    return this;
-}
-
-/**
- * @brief 设置位置（Vec2坐标）
- * @param pos 位置向量
- * @return 返回this指针，支持链式调用
- */
-Slider *Slider::withPosition(const Vec2 &pos) {
-    setPosition(pos);
-    return this;
-}
-
-/**
- * @brief 设置锚点（浮点坐标）
- * @param x X锚点（0-1）
- * @param y Y锚点（0-1）
- * @return 返回this指针，支持链式调用
- */
-Slider *Slider::withAnchor(float x, float y) {
-    setAnchor(x, y);
-    return this;
-}
-
-/**
- * @brief 设置锚点（Vec2坐标）
- * @param anchor 锚点向量
- * @return 返回this指针，支持链式调用
- */
-Slider *Slider::withAnchor(const Vec2 &anchor) {
-    setAnchor(anchor);
-    return this;
-}
-
-/**
- * @brief 设置尺寸
- * @param width 宽度
- * @param height 高度
- * @return 返回this指针，支持链式调用
- */
-Slider *Slider::withSize(float width, float height) {
-    setSize(width, height);
-    return this;
-}
-
-/**
- * @brief 设置最小值
+ * @brief 设置数值范围
  * @param min 最小值
- * @return 返回this指针，支持链式调用
- */
-Slider *Slider::withMinValue(float min) {
-    min_ = min;
-    setValue(value_);
-    return this;
-}
-
-/**
- * @brief 设置最大值
  * @param max 最大值
- * @return 返回this指针，支持链式调用
  */
-Slider *Slider::withMaxValue(float max) {
-    max_ = max;
-    setValue(value_);
-    return this;
-}
-
-/**
- * @brief 设置当前值
- * @param value 当前值
- * @return 返回this指针，支持链式调用
- */
-Slider *Slider::withValue(float value) {
-    setValue(value);
-    return this;
-}
-
-/**
- * @brief 设置坐标空间
- * @param space 坐标空间类型
- * @return 返回this指针，支持链式调用
- */
-Slider *Slider::withCoordinateSpace(CoordinateSpace space) {
-    setCoordinateSpace(space);
-    return this;
-}
-
-/**
- * @brief 设置屏幕位置（浮点坐标）
- * @param x X屏幕坐标
- * @param y Y屏幕坐标
- * @return 返回this指针，支持链式调用
- */
-Slider *Slider::withScreenPosition(float x, float y) {
-    setScreenPosition(x, y);
-    return this;
-}
-
-/**
- * @brief 设置屏幕位置（Vec2坐标）
- * @param pos 屏幕位置向量
- * @return 返回this指针，支持链式调用
- */
-Slider *Slider::withScreenPosition(const Vec2 &pos) {
-    setScreenPosition(pos);
-    return this;
-}
-
-/**
- * @brief 设置相机偏移（浮点坐标）
- * @param x X偏移量
- * @param y Y偏移量
- * @return 返回this指针，支持链式调用
- */
-Slider *Slider::withCameraOffset(float x, float y) {
-    setCameraOffset(x, y);
-    return this;
-}
-
-/**
- * @brief 设置相机偏移（Vec2坐标）
- * @param offset 偏移向量
- * @return 返回this指针，支持链式调用
- */
-Slider *Slider::withCameraOffset(const Vec2 &offset) {
-    setCameraOffset(offset);
-    return this;
-}
-
 void Slider::setRange(float min, float max) {
     min_ = min;
     max_ = max;
     setValue(value_);
 }
 
+/**
+ * @brief 设置当前值
+ * @param value 新值
+ */
 void Slider::setValue(float value) {
     float newValue = std::clamp(value, min_, max_);
     if (step_ > 0.0f) {
@@ -182,6 +64,10 @@ void Slider::setValue(float value) {
     }
 }
 
+/**
+ * @brief 设置步进值
+ * @param step 步进值
+ */
 void Slider::setStep(float step) {
     step_ = step;
     if (step_ > 0.0f) {
@@ -189,78 +75,155 @@ void Slider::setStep(float step) {
     }
 }
 
+/**
+ * @brief 设置是否为垂直方向
+ * @param vertical 是否垂直
+ */
 void Slider::setVertical(bool vertical) {
     vertical_ = vertical;
 }
 
+/**
+ * @brief 设置轨道尺寸
+ * @param size 轨道尺寸
+ */
 void Slider::setTrackSize(float size) {
     trackSize_ = size;
 }
 
+/**
+ * @brief 设置滑块尺寸
+ * @param size 滑块尺寸
+ */
 void Slider::setThumbSize(float size) {
     thumbSize_ = size;
 }
 
+/**
+ * @brief 设置轨道颜色
+ * @param color 轨道颜色
+ */
 void Slider::setTrackColor(const Color &color) {
     trackColor_ = color;
 }
 
+/**
+ * @brief 设置填充颜色
+ * @param color 填充颜色
+ */
 void Slider::setFillColor(const Color &color) {
     fillColor_ = color;
 }
 
+/**
+ * @brief 设置滑块颜色
+ * @param color 滑块颜色
+ */
 void Slider::setThumbColor(const Color &color) {
     thumbColor_ = color;
 }
 
+/**
+ * @brief 设置滑块悬停颜色
+ * @param color 悬停颜色
+ */
 void Slider::setThumbHoverColor(const Color &color) {
     thumbHoverColor_ = color;
 }
 
+/**
+ * @brief 设置滑块按下颜色
+ * @param color 按下颜色
+ */
 void Slider::setThumbPressedColor(const Color &color) {
     thumbPressedColor_ = color;
 }
 
+/**
+ * @brief 设置是否显示滑块
+ * @param show 是否显示
+ */
 void Slider::setShowThumb(bool show) {
     showThumb_ = show;
 }
 
+/**
+ * @brief 设置是否显示填充
+ * @param show 是否显示
+ */
 void Slider::setShowFill(bool show) {
     showFill_ = show;
 }
 
+/**
+ * @brief 设置是否启用文本显示
+ * @param enabled 是否启用
+ */
 void Slider::setTextEnabled(bool enabled) {
     textEnabled_ = enabled;
 }
 
+/**
+ * @brief 设置字体
+ * @param font 字体图集指针
+ */
 void Slider::setFont(Ptr<FontAtlas> font) {
     font_ = font;
 }
 
+/**
+ * @brief 设置文本颜色
+ * @param color 文本颜色
+ */
 void Slider::setTextColor(const Color &color) {
     textColor_ = color;
 }
 
+/**
+ * @brief 设置文本格式
+ * @param format 格式字符串
+ */
 void Slider::setTextFormat(const std::string &format) {
     textFormat_ = format;
 }
 
+/**
+ * @brief 设置值改变回调
+ * @param callback 回调函数
+ */
 void Slider::setOnValueChange(Function<void(float)> callback) {
     onValueChange_ = callback;
 }
 
+/**
+ * @brief 设置拖拽开始回调
+ * @param callback 回调函数
+ */
 void Slider::setOnDragStart(Function<void()> callback) {
     onDragStart_ = callback;
 }
 
+/**
+ * @brief 设置拖拽结束回调
+ * @param callback 回调函数
+ */
 void Slider::setOnDragEnd(Function<void()> callback) {
     onDragEnd_ = callback;
 }
 
+/**
+ * @brief 获取边界框
+ * @return 边界矩形
+ */
 Rect Slider::getBoundingBox() const {
     return Rect(getPosition().x, getPosition().y, getSize().width, getSize().height);
 }
 
+/**
+ * @brief 将值转换为位置
+ * @param value 数值
+ * @return 位置坐标
+ */
 float Slider::valueToPosition(float value) const {
     Vec2 pos = getPosition();
     Size size = getSize();
@@ -274,6 +237,11 @@ float Slider::valueToPosition(float value) const {
     }
 }
 
+/**
+ * @brief 将位置转换为值
+ * @param pos 位置坐标
+ * @return 数值
+ */
 float Slider::positionToValue(float pos) const {
     Vec2 widgetPos = getPosition();
     Size size = getSize();
@@ -289,6 +257,10 @@ float Slider::positionToValue(float pos) const {
     return min_ + percent * (max_ - min_);
 }
 
+/**
+ * @brief 获取滑块矩形
+ * @return 滑块矩形
+ */
 Rect Slider::getThumbRect() const {
     Vec2 pos = getPosition();
     Size size = getSize();
@@ -312,6 +284,10 @@ Rect Slider::getThumbRect() const {
     }
 }
 
+/**
+ * @brief 获取轨道矩形
+ * @return 轨道矩形
+ */
 Rect Slider::getTrackRect() const {
     Vec2 pos = getPosition();
     Size size = getSize();
@@ -333,6 +309,10 @@ Rect Slider::getTrackRect() const {
     }
 }
 
+/**
+ * @brief 格式化文本
+ * @return 格式化后的文本
+ */
 std::string Slider::formatText() const {
     std::string result = textFormat_;
     
@@ -353,18 +333,25 @@ std::string Slider::formatText() const {
     return result;
 }
 
+/**
+ * @brief 将值对齐到步进
+ * @param value 原始值
+ * @return 对齐后的值
+ */
 float Slider::snapToStep(float value) const {
     float steps = std::round((value - min_) / step_);
     return min_ + steps * step_;
 }
 
+/**
+ * @brief 绘制组件
+ * @param renderer 渲染后端
+ */
 void Slider::onDrawWidget(RenderBackend &renderer) {
     Rect trackRect = getTrackRect();
     
-    // 绘制轨道背景
     renderer.fillRect(trackRect, trackColor_);
     
-    // 绘制填充部分
     if (showFill_) {
         float percent = (value_ - min_) / (max_ - min_);
         float fillX = trackRect.origin.x;
@@ -383,7 +370,6 @@ void Slider::onDrawWidget(RenderBackend &renderer) {
         renderer.fillRect(fillRect, fillColor_);
     }
     
-    // 绘制滑块
     if (showThumb_) {
         Rect thumbRect = getThumbRect();
         Color thumbColor = thumbColor_;
@@ -398,7 +384,6 @@ void Slider::onDrawWidget(RenderBackend &renderer) {
         renderer.drawRect(thumbRect, Colors::White, 1.0f);
     }
     
-    // 绘制文本
     if (textEnabled_ && font_) {
         std::string text = formatText();
         Vec2 textSize = font_->measureText(text);
@@ -414,6 +399,11 @@ void Slider::onDrawWidget(RenderBackend &renderer) {
     }
 }
 
+/**
+ * @brief 鼠标按下事件处理
+ * @param event 鼠标事件
+ * @return 是否处理了事件
+ */
 bool Slider::onMousePress(const MouseEvent &event) {
     if (event.button == MouseButton::Left) {
         Rect thumbRect = getThumbRect();
@@ -426,7 +416,6 @@ bool Slider::onMousePress(const MouseEvent &event) {
             return true;
         }
         
-        // 点击轨道直接跳转
         Rect trackRect = getTrackRect();
         if (trackRect.containsPoint(Point(event.x, event.y))) {
             float newValue = positionToValue(vertical_ ? event.y : event.x);
@@ -441,6 +430,11 @@ bool Slider::onMousePress(const MouseEvent &event) {
     return false;
 }
 
+/**
+ * @brief 鼠标释放事件处理
+ * @param event 鼠标事件
+ * @return 是否处理了事件
+ */
 bool Slider::onMouseRelease(const MouseEvent &event) {
     if (event.button == MouseButton::Left && dragging_) {
         dragging_ = false;
@@ -452,6 +446,11 @@ bool Slider::onMouseRelease(const MouseEvent &event) {
     return false;
 }
 
+/**
+ * @brief 鼠标移动事件处理
+ * @param event 鼠标事件
+ * @return 是否处理了事件
+ */
 bool Slider::onMouseMove(const MouseEvent &event) {
     if (dragging_) {
         float newValue = positionToValue(vertical_ ? event.y : event.x);
@@ -459,7 +458,6 @@ bool Slider::onMouseMove(const MouseEvent &event) {
         return true;
     }
     
-    // 检查悬停
     Rect thumbRect = getThumbRect();
     bool wasHovered = hovered_;
     hovered_ = thumbRect.containsPoint(Point(event.x, event.y));
@@ -467,10 +465,16 @@ bool Slider::onMouseMove(const MouseEvent &event) {
     return hovered_ != wasHovered;
 }
 
+/**
+ * @brief 鼠标进入事件处理
+ */
 void Slider::onMouseEnter() {
     hovered_ = true;
 }
 
+/**
+ * @brief 鼠标离开事件处理
+ */
 void Slider::onMouseLeave() {
     hovered_ = false;
 }

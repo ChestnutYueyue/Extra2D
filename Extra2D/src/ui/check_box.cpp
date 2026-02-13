@@ -4,92 +4,37 @@
 
 namespace extra2d {
 
+/**
+ * @brief 默认构造函数
+ */
 CheckBox::CheckBox() {
     setAnchor(0.0f, 0.0f);
     setSize(boxSize_, boxSize_);
 }
 
+/**
+ * @brief 创建复选框对象
+ * @return 复选框对象指针
+ */
 Ptr<CheckBox> CheckBox::create() {
     return makePtr<CheckBox>();
 }
 
+/**
+ * @brief 创建带标签的复选框对象
+ * @param label 标签文本
+ * @return 复选框对象指针
+ */
 Ptr<CheckBox> CheckBox::create(const std::string &label) {
     auto cb = makePtr<CheckBox>();
     cb->setLabel(label);
     return cb;
 }
 
-// ------------------------------------------------------------------------
-// 链式调用构建器方法
-// ------------------------------------------------------------------------
-CheckBox *CheckBox::withPosition(float x, float y) {
-    setPosition(x, y);
-    return this;
-}
-
-CheckBox *CheckBox::withPosition(const Vec2 &pos) {
-    setPosition(pos);
-    return this;
-}
-
-CheckBox *CheckBox::withAnchor(float x, float y) {
-    setAnchor(x, y);
-    return this;
-}
-
-CheckBox *CheckBox::withAnchor(const Vec2 &anchor) {
-    setAnchor(anchor);
-    return this;
-}
-
-CheckBox *CheckBox::withText(const std::string &text) {
-    setLabel(text);
-    return this;
-}
-
-CheckBox *CheckBox::withFont(Ptr<FontAtlas> font) {
-    setFont(font);
-    return this;
-}
-
-CheckBox *CheckBox::withTextColor(const Color &color) {
-    setTextColor(color);
-    return this;
-}
-
-CheckBox *CheckBox::withSize(float width, float height) {
-    setSize(width, height);
-    return this;
-}
-
-// ------------------------------------------------------------------------
-// 链式调用 - 坐标空间设置
-// ------------------------------------------------------------------------
-CheckBox *CheckBox::withCoordinateSpace(CoordinateSpace space) {
-    setCoordinateSpace(space);
-    return this;
-}
-
-CheckBox *CheckBox::withScreenPosition(float x, float y) {
-    setScreenPosition(x, y);
-    return this;
-}
-
-CheckBox *CheckBox::withScreenPosition(const Vec2 &pos) {
-    setScreenPosition(pos);
-    return this;
-}
-
-CheckBox *CheckBox::withCameraOffset(float x, float y) {
-    setCameraOffset(x, y);
-    return this;
-}
-
-CheckBox *CheckBox::withCameraOffset(const Vec2 &offset) {
-    setCameraOffset(offset);
-    return this;
-}
-
+/**
+ * @brief 设置选中状态
+ * @param checked 是否选中
+ */
 void CheckBox::setChecked(bool checked) {
     if (checked_ != checked) {
         checked_ = checked;
@@ -99,46 +44,89 @@ void CheckBox::setChecked(bool checked) {
     }
 }
 
+/**
+ * @brief 切换选中状态
+ */
 void CheckBox::toggle() {
     setChecked(!checked_);
 }
 
+/**
+ * @brief 设置标签文本
+ * @param label 标签文本
+ */
 void CheckBox::setLabel(const std::string &label) {
     label_ = label;
 }
 
+/**
+ * @brief 设置字体
+ * @param font 字体图集指针
+ */
 void CheckBox::setFont(Ptr<FontAtlas> font) {
     font_ = font;
 }
 
+/**
+ * @brief 设置文本颜色
+ * @param color 文本颜色
+ */
 void CheckBox::setTextColor(const Color &color) {
     textColor_ = color;
 }
 
+/**
+ * @brief 设置复选框尺寸
+ * @param size 复选框尺寸
+ */
 void CheckBox::setBoxSize(float size) {
     boxSize_ = size;
 }
 
+/**
+ * @brief 设置间距
+ * @param spacing 间距值
+ */
 void CheckBox::setSpacing(float spacing) {
     spacing_ = spacing;
 }
 
+/**
+ * @brief 设置选中颜色
+ * @param color 选中颜色
+ */
 void CheckBox::setCheckedColor(const Color &color) {
     checkedColor_ = color;
 }
 
+/**
+ * @brief 设置未选中颜色
+ * @param color 未选中颜色
+ */
 void CheckBox::setUncheckedColor(const Color &color) {
     uncheckedColor_ = color;
 }
 
+/**
+ * @brief 设置勾选标记颜色
+ * @param color 勾选标记颜色
+ */
 void CheckBox::setCheckMarkColor(const Color &color) {
     checkMarkColor_ = color;
 }
 
+/**
+ * @brief 设置状态改变回调
+ * @param callback 回调函数
+ */
 void CheckBox::setOnStateChange(Function<void(bool)> callback) {
     onStateChange_ = callback;
 }
 
+/**
+ * @brief 获取边界框
+ * @return 边界矩形
+ */
 Rect CheckBox::getBoundingBox() const {
     Vec2 pos = getPosition();
     float width = boxSize_;
@@ -151,16 +139,18 @@ Rect CheckBox::getBoundingBox() const {
     return Rect(pos.x, pos.y, width, boxSize_);
 }
 
+/**
+ * @brief 绘制组件
+ * @param renderer 渲染后端
+ */
 void CheckBox::onDrawWidget(RenderBackend &renderer) {
     Vec2 pos = getPosition();
     
-    // 绘制复选框
     Rect boxRect(pos.x, pos.y + (getSize().height - boxSize_) * 0.5f, boxSize_, boxSize_);
     Color boxColor = checked_ ? checkedColor_ : uncheckedColor_;
     renderer.fillRect(boxRect, boxColor);
     renderer.drawRect(boxRect, Colors::White, 1.0f);
     
-    // 绘制勾选标记
     if (checked_) {
         float padding = boxSize_ * 0.2f;
         float x1 = boxRect.origin.x + padding;
@@ -170,18 +160,21 @@ void CheckBox::onDrawWidget(RenderBackend &renderer) {
         float x3 = boxRect.origin.x + boxSize_ - padding;
         float y3 = boxRect.origin.y + padding;
         
-        // 简化的勾选标记绘制
         renderer.drawLine(Vec2(x1, y1), Vec2(x2, y2), checkMarkColor_, 2.0f);
         renderer.drawLine(Vec2(x2, y2), Vec2(x3, y3), checkMarkColor_, 2.0f);
     }
     
-    // 绘制标签
     if (!label_.empty() && font_) {
         Vec2 textPos(pos.x + boxSize_ + spacing_, pos.y);
         renderer.drawText(*font_, label_, textPos, textColor_);
     }
 }
 
+/**
+ * @brief 鼠标按下事件处理
+ * @param event 鼠标事件
+ * @return 是否处理了事件
+ */
 bool CheckBox::onMousePress(const MouseEvent &event) {
     if (event.button == MouseButton::Left) {
         pressed_ = true;
@@ -190,6 +183,11 @@ bool CheckBox::onMousePress(const MouseEvent &event) {
     return false;
 }
 
+/**
+ * @brief 鼠标释放事件处理
+ * @param event 鼠标事件
+ * @return 是否处理了事件
+ */
 bool CheckBox::onMouseRelease(const MouseEvent &event) {
     if (event.button == MouseButton::Left && pressed_) {
         pressed_ = false;

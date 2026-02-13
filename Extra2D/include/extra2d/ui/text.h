@@ -42,19 +42,6 @@ public:
   static Ptr<Text> createFormat(Ptr<FontAtlas> font, const char *fmt, ...);
 
   // ------------------------------------------------------------------------
-  // 链式调用构建器方法
-  // ------------------------------------------------------------------------
-  Text *withPosition(float x, float y);
-  Text *withPosition(const Vec2 &pos);
-  Text *withAnchor(float x, float y);
-  Text *withAnchor(const Vec2 &anchor);
-  Text *withTextColor(const Color &color);
-  Text *withFont(Ptr<FontAtlas> font);
-  Text *withFontSize(int size);
-  Text *withAlignment(Alignment align);
-  Text *withVerticalAlignment(VerticalAlignment align);
-
-  // ------------------------------------------------------------------------
   // 文字内容
   // ------------------------------------------------------------------------
   void setText(const std::string &text);
@@ -76,20 +63,6 @@ public:
     text_ = buffer;
     sizeDirty_ = true;
     updateSpatialIndex();
-  }
-
-  // 链式调用的格式化方法
-  // 注意：由于C++可变参数的限制，链式调用需要单独设置格式和值
-  Text *withFormattedText(const char *fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
-    char buffer[256];
-    vsnprintf(buffer, sizeof(buffer), fmt, args);
-    va_end(args);
-    text_ = buffer;
-    sizeDirty_ = true;
-    updateSpatialIndex();
-    return this;
   }
 
   // ------------------------------------------------------------------------
@@ -126,15 +99,6 @@ public:
   float getLineHeight() const;
 
   Rect getBoundingBox() const override;
-
-  // ------------------------------------------------------------------------
-  // 链式调用 - 坐标空间设置
-  // ------------------------------------------------------------------------
-  Text *withCoordinateSpace(CoordinateSpace space);
-  Text *withScreenPosition(float x, float y);
-  Text *withScreenPosition(const Vec2 &pos);
-  Text *withCameraOffset(float x, float y);
-  Text *withCameraOffset(const Vec2 &offset);
 
 protected:
   void onDrawWidget(RenderBackend &renderer) override;

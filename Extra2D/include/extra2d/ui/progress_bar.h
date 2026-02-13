@@ -22,21 +22,6 @@ public:
     static Ptr<ProgressBar> create(float min, float max, float value);
 
     // ------------------------------------------------------------------------
-    // 链式调用构建器方法 - 坐标空间支持
-    // ------------------------------------------------------------------------
-    ProgressBar *withPosition(float x, float y);
-    ProgressBar *withPosition(const Vec2 &pos);
-    ProgressBar *withAnchor(float x, float y);
-    ProgressBar *withAnchor(const Vec2 &anchor);
-    ProgressBar *withSize(float width, float height);
-    ProgressBar *withProgress(float progress);
-    ProgressBar *withCoordinateSpace(CoordinateSpace space);
-    ProgressBar *withScreenPosition(float x, float y);
-    ProgressBar *withScreenPosition(const Vec2 &pos);
-    ProgressBar *withCameraOffset(float x, float y);
-    ProgressBar *withCameraOffset(const Vec2 &offset);
-
-    // ------------------------------------------------------------------------
     // 数值范围
     // ------------------------------------------------------------------------
     void setRange(float min, float max);

@@ -5,15 +5,29 @@
 
 namespace extra2d {
 
+/**
+ * @brief 默认构造函数
+ */
 ProgressBar::ProgressBar() {
     setAnchor(0.0f, 0.0f);
     setSize(200.0f, 20.0f);
 }
 
+/**
+ * @brief 创建进度条对象
+ * @return 进度条对象指针
+ */
 Ptr<ProgressBar> ProgressBar::create() {
     return makePtr<ProgressBar>();
 }
 
+/**
+ * @brief 创建带范围的进度条对象
+ * @param min 最小值
+ * @param max 最大值
+ * @param value 当前值
+ * @return 进度条对象指针
+ */
 Ptr<ProgressBar> ProgressBar::create(float min, float max, float value) {
     auto bar = makePtr<ProgressBar>();
     bar->setRange(min, max);
@@ -21,71 +35,21 @@ Ptr<ProgressBar> ProgressBar::create(float min, float max, float value) {
     return bar;
 }
 
-// ============================================================================
-// 链式调用构建器方法实现
-// ============================================================================
-
-ProgressBar *ProgressBar::withPosition(float x, float y) {
-    setPosition(x, y);
-    return this;
-}
-
-ProgressBar *ProgressBar::withPosition(const Vec2 &pos) {
-    setPosition(pos);
-    return this;
-}
-
-ProgressBar *ProgressBar::withAnchor(float x, float y) {
-    setAnchor(x, y);
-    return this;
-}
-
-ProgressBar *ProgressBar::withAnchor(const Vec2 &anchor) {
-    setAnchor(anchor);
-    return this;
-}
-
-ProgressBar *ProgressBar::withSize(float width, float height) {
-    setSize(width, height);
-    return this;
-}
-
-ProgressBar *ProgressBar::withProgress(float progress) {
-    setValue(min_ + progress * (max_ - min_));
-    return this;
-}
-
-ProgressBar *ProgressBar::withCoordinateSpace(CoordinateSpace space) {
-    setCoordinateSpace(space);
-    return this;
-}
-
-ProgressBar *ProgressBar::withScreenPosition(float x, float y) {
-    setScreenPosition(x, y);
-    return this;
-}
-
-ProgressBar *ProgressBar::withScreenPosition(const Vec2 &pos) {
-    setScreenPosition(pos);
-    return this;
-}
-
-ProgressBar *ProgressBar::withCameraOffset(float x, float y) {
-    setCameraOffset(x, y);
-    return this;
-}
-
-ProgressBar *ProgressBar::withCameraOffset(const Vec2 &offset) {
-    setCameraOffset(offset);
-    return this;
-}
-
+/**
+ * @brief 设置数值范围
+ * @param min 最小值
+ * @param max 最大值
+ */
 void ProgressBar::setRange(float min, float max) {
     min_ = min;
     max_ = max;
     setValue(value_);
 }
 
+/**
+ * @brief 设置当前值
+ * @param value 新值
+ */
 void ProgressBar::setValue(float value) {
     value_ = std::clamp(value, min_, max_);
     
@@ -98,85 +62,165 @@ void ProgressBar::setValue(float value) {
     }
 }
 
+/**
+ * @brief 获取百分比
+ * @return 百分比值（0.0-1.0）
+ */
 float ProgressBar::getPercent() const {
     if (max_ <= min_) return 0.0f;
     return (displayValue_ - min_) / (max_ - min_);
 }
 
+/**
+ * @brief 设置方向
+ * @param dir 方向枚举
+ */
 void ProgressBar::setDirection(Direction dir) {
     direction_ = dir;
 }
 
+/**
+ * @brief 设置背景颜色
+ * @param color 背景颜色
+ */
 void ProgressBar::setBackgroundColor(const Color &color) {
     bgColor_ = color;
 }
 
+/**
+ * @brief 设置填充颜色
+ * @param color 填充颜色
+ */
 void ProgressBar::setFillColor(const Color &color) {
     fillColor_ = color;
 }
 
+/**
+ * @brief 设置是否启用渐变填充
+ * @param enabled 是否启用
+ */
 void ProgressBar::setGradientFillEnabled(bool enabled) {
     gradientEnabled_ = enabled;
 }
 
+/**
+ * @brief 设置渐变结束颜色
+ * @param color 结束颜色
+ */
 void ProgressBar::setFillColorEnd(const Color &color) {
     fillColorEnd_ = color;
 }
 
+/**
+ * @brief 设置是否启用分段颜色
+ * @param enabled 是否启用
+ */
 void ProgressBar::setSegmentedColorsEnabled(bool enabled) {
     segmentedColorsEnabled_ = enabled;
 }
 
+/**
+ * @brief 添加颜色分段
+ * @param percentThreshold 百分比阈值
+ * @param color 颜色
+ */
 void ProgressBar::addColorSegment(float percentThreshold, const Color &color) {
     colorSegments_.push_back({percentThreshold, color});
     std::sort(colorSegments_.begin(), colorSegments_.end(),
               [](const auto &a, const auto &b) { return a.first > b.first; });
 }
 
+/**
+ * @brief 清除所有颜色分段
+ */
 void ProgressBar::clearColorSegments() {
     colorSegments_.clear();
 }
 
+/**
+ * @brief 设置圆角半径
+ * @param radius 圆角半径
+ */
 void ProgressBar::setCornerRadius(float radius) {
     cornerRadius_ = radius;
 }
 
+/**
+ * @brief 设置是否启用圆角
+ * @param enabled 是否启用
+ */
 void ProgressBar::setRoundedCornersEnabled(bool enabled) {
     roundedCornersEnabled_ = enabled;
 }
 
+/**
+ * @brief 设置是否启用边框
+ * @param enabled 是否启用
+ */
 void ProgressBar::setBorderEnabled(bool enabled) {
     borderEnabled_ = enabled;
 }
 
+/**
+ * @brief 设置边框颜色
+ * @param color 边框颜色
+ */
 void ProgressBar::setBorderColor(const Color &color) {
     borderColor_ = color;
 }
 
+/**
+ * @brief 设置边框宽度
+ * @param width 边框宽度
+ */
 void ProgressBar::setBorderWidth(float width) {
     borderWidth_ = width;
 }
 
+/**
+ * @brief 设置内边距
+ * @param padding 内边距值
+ */
 void ProgressBar::setPadding(float padding) {
     padding_ = padding;
 }
 
+/**
+ * @brief 设置是否启用文本显示
+ * @param enabled 是否启用
+ */
 void ProgressBar::setTextEnabled(bool enabled) {
     textEnabled_ = enabled;
 }
 
+/**
+ * @brief 设置字体
+ * @param font 字体图集指针
+ */
 void ProgressBar::setFont(Ptr<FontAtlas> font) {
     font_ = font;
 }
 
+/**
+ * @brief 设置文本颜色
+ * @param color 文本颜色
+ */
 void ProgressBar::setTextColor(const Color &color) {
     textColor_ = color;
 }
 
+/**
+ * @brief 设置文本格式
+ * @param format 格式字符串
+ */
 void ProgressBar::setTextFormat(const std::string &format) {
     textFormat_ = format;
 }
 
+/**
+ * @brief 设置是否启用动画变化
+ * @param enabled 是否启用
+ */
 void ProgressBar::setAnimatedChangeEnabled(bool enabled) {
     animatedChangeEnabled_ = enabled;
     if (!enabled) {
@@ -184,34 +228,66 @@ void ProgressBar::setAnimatedChangeEnabled(bool enabled) {
     }
 }
 
+/**
+ * @brief 设置动画速度
+ * @param speed 每秒变化量
+ */
 void ProgressBar::setAnimationSpeed(float speed) {
     animationSpeed_ = speed;
 }
 
+/**
+ * @brief 设置是否启用延迟显示
+ * @param enabled 是否启用
+ */
 void ProgressBar::setDelayedDisplayEnabled(bool enabled) {
     delayedDisplayEnabled_ = enabled;
 }
 
+/**
+ * @brief 设置延迟时间
+ * @param seconds 延迟秒数
+ */
 void ProgressBar::setDelayTime(float seconds) {
     delayTime_ = seconds;
 }
 
+/**
+ * @brief 设置延迟显示填充颜色
+ * @param color 填充颜色
+ */
 void ProgressBar::setDelayedFillColor(const Color &color) {
     delayedFillColor_ = color;
 }
 
+/**
+ * @brief 设置是否启用条纹效果
+ * @param enabled 是否启用
+ */
 void ProgressBar::setStripedEnabled(bool enabled) {
     stripedEnabled_ = enabled;
 }
 
+/**
+ * @brief 设置条纹颜色
+ * @param color 条纹颜色
+ */
 void ProgressBar::setStripeColor(const Color &color) {
     stripeColor_ = color;
 }
 
+/**
+ * @brief 设置条纹移动速度
+ * @param speed 移动速度
+ */
 void ProgressBar::setStripeSpeed(float speed) {
     stripeSpeed_ = speed;
 }
 
+/**
+ * @brief 获取当前填充颜色
+ * @return 当前填充颜色
+ */
 Color ProgressBar::getCurrentFillColor() const {
     if (segmentedColorsEnabled_ && !colorSegments_.empty()) {
         float percent = getPercent();
@@ -224,6 +300,10 @@ Color ProgressBar::getCurrentFillColor() const {
     return fillColor_;
 }
 
+/**
+ * @brief 格式化文本
+ * @return 格式化后的文本
+ */
 std::string ProgressBar::formatText() const {
     std::string result = textFormat_;
     
@@ -246,10 +326,18 @@ std::string ProgressBar::formatText() const {
     return result;
 }
 
+/**
+ * @brief 获取边界框
+ * @return 边界矩形
+ */
 Rect ProgressBar::getBoundingBox() const {
     return Rect(getPosition().x, getPosition().y, getSize().width, getSize().height);
 }
 
+/**
+ * @brief 更新函数
+ * @param deltaTime 帧间隔时间
+ */
 void ProgressBar::onUpdate(float deltaTime) {
     if (animatedChangeEnabled_ && displayValue_ != value_) {
         float diff = value_ - displayValue_;
@@ -285,25 +373,26 @@ void ProgressBar::onUpdate(float deltaTime) {
     }
 }
 
+/**
+ * @brief 绘制组件
+ * @param renderer 渲染后端
+ */
 void ProgressBar::onDrawWidget(RenderBackend &renderer) {
     Vec2 pos = getPosition();
     Size size = getSize();
     
-    // 计算实际绘制区域
     float bgX = pos.x + padding_;
     float bgY = pos.y + padding_;
     float bgW = size.width - padding_ * 2;
     float bgH = size.height - padding_ * 2;
     Rect bgRect(bgX, bgY, bgW, bgH);
     
-    // 绘制背景
     if (roundedCornersEnabled_) {
         fillRoundedRect(renderer, bgRect, bgColor_, cornerRadius_);
     } else {
         renderer.fillRect(bgRect, bgColor_);
     }
     
-    // 计算填充区域
     float percent = getPercent();
     float fillX = bgX, fillY = bgY, fillW = bgW, fillH = bgH;
     
@@ -325,7 +414,6 @@ void ProgressBar::onDrawWidget(RenderBackend &renderer) {
     }
     Rect fillRect(fillX, fillY, fillW, fillH);
     
-    // 绘制延迟显示效果
     if (delayedDisplayEnabled_ && delayedValue_ > displayValue_) {
         float delayedPercent = (delayedValue_ - min_) / (max_ - min_);
         float delayedX = bgX, delayedY = bgY, delayedW = bgW, delayedH = bgH;
@@ -355,7 +443,6 @@ void ProgressBar::onDrawWidget(RenderBackend &renderer) {
         }
     }
     
-    // 绘制填充
     if (fillW > 0 && fillH > 0) {
         Color fillColor = getCurrentFillColor();
         
@@ -370,7 +457,6 @@ void ProgressBar::onDrawWidget(RenderBackend &renderer) {
         }
     }
     
-    // 绘制边框
     if (borderEnabled_) {
         if (roundedCornersEnabled_) {
             drawRoundedRect(renderer, bgRect, borderColor_, cornerRadius_);
@@ -379,7 +465,6 @@ void ProgressBar::onDrawWidget(RenderBackend &renderer) {
         }
     }
     
-    // 绘制文本
     if (textEnabled_ && font_) {
         std::string text = formatText();
         Vec2 textSize = font_->measureText(text);
@@ -393,14 +478,33 @@ void ProgressBar::onDrawWidget(RenderBackend &renderer) {
     }
 }
 
+/**
+ * @brief 绘制圆角矩形边框
+ * @param renderer 渲染后端
+ * @param rect 矩形区域
+ * @param color 颜色
+ * @param radius 圆角半径
+ */
 void ProgressBar::drawRoundedRect(RenderBackend &renderer, const Rect &rect, const Color &color, float radius) {
     renderer.drawRect(rect, color, borderWidth_);
 }
 
+/**
+ * @brief 填充圆角矩形
+ * @param renderer 渲染后端
+ * @param rect 矩形区域
+ * @param color 颜色
+ * @param radius 圆角半径
+ */
 void ProgressBar::fillRoundedRect(RenderBackend &renderer, const Rect &rect, const Color &color, float radius) {
     renderer.fillRect(rect, color);
 }
 
+/**
+ * @brief 绘制条纹效果
+ * @param renderer 渲染后端
+ * @param rect 矩形区域
+ */
 void ProgressBar::drawStripes(RenderBackend &renderer, const Rect &rect) {
     const float stripeWidth = 10.0f;
     const float spacing = 20.0f;

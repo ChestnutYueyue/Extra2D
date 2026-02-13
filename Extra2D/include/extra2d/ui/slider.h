@@ -18,41 +18,45 @@ public:
     static Ptr<Slider> create(float min, float max, float value);
 
     // ------------------------------------------------------------------------
-    // 链式调用构建器方法
+    // 数值范围
     // ------------------------------------------------------------------------
-    Slider *withPosition(float x, float y);
-    Slider *withPosition(const Vec2 &pos);
-    Slider *withAnchor(float x, float y);
-    Slider *withAnchor(const Vec2 &anchor);
-    Slider *withSize(float width, float height);
-    Slider *withMinValue(float min);
-    Slider *withMaxValue(float max);
-    Slider *withValue(float value);
-    Slider *withCoordinateSpace(CoordinateSpace space);
-    Slider *withScreenPosition(float x, float y);
-    Slider *withScreenPosition(const Vec2 &pos);
-    Slider *withCameraOffset(float x, float y);
-    Slider *withCameraOffset(const Vec2 &offset);
-
     void setRange(float min, float max);
     float getMin() const { return min_; }
     float getMax() const { return max_; }
 
+    // ------------------------------------------------------------------------
+    // 当前值
+    // ------------------------------------------------------------------------
     void setValue(float value);
     float getValue() const { return value_; }
 
+    // ------------------------------------------------------------------------
+    // 步进值
+    // ------------------------------------------------------------------------
     void setStep(float step);
     float getStep() const { return step_; }
 
+    // ------------------------------------------------------------------------
+    // 方向
+    // ------------------------------------------------------------------------
     void setVertical(bool vertical);
     bool isVertical() const { return vertical_; }
 
+    // ------------------------------------------------------------------------
+    // 轨道尺寸
+    // ------------------------------------------------------------------------
     void setTrackSize(float size);
     float getTrackSize() const { return trackSize_; }
 
+    // ------------------------------------------------------------------------
+    // 滑块尺寸
+    // ------------------------------------------------------------------------
     void setThumbSize(float size);
     float getThumbSize() const { return thumbSize_; }
 
+    // ------------------------------------------------------------------------
+    // 颜色设置
+    // ------------------------------------------------------------------------
     void setTrackColor(const Color &color);
     Color getTrackColor() const { return trackColor_; }
 
@@ -68,12 +72,18 @@ public:
     void setThumbPressedColor(const Color &color);
     Color getThumbPressedColor() const { return thumbPressedColor_; }
 
+    // ------------------------------------------------------------------------
+    // 显示设置
+    // ------------------------------------------------------------------------
     void setShowThumb(bool show);
     bool isShowThumb() const { return showThumb_; }
 
     void setShowFill(bool show);
     bool isShowFill() const { return showFill_; }
 
+    // ------------------------------------------------------------------------
+    // 文本显示
+    // ------------------------------------------------------------------------
     void setTextEnabled(bool enabled);
     bool isTextEnabled() const { return textEnabled_; }
 
@@ -86,6 +96,9 @@ public:
     void setTextFormat(const std::string &format);
     const std::string &getTextFormat() const { return textFormat_; }
 
+    // ------------------------------------------------------------------------
+    // 回调设置
+    // ------------------------------------------------------------------------
     void setOnValueChange(Function<void(float)> callback);
     void setOnDragStart(Function<void()> callback);
     void setOnDragEnd(Function<void()> callback);
@@ -104,7 +117,7 @@ private:
     float min_ = 0.0f;
     float max_ = 100.0f;
     float value_ = 50.0f;
-    float step_ = 0.0f; // 0表示无步进
+    float step_ = 0.0f;
     
     bool vertical_ = false;
     float trackSize_ = 6.0f;

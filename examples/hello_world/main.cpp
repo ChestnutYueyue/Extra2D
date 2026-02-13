@@ -2,7 +2,6 @@
 
 using namespace extra2d;
 
-
 // ============================================================================
 // Hello World 场景
 // ============================================================================
@@ -33,34 +32,34 @@ public:
 
     // 创建 "你好世界" 文本组件 - 使用屏幕空间（固定位置，不随相机移动）
     auto text1 = Text::create("你好世界", font_);
-    text1->withCoordinateSpace(CoordinateSpace::Screen)
-          ->withScreenPosition(640.0f, 360.0f)  // 屏幕中心
-          ->withAnchor(0.5f, 0.5f)  // 中心锚点，让文字中心对准位置
-          ->withTextColor(Color(1.0f, 1.0f, 1.0f, 1.0f));
+    text1->setCoordinateSpace(CoordinateSpace::Screen);
+    text1->setScreenPosition(640.0f, 360.0f); // 屏幕中心
+    text1->setAnchor(0.5f, 0.5f);             // 中心锚点，让文字中心对准位置
+    text1->setTextColor(Color(1.0f, 1.0f, 1.0f, 1.0f));
     addChild(text1);
 
     // 创建提示文本组件 - 使用屏幕空间，固定在屏幕底部
     auto text2 = Text::create("退出按键（START 按钮）", font_);
-    text2->withCoordinateSpace(CoordinateSpace::Screen)
-          ->withScreenPosition(640.0f, 650.0f)  // 屏幕底部
-          ->withAnchor(0.5f, 0.5f)
-          ->withTextColor(Color(1.0f, 1.0f, 0.0f, 1.0f));
+    text2->setCoordinateSpace(CoordinateSpace::Screen);
+    text2->setScreenPosition(640.0f, 650.0f); // 屏幕底部
+    text2->setAnchor(0.5f, 0.5f);
+    text2->setTextColor(Color(1.0f, 1.0f, 0.0f, 1.0f));
     addChild(text2);
 
     // 创建相机空间文本 - 跟随相机但保持相对偏移
     auto text3 = Text::create("相机空间文本", font_);
-    text3->withCoordinateSpace(CoordinateSpace::Camera)
-          ->withCameraOffset(50.0f, 50.0f)  // 相机左上角偏移（屏幕坐标系Y向下）
-          ->withAnchor(0.0f, 0.0f)  // 左上角锚点，文字从指定位置开始显示
-          ->withTextColor(Color(0.0f, 1.0f, 1.0f, 1.0f));
+    text3->setCoordinateSpace(CoordinateSpace::Camera);
+    text3->setCameraOffset(50.0f, 50.0f); // 相机左上角偏移（屏幕坐标系Y向下）
+    text3->setAnchor(0.0f, 0.0f);         // 左上角锚点，文字从指定位置开始显示
+    text3->setTextColor(Color(0.0f, 1.0f, 1.0f, 1.0f));
     addChild(text3);
 
     // 创建世界空间文本 - 随相机移动（默认行为）
     auto text4 = Text::create("世界空间文本", font_);
-    text4->withCoordinateSpace(CoordinateSpace::World)
-          ->withPosition(100.0f, 100.0f)  // 世界坐标
-          ->withAnchor(0.0f, 0.0f)  // 左上角锚点，文字从指定位置开始显示
-          ->withTextColor(Color(1.0f, 0.5f, 0.5f, 1.0f));
+    text4->setCoordinateSpace(CoordinateSpace::World);
+    text4->setPosition(100.0f, 100.0f); // 世界坐标
+    text4->setAnchor(0.0f, 0.0f);       // 左上角锚点，文字从指定位置开始显示
+    text4->setTextColor(Color(1.0f, 0.5f, 0.5f, 1.0f));
     addChild(text4);
   }
 
@@ -89,8 +88,7 @@ private:
 // 程序入口
 // ============================================================================
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
   // 初始化日志系统
   Logger::init();
   Logger::setLevel(LogLevel::Debug);
