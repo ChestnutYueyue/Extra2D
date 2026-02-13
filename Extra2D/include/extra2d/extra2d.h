@@ -66,7 +66,14 @@
 
 // Action
 #include <extra2d/action/action.h>
-#include <extra2d/action/actions.h>
+#include <extra2d/action/finite_time_action.h>
+#include <extra2d/action/action_interval.h>
+#include <extra2d/action/action_instant.h>
+#include <extra2d/action/action_interval_actions.h>
+#include <extra2d/action/action_instant_actions.h>
+#include <extra2d/action/action_ease.h>
+#include <extra2d/action/action_special.h>
+#include <extra2d/action/action_manager.h>
 #include <extra2d/action/ease.h>
 
 // Event

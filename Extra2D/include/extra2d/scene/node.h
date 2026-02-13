@@ -76,6 +76,25 @@ public:
   void setVisible(bool visible);
   bool isVisible() const { return visible_; }
 
+  /**
+   * @brief 设置颜色
+   * @param color RGB颜色
+   */
+  void setColor(const Color3B& color);
+  Color3B getColor() const { return color_; }
+
+  /**
+   * @brief 设置X轴翻转
+   */
+  void setFlipX(bool flipX);
+  bool isFlipX() const { return flipX_; }
+
+  /**
+   * @brief 设置Y轴翻转
+   */
+  void setFlipY(bool flipY);
+  bool isFlipY() const { return flipY_; }
+
   void setZOrder(int zOrder);
   int getZOrder() const { return zOrder_; }
 
@@ -139,12 +158,54 @@ public:
   // ------------------------------------------------------------------------
   // 动作系统
   // ------------------------------------------------------------------------
-  void runAction(Ptr<Action> action);
+  /**
+   * @brief 运行动作
+   * @param action 动作指针（所有权转移）
+   * @return 动作指针
+   */
+  Action* runAction(Action* action);
+
+  /**
+   * @brief 停止所有动作
+   */
   void stopAllActions();
-  void stopAction(Ptr<Action> action);
+
+  /**
+   * @brief 停止指定动作
+   * @param action 动作指针
+   */
+  void stopAction(Action* action);
+
+  /**
+   * @brief 根据标签停止动作
+   * @param tag 标签值
+   */
   void stopActionByTag(int tag);
-  Ptr<Action> getActionByTag(int tag) const;
-  size_t getActionCount() const { return actions_.size(); }
+
+  /**
+   * @brief 根据标志位停止动作
+   * @param flags 标志位
+   */
+  void stopActionsByFlags(unsigned int flags);
+
+  /**
+   * @brief 根据标签获取动作
+   * @param tag 标签值
+   * @return 动作指针，未找到返回 nullptr
+   */
+  Action* getActionByTag(int tag);
+
+  /**
+   * @brief 获取运行中的动作数量
+   * @return 动作数量
+   */
+  size_t getActionCount() const;
+
+  /**
+   * @brief 检查是否有动作在运行
+   * @return true 如果有动作在运行
+   */
+  bool isRunningActions() const;
 
   // ------------------------------------------------------------------------
   // 事件系统
@@ -198,14 +259,10 @@ private:
   std::unordered_map<std::string, WeakPtr<Node>> nameIndex_; // 56 bytes
   std::unordered_map<int, WeakPtr<Node>> tagIndex_;          // 56 bytes
 
-  // 4. 动作系统（使用 unordered_map 加速 tag 查找）
-  std::unordered_map<int, Ptr<Action>> actionByTag_; // 56 bytes
-  std::vector<Ptr<Action>> actions_;                 // 24 bytes（无 tag 的 Action）
-
-  // 5. 事件分发器
+  // 4. 事件分发器
   EventDispatcher eventDispatcher_;    // 大小取决于实现
 
-  // 6. 父节点引用
+  // 5. 父节点引用
   WeakPtr<Node> parent_;               // 16 bytes
 
   // 7. 变换属性（按访问频率分组）
@@ -221,9 +278,16 @@ private:
   float rotation_ = 0.0f;              // 4 bytes
   float opacity_ = 1.0f;               // 4 bytes
 
-  // 10. 整数属性
+  // 10. 颜色属性
+  Color3B color_ = Color3B(255, 255, 255); // 3 bytes
+
+  // 11. 整数属性
   int zOrder_ = 0;                     // 4 bytes
   int tag_ = -1;                       // 4 bytes
+
+  // 12. 布尔属性
+  bool flipX_ = false;                 // 1 byte
+  bool flipY_ = false;                 // 1 byte
 
   // 11. 场景指针
   Scene *scene_ = nullptr;             // 8 bytes

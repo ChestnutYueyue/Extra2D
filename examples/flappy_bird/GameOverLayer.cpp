@@ -44,8 +44,7 @@ void GameOverLayer::onEnter() {
   initButtons();
 
   // 创建向上移动的动画（从屏幕底部移动到正常位置）
-  auto moveAction = extra2d::makePtr<extra2d::MoveBy>(
-      1.0f, extra2d::Vec2(0.0f, -screenHeight));
+  auto moveAction = extra2d::MoveBy::create(1.0f, extra2d::Vec2(0.0f, -screenHeight));
   moveAction->setCompletionCallback([this]() {
     animationDone_ = true;
     if (restartBtn_)

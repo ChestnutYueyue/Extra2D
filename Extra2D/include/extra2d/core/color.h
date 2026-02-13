@@ -6,6 +6,40 @@
 
 namespace extra2d {
 
+/// RGB 颜色（字节，每通道 0-255）
+struct Color3B {
+  uint8_t r = 255;
+  uint8_t g = 255;
+  uint8_t b = 255;
+
+  constexpr Color3B() = default;
+  constexpr Color3B(uint8_t r, uint8_t g, uint8_t b) : r(r), g(g), b(b) {}
+
+  constexpr bool operator==(const Color3B& other) const {
+    return r == other.r && g == other.g && b == other.b;
+  }
+
+  constexpr bool operator!=(const Color3B& other) const {
+    return !(*this == other);
+  }
+
+  Color3B operator+(const Color3B& other) const {
+    return Color3B(
+      static_cast<uint8_t>(std::min(255, static_cast<int>(r) + other.r)),
+      static_cast<uint8_t>(std::min(255, static_cast<int>(g) + other.g)),
+      static_cast<uint8_t>(std::min(255, static_cast<int>(b) + other.b))
+    );
+  }
+
+  Color3B operator-(const Color3B& other) const {
+    return Color3B(
+      static_cast<uint8_t>(std::max(0, static_cast<int>(r) - other.r)),
+      static_cast<uint8_t>(std::max(0, static_cast<int>(g) - other.g)),
+      static_cast<uint8_t>(std::max(0, static_cast<int>(b) - other.b))
+    );
+  }
+};
+
 /// RGBA 颜色（浮点数，每通道 0.0 - 1.0）
 struct Color {
   float r = 0.0f;

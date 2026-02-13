@@ -1,3 +1,4 @@
+#include <extra2d/action/action_manager.h>
 #include <extra2d/app/application.h>
 #include <extra2d/audio/audio_engine.h>
 #include <extra2d/event/event_dispatcher.h>
@@ -13,9 +14,9 @@
 #include <extra2d/utils/object_pool.h>
 #include <extra2d/utils/timer.h>
 
+
 #include <chrono>
 #include <thread>
-#include <time.h>
 
 #ifdef __SWITCH__
 #include <switch.h>
@@ -74,7 +75,8 @@ bool Application::init(const AppConfig &config) {
     if (R_SUCCEEDED(rc)) {
       E2D_LOG_INFO("RomFS initialized successfully");
     } else {
-      E2D_LOG_WARN("romfsInit failed: {:#08X}, will use regular filesystem", rc);
+      E2D_LOG_WARN("romfsInit failed: {:#08X}, will use regular filesystem",
+                   rc);
     }
 
     // ========================================
@@ -98,7 +100,7 @@ bool Application::init(const AppConfig &config) {
   winConfig.height = config.height;
   if (platform == PlatformType::Switch) {
     winConfig.fullscreen = true;
-    winConfig.fullscreenDesktop = false;  // Switch 使用固定分辨率全屏
+    winConfig.fullscreenDesktop = false; // Switch 使用固定分辨率全屏
     winConfig.resizable = false;
     winConfig.enableCursors = false;
     winConfig.enableDpiScale = false;
@@ -170,12 +172,12 @@ bool Application::init(const AppConfig &config) {
 
 void Application::prewarmObjectPools() {
   E2D_LOG_INFO("Prewarming object pools...");
-  
-  auto& poolManager = ObjectPoolManager::getInstance();
-  
+
+  auto &poolManager = ObjectPoolManager::getInstance();
+
   // 预热常用类型的对象池
   // 这些池会在首次使用时自动预热，但提前预热可以避免运行时延迟
-  
+
   E2D_LOG_INFO("Object pools prewarmed successfully");
 }
 
@@ -187,9 +189,9 @@ void Application::shutdown() {
 
   // 打印 VRAM 统计
   VRAMManager::getInstance().printStats();
-  
+
   // 打印对象池内存统计
-  E2D_LOG_INFO("Object pool memory usage: {} bytes (auto-managed)", 
+  E2D_LOG_INFO("Object pool memory usage: {} bytes (auto-managed)",
                ObjectPoolManager::getInstance().getPool<Node>()->memoryUsage());
 
   // 先结束所有场景，确保 onExit() 被正确调用
@@ -201,9 +203,9 @@ void Application::shutdown() {
   // 1. 先清理所有持有 GPU 资源的子系统
   // 必须在渲染器关闭前释放纹理等资源
   // ========================================
-  sceneManager_.reset();       // 场景持有纹理引用
-  resourceManager_.reset();    // 纹理缓存持有 GPU 纹理
-  camera_.reset();             // 相机可能持有渲染目标
+  sceneManager_.reset();    // 场景持有纹理引用
+  resourceManager_.reset(); // 纹理缓存持有 GPU 纹理
+  camera_.reset();          // 相机可能持有渲染目标
 
   // ========================================
   // 2. 关闭音频（不依赖 GPU）
@@ -340,6 +342,9 @@ void Application::mainLoop() {
 }
 
 void Application::update() {
+  // Update action manager (single update per frame)
+  ActionManager::getInstance()->update(deltaTime_);
+
   if (timerManager_) {
     timerManager_->update(deltaTime_);
   }

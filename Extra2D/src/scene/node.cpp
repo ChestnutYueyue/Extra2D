@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <cmath>
 #include <extra2d/action/action.h>
+#include <extra2d/action/action_manager.h>
 #include <extra2d/graphics/render_command.h>
 #include <extra2d/scene/node.h>
 #include <extra2d/scene/scene.h>
@@ -13,6 +14,7 @@ Node::Node() = default;
 Node::~Node() {
   removeAllChildren();
   stopAllActions();
+  ActionManager::getInstance()->removeAllActionsFromTarget(this);
 }
 
 void Node::addChild(Ptr<Node> child) {
@@ -201,6 +203,12 @@ void Node::setOpacity(float opacity) {
 
 void Node::setVisible(bool visible) { visible_ = visible; }
 
+void Node::setColor(const Color3B& color) { color_ = color; }
+
+void Node::setFlipX(bool flipX) { flipX_ = flipX; }
+
+void Node::setFlipY(bool flipY) { flipY_ = flipY; }
+
 void Node::setZOrder(int zOrder) {
   if (zOrder_ != zOrder) {
     zOrder_ = zOrder;
@@ -332,17 +340,6 @@ void Node::onExit() {
 void Node::onUpdate(float dt) {
   onUpdateNode(dt);
 
-  // Update actions
-  for (auto it = actions_.begin(); it != actions_.end();) {
-    auto &action = *it;
-    action->update(dt);
-    if (action->isDone()) {
-      it = actions_.erase(it);
-    } else {
-      ++it;
-    }
-  }
-
   // Update children
   for (auto &child : children_) {
     child->onUpdate(dt);
@@ -406,74 +403,44 @@ void Node::updateSpatialIndex() {
   }
 }
 
-void Node::runAction(Ptr<Action> action) {
+// ============================================================================
+// 动作系统 - 新接口
+// ============================================================================
+
+Action* Node::runAction(Action* action) {
   if (!action) {
-    return;
+    return nullptr;
   }
-
-  action->start(this);
-
-  int tag = action->getTag();
-  if (tag != -1) {
-    // 有 tag 的 Action 存入哈希表，O(1) 查找
-    // 如果已存在相同 tag 的 Action，先停止它
-    auto it = actionByTag_.find(tag);
-    if (it != actionByTag_.end()) {
-      // 从 vector 中移除旧的 Action
-      auto oldAction = it->second;
-      auto vecIt = std::find(actions_.begin(), actions_.end(), oldAction);
-      if (vecIt != actions_.end()) {
-        actions_.erase(vecIt);
-      }
-    }
-    actionByTag_[tag] = action;
-  }
-
-  actions_.push_back(action);
+  ActionManager::getInstance()->addAction(action, this);
+  return action;
 }
 
 void Node::stopAllActions() {
-  actions_.clear();
-  actionByTag_.clear();
+  ActionManager::getInstance()->removeAllActionsFromTarget(this);
 }
 
-void Node::stopAction(Ptr<Action> action) {
-  if (!action) {
-    return;
-  }
-
-  // 从 vector 中移除
-  auto it = std::find(actions_.begin(), actions_.end(), action);
-  if (it != actions_.end()) {
-    // 如果有 tag，从哈希表中也移除
-    int tag = action->getTag();
-    if (tag != -1) {
-      actionByTag_.erase(tag);
-    }
-    actions_.erase(it);
-  }
+void Node::stopAction(Action* action) {
+  ActionManager::getInstance()->removeAction(action);
 }
 
 void Node::stopActionByTag(int tag) {
-  auto it = actionByTag_.find(tag);
-  if (it != actionByTag_.end()) {
-    auto action = it->second;
-    // 从 vector 中移除
-    auto vecIt = std::find(actions_.begin(), actions_.end(), action);
-    if (vecIt != actions_.end()) {
-      actions_.erase(vecIt);
-    }
-    actionByTag_.erase(it);
-  }
+  ActionManager::getInstance()->removeActionByTag(tag, this);
 }
 
-Ptr<Action> Node::getActionByTag(int tag) const {
-  // O(1) 哈希查找
-  auto it = actionByTag_.find(tag);
-  if (it != actionByTag_.end()) {
-    return it->second;
-  }
-  return nullptr;
+void Node::stopActionsByFlags(unsigned int flags) {
+  ActionManager::getInstance()->removeActionsByFlags(flags, this);
+}
+
+Action* Node::getActionByTag(int tag) {
+  return ActionManager::getInstance()->getActionByTag(tag, this);
+}
+
+size_t Node::getActionCount() const {
+  return ActionManager::getInstance()->getActionCount(const_cast<Node*>(this));
+}
+
+bool Node::isRunningActions() const {
+  return getActionCount() > 0;
 }
 
 void Node::update(float dt) { onUpdate(dt); }
