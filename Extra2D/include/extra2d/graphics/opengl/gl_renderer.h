@@ -80,6 +80,7 @@ private:
   // 形状批处理常量
   static constexpr size_t MAX_CIRCLE_SEGMENTS = 128;
   static constexpr size_t MAX_SHAPE_VERTICES = 8192; // 最大形状顶点数
+  static constexpr size_t MAX_LINE_VERTICES = 16384; // 最大线条顶点数
 
   // 形状顶点结构（包含颜色）
   struct ShapeVertex {
@@ -93,6 +94,8 @@ private:
 
   GLuint shapeVao_;
   GLuint shapeVbo_;
+  GLuint lineVao_; // 线条专用 VAO
+  GLuint lineVbo_; // 线条专用 VBO
 
   glm::mat4 viewProjection_;
   std::vector<glm::mat4> transformStack_;
@@ -104,6 +107,11 @@ private:
   size_t shapeVertexCount_ = 0;
   GLenum currentShapeMode_ = GL_TRIANGLES;
 
+  // 线条批处理缓冲区
+  std::array<ShapeVertex, MAX_LINE_VERTICES> lineVertexCache_;
+  size_t lineVertexCount_ = 0;
+  float currentLineWidth_ = 1.0f;
+
   // OpenGL 状态缓存
   BlendMode cachedBlendMode_ = BlendMode::None;
   bool blendEnabled_ = false;
@@ -114,7 +122,9 @@ private:
 
   void initShapeRendering();
   void flushShapeBatch();
+  void flushLineBatch();
   void addShapeVertex(float x, float y, const Color &color);
+  void addLineVertex(float x, float y, const Color &color);
   void submitShapeBatch(GLenum mode);
 };
 

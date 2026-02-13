@@ -61,10 +61,14 @@ static constexpr size_t BLEND_STATE_COUNT =
     sizeof(BLEND_STATES) / sizeof(BLEND_STATES[0]);
 
 GLRenderer::GLRenderer()
-    : window_(nullptr), shapeVao_(0), shapeVbo_(0), vsync_(true),
-      shapeVertexCount_(0), currentShapeMode_(GL_TRIANGLES) {
+    : window_(nullptr), shapeVao_(0), shapeVbo_(0), lineVao_(0), lineVbo_(0),
+      vsync_(true), shapeVertexCount_(0), currentShapeMode_(GL_TRIANGLES),
+      lineVertexCount_(0), currentLineWidth_(1.0f) {
   resetStats();
   for (auto &v : shapeVertexCache_) {
+    v = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+  }
+  for (auto &v : lineVertexCache_) {
     v = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
   }
 }
@@ -106,9 +110,20 @@ void GLRenderer::shutdown() {
 
   spriteBatch_.shutdown();
 
+  if (lineVbo_ != 0) {
+    glDeleteBuffers(1, &lineVbo_);
+    VRAMManager::getInstance().freeBuffer(MAX_LINE_VERTICES *
+                                          sizeof(ShapeVertex));
+    lineVbo_ = 0;
+  }
+  if (lineVao_ != 0) {
+    glDeleteVertexArrays(1, &lineVao_);
+    lineVao_ = 0;
+  }
   if (shapeVbo_ != 0) {
     glDeleteBuffers(1, &shapeVbo_);
-    VRAMManager::getInstance().freeBuffer(SHAPE_VBO_SIZE);
+    VRAMManager::getInstance().freeBuffer(MAX_SHAPE_VERTICES *
+                                          sizeof(ShapeVertex));
     shapeVbo_ = 0;
   }
   if (shapeVao_ != 0) {
@@ -126,6 +141,8 @@ void GLRenderer::beginFrame(const Color &clearColor) {
 void GLRenderer::endFrame() {
   // 刷新所有待处理的形状批次
   flushShapeBatch();
+  // 刷新所有待处理的线条批次
+  flushLineBatch();
 }
 
 void GLRenderer::setViewport(int x, int y, int width, int height) {
@@ -246,59 +263,42 @@ void GLRenderer::endSpriteBatch() {
 
 void GLRenderer::drawLine(const Vec2 &start, const Vec2 &end,
                           const Color &color, float width) {
-  // 线条需要立即绘制，因为需要设置线宽
-  // 先刷新之前的批处理
-  flushShapeBatch();
+  // 如果线宽改变，需要先刷新线条批次
+  if (width != currentLineWidth_) {
+    flushLineBatch();
+    currentLineWidth_ = width;
+  }
 
-  glLineWidth(width);
-
-  shapeShader_.bind();
-  shapeShader_.setMat4("uViewProjection", viewProjection_);
-
-  ShapeVertex vertices[] = {
-      {start.x, start.y, color.r, color.g, color.b, color.a},
-      {end.x, end.y, color.r, color.g, color.b, color.a}};
-
-  glBindBuffer(GL_ARRAY_BUFFER, shapeVbo_);
-  glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
-
-  glBindVertexArray(shapeVao_);
-  glDrawArrays(GL_LINES, 0, 2);
-
-  stats_.drawCalls++;
-  stats_.triangleCount += 1;
+  // 添加两个顶点到线条缓冲区
+  addLineVertex(start.x, start.y, color);
+  addLineVertex(end.x, end.y, color);
 }
 
 void GLRenderer::drawRect(const Rect &rect, const Color &color, float width) {
-  // 矩形边框需要立即绘制（因为有线宽参数）
-  flushShapeBatch();
+  // 如果线宽改变，需要先刷新线条批次
+  if (width != currentLineWidth_) {
+    flushLineBatch();
+    currentLineWidth_ = width;
+  }
 
   float x1 = rect.origin.x;
   float y1 = rect.origin.y;
   float x2 = rect.origin.x + rect.size.width;
   float y2 = rect.origin.y + rect.size.height;
 
-  glLineWidth(width);
-  shapeShader_.bind();
-  shapeShader_.setMat4("uViewProjection", viewProjection_);
-
   // 4条线段 = 8个顶点
-  ShapeVertex vertices[] = {{x1, y1, color.r, color.g, color.b, color.a},
-                            {x2, y1, color.r, color.g, color.b, color.a},
-                            {x2, y1, color.r, color.g, color.b, color.a},
-                            {x2, y2, color.r, color.g, color.b, color.a},
-                            {x2, y2, color.r, color.g, color.b, color.a},
-                            {x1, y2, color.r, color.g, color.b, color.a},
-                            {x1, y2, color.r, color.g, color.b, color.a},
-                            {x1, y1, color.r, color.g, color.b, color.a}};
-
-  glBindBuffer(GL_ARRAY_BUFFER, shapeVbo_);
-  glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
-
-  glBindVertexArray(shapeVao_);
-  glDrawArrays(GL_LINES, 0, 8);
-
-  stats_.drawCalls++;
+  // 上边
+  addLineVertex(x1, y1, color);
+  addLineVertex(x2, y1, color);
+  // 右边
+  addLineVertex(x2, y1, color);
+  addLineVertex(x2, y2, color);
+  // 下边
+  addLineVertex(x2, y2, color);
+  addLineVertex(x1, y2, color);
+  // 左边
+  addLineVertex(x1, y2, color);
+  addLineVertex(x1, y1, color);
 }
 
 void GLRenderer::fillRect(const Rect &rect, const Color &color) {
@@ -329,36 +329,24 @@ void GLRenderer::drawCircle(const Vec2 &center, float radius,
     segments = static_cast<int>(MAX_CIRCLE_SEGMENTS);
   }
 
-  // 圆形轮廓需要立即绘制（因为有线宽参数）
-  flushShapeBatch();
-
-  glLineWidth(width);
-
-  shapeShader_.bind();
-  shapeShader_.setMat4("uViewProjection", viewProjection_);
-
-  // 使用预分配缓冲区，避免每帧内存分配
-  const size_t vertexCount = static_cast<size_t>(segments + 1);
-  for (int i = 0; i <= segments; ++i) {
-    float angle =
-        2.0f * 3.14159f * static_cast<float>(i) / static_cast<float>(segments);
-    size_t idx = static_cast<size_t>(i);
-    shapeVertexCache_[idx].x = center.x + radius * cosf(angle);
-    shapeVertexCache_[idx].y = center.y + radius * sinf(angle);
-    shapeVertexCache_[idx].r = color.r;
-    shapeVertexCache_[idx].g = color.g;
-    shapeVertexCache_[idx].b = color.b;
-    shapeVertexCache_[idx].a = color.a;
+  // 如果线宽改变，需要先刷新线条批次
+  if (width != currentLineWidth_) {
+    flushLineBatch();
+    currentLineWidth_ = width;
   }
 
-  glBindBuffer(GL_ARRAY_BUFFER, shapeVbo_);
-  glBufferSubData(GL_ARRAY_BUFFER, 0, vertexCount * sizeof(ShapeVertex),
-                  shapeVertexCache_.data());
+  // 使用线条批处理绘制圆形
+  for (int i = 0; i < segments; ++i) {
+    float angle1 =
+        2.0f * 3.14159f * static_cast<float>(i) / static_cast<float>(segments);
+    float angle2 = 2.0f * 3.14159f * static_cast<float>(i + 1) /
+                   static_cast<float>(segments);
 
-  glBindVertexArray(shapeVao_);
-  glDrawArrays(GL_LINE_STRIP, 0, static_cast<GLsizei>(vertexCount));
-
-  stats_.drawCalls++;
+    addLineVertex(center.x + radius * cosf(angle1),
+                  center.y + radius * sinf(angle1), color);
+    addLineVertex(center.x + radius * cosf(angle2),
+                  center.y + radius * sinf(angle2), color);
+  }
 }
 
 void GLRenderer::fillCircle(const Vec2 &center, float radius,
@@ -406,41 +394,22 @@ void GLRenderer::fillTriangle(const Vec2 &p1, const Vec2 &p2, const Vec2 &p3,
 
 void GLRenderer::drawPolygon(const std::vector<Vec2> &points,
                              const Color &color, float width) {
-  flushShapeBatch();
+  if (points.size() < 2)
+    return;
 
-  glLineWidth(width);
-  shapeShader_.bind();
-  shapeShader_.setMat4("uViewProjection", viewProjection_);
-
-  size_t pointCount = std::min(points.size(), MAX_CIRCLE_SEGMENTS);
-
-  for (size_t i = 0; i < pointCount; ++i) {
-    size_t idx = i;
-    shapeVertexCache_[idx].x = points[i].x;
-    shapeVertexCache_[idx].y = points[i].y;
-    shapeVertexCache_[idx].r = color.r;
-    shapeVertexCache_[idx].g = color.g;
-    shapeVertexCache_[idx].b = color.b;
-    shapeVertexCache_[idx].a = color.a;
+  // 如果线宽改变，需要先刷新线条批次
+  if (width != currentLineWidth_) {
+    flushLineBatch();
+    currentLineWidth_ = width;
   }
 
-  // 闭合多边形
-  shapeVertexCache_[pointCount].x = points[0].x;
-  shapeVertexCache_[pointCount].y = points[0].y;
-  shapeVertexCache_[pointCount].r = color.r;
-  shapeVertexCache_[pointCount].g = color.g;
-  shapeVertexCache_[pointCount].b = color.b;
-  shapeVertexCache_[pointCount].a = color.a;
-  pointCount++;
-
-  glBindBuffer(GL_ARRAY_BUFFER, shapeVbo_);
-  glBufferSubData(GL_ARRAY_BUFFER, 0, pointCount * sizeof(ShapeVertex),
-                  shapeVertexCache_.data());
-
-  glBindVertexArray(shapeVao_);
-  glDrawArrays(GL_LINE_STRIP, 0, static_cast<GLsizei>(pointCount));
-
-  stats_.drawCalls++;
+  // 绘制所有边
+  for (size_t i = 0; i < points.size(); ++i) {
+    const Vec2 &p1 = points[i];
+    const Vec2 &p2 = points[(i + 1) % points.size()];
+    addLineVertex(p1.x, p1.y, color);
+    addLineVertex(p2.x, p2.y, color);
+  }
 }
 
 void GLRenderer::fillPolygon(const std::vector<Vec2> &points,
@@ -517,14 +486,34 @@ void GLRenderer::initShapeRendering() {
   // 编译形状着色器
   shapeShader_.compileFromSource(SHAPE_VERTEX_SHADER, SHAPE_FRAGMENT_SHADER);
 
-  // 创建 VAO 和 VBO
+  // 创建形状 VAO 和 VBO
   glGenVertexArrays(1, &shapeVao_);
   glGenBuffers(1, &shapeVbo_);
 
   glBindVertexArray(shapeVao_);
   glBindBuffer(GL_ARRAY_BUFFER, shapeVbo_);
-  // 使用更大的缓冲区以支持形状批处理
   glBufferData(GL_ARRAY_BUFFER, MAX_SHAPE_VERTICES * sizeof(ShapeVertex),
+               nullptr, GL_DYNAMIC_DRAW);
+
+  // 位置属性 (location = 0)
+  glEnableVertexAttribArray(0);
+  glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(ShapeVertex),
+                        reinterpret_cast<void *>(offsetof(ShapeVertex, x)));
+
+  // 颜色属性 (location = 1)
+  glEnableVertexAttribArray(1);
+  glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(ShapeVertex),
+                        reinterpret_cast<void *>(offsetof(ShapeVertex, r)));
+
+  glBindVertexArray(0);
+
+  // 创建线条专用 VAO 和 VBO
+  glGenVertexArrays(1, &lineVao_);
+  glGenBuffers(1, &lineVbo_);
+
+  glBindVertexArray(lineVao_);
+  glBindBuffer(GL_ARRAY_BUFFER, lineVbo_);
+  glBufferData(GL_ARRAY_BUFFER, MAX_LINE_VERTICES * sizeof(ShapeVertex),
                nullptr, GL_DYNAMIC_DRAW);
 
   // 位置属性 (location = 0)
@@ -542,6 +531,8 @@ void GLRenderer::initShapeRendering() {
   // VRAM 跟踪
   VRAMManager::getInstance().allocBuffer(MAX_SHAPE_VERTICES *
                                          sizeof(ShapeVertex));
+  VRAMManager::getInstance().allocBuffer(MAX_LINE_VERTICES *
+                                         sizeof(ShapeVertex));
 }
 
 void GLRenderer::addShapeVertex(float x, float y, const Color &color) {
@@ -549,6 +540,19 @@ void GLRenderer::addShapeVertex(float x, float y, const Color &color) {
     flushShapeBatch();
   }
   ShapeVertex &v = shapeVertexCache_[shapeVertexCount_++];
+  v.x = x;
+  v.y = y;
+  v.r = color.r;
+  v.g = color.g;
+  v.b = color.b;
+  v.a = color.a;
+}
+
+void GLRenderer::addLineVertex(float x, float y, const Color &color) {
+  if (lineVertexCount_ >= MAX_LINE_VERTICES) {
+    flushLineBatch();
+  }
+  ShapeVertex &v = lineVertexCache_[lineVertexCount_++];
   v.x = x;
   v.y = y;
   v.r = color.r;
@@ -586,6 +590,29 @@ void GLRenderer::flushShapeBatch() {
   stats_.triangleCount += static_cast<uint32_t>(shapeVertexCount_ / 3);
 
   shapeVertexCount_ = 0;
+}
+
+void GLRenderer::flushLineBatch() {
+  if (lineVertexCount_ == 0)
+    return;
+
+  // 先刷新形状批次
+  flushShapeBatch();
+
+  glLineWidth(currentLineWidth_);
+  shapeShader_.bind();
+  shapeShader_.setMat4("uViewProjection", viewProjection_);
+
+  glBindBuffer(GL_ARRAY_BUFFER, lineVbo_);
+  glBufferSubData(GL_ARRAY_BUFFER, 0, lineVertexCount_ * sizeof(ShapeVertex),
+                  lineVertexCache_.data());
+
+  glBindVertexArray(lineVao_);
+  glDrawArrays(GL_LINES, 0, static_cast<GLsizei>(lineVertexCount_));
+
+  stats_.drawCalls++;
+
+  lineVertexCount_ = 0;
 }
 
 } // namespace extra2d
