@@ -97,7 +97,8 @@ Vec2 GLFontAtlas::measureText(const std::string &text) {
 // 创建图集纹理 - 初始化空白纹理和矩形打包上下文
 // ============================================================================
 void GLFontAtlas::createAtlas() {
-  int channels = useSDF_ ? 1 : 4;
+  // 统一使用 4 通道格式
+  int channels = 4;
   std::vector<uint8_t> emptyData(ATLAS_WIDTH * ATLAS_HEIGHT * channels, 0);
   texture_ = std::make_unique<GLTexture>(ATLAS_WIDTH, ATLAS_HEIGHT,
                                          emptyData.data(), channels);
@@ -107,6 +108,12 @@ void GLFontAtlas::createAtlas() {
   packNodes_.resize(ATLAS_WIDTH);
   stbrp_init_target(&packContext_, ATLAS_WIDTH, ATLAS_HEIGHT, packNodes_.data(),
                     ATLAS_WIDTH);
+  
+  // 预分配字形缓冲区
+  // 假设最大字形尺寸为 fontSize * fontSize * 4 (RGBA)
+  size_t maxGlyphSize = static_cast<size_t>(fontSize_ * fontSize_ * 4 * 4);
+  glyphBitmapCache_.reserve(maxGlyphSize);
+  glyphRgbaCache_.reserve(maxGlyphSize);
 }
 
 // ============================================================================
@@ -171,14 +178,23 @@ void GLFontAtlas::cacheGlyph(char32_t codepoint) const {
 
     glyphs_[codepoint] = glyph;
 
+    // 将 SDF 单通道数据转换为 RGBA 格式（统一格式）
+    size_t pixelCount = static_cast<size_t>(w) * static_cast<size_t>(h);
+    glyphRgbaCache_.resize(pixelCount * 4);
+    for (size_t i = 0; i < pixelCount; ++i) {
+      uint8_t alpha = sdf[i];
+      glyphRgbaCache_[i * 4 + 0] = 255;   // R
+      glyphRgbaCache_[i * 4 + 1] = 255;   // G
+      glyphRgbaCache_[i * 4 + 2] = 255;   // B
+      glyphRgbaCache_[i * 4 + 3] = alpha; // A - SDF 值存储在 Alpha 通道
+    }
+
+    // 直接设置像素对齐为 4，无需查询当前状态
     glBindTexture(GL_TEXTURE_2D, texture_->getTextureID());
-    GLint prevUnpackAlignment = 4;
-    glGetIntegerv(GL_UNPACK_ALIGNMENT, &prevUnpackAlignment);
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
     // OpenGL纹理坐标原点在左下角，需要将Y坐标翻转
     glTexSubImage2D(GL_TEXTURE_2D, 0, atlasX, ATLAS_HEIGHT - atlasY - h, w, h,
-                    GL_RED, GL_UNSIGNED_BYTE, sdf);
-    glPixelStorei(GL_UNPACK_ALIGNMENT, prevUnpackAlignment);
+                    GL_RGBA, GL_UNSIGNED_BYTE, glyphRgbaCache_.data());
 
     stbtt_FreeSDF(sdf, nullptr);
     return;
@@ -199,9 +215,10 @@ void GLFontAtlas::cacheGlyph(char32_t codepoint) const {
     return;
   }
 
-  std::vector<unsigned char> bitmap(
-      static_cast<size_t>(w) * static_cast<size_t>(h), 0);
-  stbtt_MakeCodepointBitmap(&fontInfo_, bitmap.data(), w, h, w, scale_, scale_,
+  // 使用预分配缓冲区
+  size_t pixelCount = static_cast<size_t>(w) * static_cast<size_t>(h);
+  glyphBitmapCache_.resize(pixelCount);
+  stbtt_MakeCodepointBitmap(&fontInfo_, glyphBitmapCache_.data(), w, h, w, scale_, scale_,
                             static_cast<int>(codepoint));
 
   // 使用 stb_rect_pack 打包矩形
@@ -244,20 +261,22 @@ void GLFontAtlas::cacheGlyph(char32_t codepoint) const {
   glyphs_[codepoint] = glyph;
 
   // 将单通道字形数据转换为 RGBA 格式（白色字形，Alpha 通道存储灰度）
-  std::vector<uint8_t> rgbaData(w * h * 4);
-  for (int i = 0; i < w * h; ++i) {
-    uint8_t alpha = bitmap[static_cast<size_t>(i)];
-    rgbaData[i * 4 + 0] = 255;   // R
-    rgbaData[i * 4 + 1] = 255;   // G
-    rgbaData[i * 4 + 2] = 255;   // B
-    rgbaData[i * 4 + 3] = alpha; // A
+  glyphRgbaCache_.resize(pixelCount * 4);
+  for (size_t i = 0; i < pixelCount; ++i) {
+    uint8_t alpha = glyphBitmapCache_[i];
+    glyphRgbaCache_[i * 4 + 0] = 255;   // R
+    glyphRgbaCache_[i * 4 + 1] = 255;   // G
+    glyphRgbaCache_[i * 4 + 2] = 255;   // B
+    glyphRgbaCache_[i * 4 + 3] = alpha; // A
   }
 
   // 更新纹理 - 将字形数据上传到图集的指定位置
-  // OpenGL纹理坐标原点在左下角，需要将Y坐标翻转
+  // 直接设置像素对齐为 4，无需查询当前状态
   glBindTexture(GL_TEXTURE_2D, texture_->getTextureID());
+  glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+  // OpenGL纹理坐标原点在左下角，需要将Y坐标翻转
   glTexSubImage2D(GL_TEXTURE_2D, 0, atlasX, ATLAS_HEIGHT - atlasY - h, w, h,
-                  GL_RGBA, GL_UNSIGNED_BYTE, rgbaData.data());
+                  GL_RGBA, GL_UNSIGNED_BYTE, glyphRgbaCache_.data());
 }
 
 } // namespace extra2d

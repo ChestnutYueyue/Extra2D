@@ -78,6 +78,10 @@ private:
   const Texture *currentTexture_;
   bool currentIsSDF_;
   glm::mat4 viewProjection_;
+  
+  // 缓存上一帧的 viewProjection，避免重复设置
+  glm::mat4 cachedViewProjection_;
+  bool viewProjectionDirty_ = true;
 
   uint32_t drawCallCount_;
   uint32_t spriteCount_;

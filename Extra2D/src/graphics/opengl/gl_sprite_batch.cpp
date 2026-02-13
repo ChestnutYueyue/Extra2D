@@ -49,6 +49,24 @@ private:
 
 const TrigLookup::Tables TrigLookup::table_;
 
+// 静态索引生成函数
+static const std::array<GLuint, GLSpriteBatch::MAX_INDICES>& getIndices() {
+  static std::array<GLuint, GLSpriteBatch::MAX_INDICES> indices = []() {
+    std::array<GLuint, GLSpriteBatch::MAX_INDICES> arr{};
+    for (size_t i = 0; i < GLSpriteBatch::MAX_SPRITES; ++i) {
+      GLuint base = static_cast<GLuint>(i * GLSpriteBatch::VERTICES_PER_SPRITE);
+      arr[i * GLSpriteBatch::INDICES_PER_SPRITE + 0] = base + 0;
+      arr[i * GLSpriteBatch::INDICES_PER_SPRITE + 1] = base + 1;
+      arr[i * GLSpriteBatch::INDICES_PER_SPRITE + 2] = base + 2;
+      arr[i * GLSpriteBatch::INDICES_PER_SPRITE + 3] = base + 0;
+      arr[i * GLSpriteBatch::INDICES_PER_SPRITE + 4] = base + 2;
+      arr[i * GLSpriteBatch::INDICES_PER_SPRITE + 5] = base + 3;
+    }
+    return arr;
+  }();
+  return indices;
+}
+
 // 顶点着色器 (GLES 3.2)
 static const char *SPRITE_VERTEX_SHADER = R"(
 #version 300 es
@@ -70,6 +88,8 @@ void main() {
 )";
 
 // 片段着色器 (GLES 3.2)
+// SDF 常量硬编码：ONEDGE_VALUE=128/255=0.502, PIXEL_DIST_SCALE=255/64=3.98
+// SDF 值存储在 Alpha 通道
 static const char *SPRITE_FRAGMENT_SHADER = R"(
 #version 300 es
 precision highp float;
@@ -78,15 +98,13 @@ in vec4 vColor;
 
 uniform sampler2D uTexture;
 uniform int uUseSDF;
-uniform float uSdfOnEdge;
-uniform float uSdfScale;
 
 out vec4 fragColor;
 
 void main() {
     if (uUseSDF == 1) {
-        float dist = texture(uTexture, vTexCoord).r;
-        float sd = (dist - uSdfOnEdge) * uSdfScale;
+        float dist = texture(uTexture, vTexCoord).a;
+        float sd = (dist - 0.502) * 3.98;
         float w = fwidth(sd);
         float alpha = smoothstep(-w, w, sd);
         fragColor = vec4(vColor.rgb, vColor.a * alpha);
@@ -136,19 +154,8 @@ bool GLSpriteBatch::init() {
   glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex),
                         (void *)offsetof(Vertex, color));
 
-  // 生成索引缓冲区 - 静态，只需创建一次
-  std::vector<GLuint> indices;
-  indices.reserve(MAX_INDICES);
-  for (size_t i = 0; i < MAX_SPRITES; ++i) {
-    GLuint base = static_cast<GLuint>(i * VERTICES_PER_SPRITE);
-    indices.push_back(base + 0);
-    indices.push_back(base + 1);
-    indices.push_back(base + 2);
-    indices.push_back(base + 0);
-    indices.push_back(base + 2);
-    indices.push_back(base + 3);
-  }
-
+  // 使用编译期生成的静态索引缓冲区
+  const auto& indices = getIndices();
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo_);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(GLuint),
                indices.data(), GL_STATIC_DRAW);
@@ -196,40 +203,55 @@ bool GLSpriteBatch::needsFlush(const Texture &texture, bool isSDF) const {
 }
 
 void GLSpriteBatch::addVertices(const SpriteData &data) {
-  // 计算变换后的顶点位置
-  glm::vec2 anchorOffset(data.size.x * data.anchor.x,
-                         data.size.y * data.anchor.y);
+  // 计算锚点偏移
+  float anchorOffsetX = data.size.x * data.anchor.x;
+  float anchorOffsetY = data.size.y * data.anchor.y;
 
   // 使用三角函数查表替代 cosf/sinf
   float cosR = TrigLookup::cosRad(data.rotation);
   float sinR = TrigLookup::sinRad(data.rotation);
 
-  auto transform = [&](float x, float y) -> glm::vec2 {
-    float rx = x - anchorOffset.x;
-    float ry = y - anchorOffset.y;
-    return glm::vec2(data.position.x + rx * cosR - ry * sinR,
-                     data.position.y + rx * sinR + ry * cosR);
-  };
-
   glm::vec4 color(data.color.r, data.color.g, data.color.b, data.color.a);
 
-  // 添加四个顶点（图片已在加载时翻转，纹理坐标直接使用）
-  // v0(左上) -- v1(右上)
-  //   |           |
-  // v3(左下) -- v2(右下)
-  Vertex v0{transform(0, 0), glm::vec2(data.texCoordMin.x, data.texCoordMin.y),
-            color};
-  Vertex v1{transform(data.size.x, 0),
-            glm::vec2(data.texCoordMax.x, data.texCoordMin.y), color};
-  Vertex v2{transform(data.size.x, data.size.y),
-            glm::vec2(data.texCoordMax.x, data.texCoordMax.y), color};
-  Vertex v3{transform(0, data.size.y),
-            glm::vec2(data.texCoordMin.x, data.texCoordMax.y), color};
-
-  vertexBuffer_[vertexCount_++] = v0;
-  vertexBuffer_[vertexCount_++] = v1;
-  vertexBuffer_[vertexCount_++] = v2;
-  vertexBuffer_[vertexCount_++] = v3;
+  // 直接计算变换后的位置
+  float rx0 = -anchorOffsetX;
+  float ry0 = -anchorOffsetY;
+  float rx1 = data.size.x - anchorOffsetX;
+  float ry1 = data.size.y - anchorOffsetY;
+  
+  // 预计算旋转后的偏移
+  float cosRx0 = rx0 * cosR, sinRx0 = rx0 * sinR;
+  float cosRx1 = rx1 * cosR, sinRx1 = rx1 * sinR;
+  float cosRy0 = ry0 * cosR, sinRy0 = ry0 * sinR;
+  float cosRy1 = ry1 * cosR, sinRy1 = ry1 * sinR;
+  
+  // v0: (0, 0) -> (rx0, ry0)
+  vertexBuffer_[vertexCount_++] = {
+    glm::vec2(data.position.x + cosRx0 - sinRy0, data.position.y + sinRx0 + cosRy0),
+    glm::vec2(data.texCoordMin.x, data.texCoordMin.y),
+    color
+  };
+  
+  // v1: (size.x, 0) -> (rx1, ry0)
+  vertexBuffer_[vertexCount_++] = {
+    glm::vec2(data.position.x + cosRx1 - sinRy0, data.position.y + sinRx1 + cosRy0),
+    glm::vec2(data.texCoordMax.x, data.texCoordMin.y),
+    color
+  };
+  
+  // v2: (size.x, size.y) -> (rx1, ry1)
+  vertexBuffer_[vertexCount_++] = {
+    glm::vec2(data.position.x + cosRx1 - sinRy1, data.position.y + sinRx1 + cosRy1),
+    glm::vec2(data.texCoordMax.x, data.texCoordMax.y),
+    color
+  };
+  
+  // v3: (0, size.y) -> (rx0, ry1)
+  vertexBuffer_[vertexCount_++] = {
+    glm::vec2(data.position.x + cosRx0 - sinRy1, data.position.y + sinRx0 + cosRy1),
+    glm::vec2(data.texCoordMin.x, data.texCoordMax.y),
+    color
+  };
 }
 
 void GLSpriteBatch::draw(const Texture &texture, const SpriteData &data) {
@@ -316,8 +338,7 @@ void GLSpriteBatch::flush() {
   shader_.setMat4("uViewProjection", viewProjection_);
   shader_.setInt("uTexture", 0);
   shader_.setInt("uUseSDF", currentIsSDF_ ? 1 : 0);
-  shader_.setFloat("uSdfOnEdge", 128.0f / 255.0f);
-  shader_.setFloat("uSdfScale", 255.0f / 64.0f);
+  // SDF 常量已硬编码到着色器中
 
   // 更新 VBO 数据 - 只更新实际使用的部分
   glBindBuffer(GL_ARRAY_BUFFER, vbo_);

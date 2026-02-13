@@ -444,6 +444,10 @@ void GLRenderer::drawText(const FontAtlas &font, const std::string &text,
   float cursorY = y;
   float baselineY = cursorY + font.getAscent();
 
+  // 收集所有字符数据用于批处理
+  std::vector<GLSpriteBatch::SpriteData> sprites;
+  sprites.reserve(text.size());  // 预分配空间
+
   for (char32_t codepoint : utf8ToUtf32(text)) {
     if (codepoint == '\n') {
       cursorX = x;
@@ -464,19 +468,23 @@ void GLRenderer::drawText(const FontAtlas &font, const std::string &text,
       float xPos = penX + glyph->bearingX;
       float yPos = baselineY + glyph->bearingY;
 
-      Rect destRect(xPos, yPos, glyph->width, glyph->height);
-
       GLSpriteBatch::SpriteData data;
-      data.position = glm::vec2(destRect.origin.x, destRect.origin.y);
-      data.size = glm::vec2(destRect.size.width, destRect.size.height);
+      data.position = glm::vec2(xPos, yPos);
+      data.size = glm::vec2(glyph->width, glyph->height);
       data.texCoordMin = glm::vec2(glyph->u0, glyph->v0);
       data.texCoordMax = glm::vec2(glyph->u1, glyph->v1);
       data.color = glm::vec4(color.r, color.g, color.b, color.a);
       data.rotation = 0.0f;
       data.anchor = glm::vec2(0.0f, 0.0f);
       data.isSDF = font.isSDF();
-      spriteBatch_.draw(*font.getTexture(), data);
+      
+      sprites.push_back(data);
     }
+  }
+
+  // 使用批处理绘制所有字符
+  if (!sprites.empty()) {
+    spriteBatch_.drawBatch(*font.getTexture(), sprites);
   }
 }
 

@@ -34,9 +34,9 @@ public:
   bool isSDF() const override { return useSDF_; }
 
 private:
-  // 图集配置
-  static constexpr int ATLAS_WIDTH = 512;
-  static constexpr int ATLAS_HEIGHT = 512;
+  // 图集配置 - 增大尺寸以支持更多字符
+  static constexpr int ATLAS_WIDTH = 1024;
+  static constexpr int ATLAS_HEIGHT = 1024;
   static constexpr int PADDING = 2; // 字形之间的间距
 
   int fontSize_;
@@ -55,6 +55,10 @@ private:
   float ascent_;
   float descent_;
   float lineGap_;
+  
+  // 预分配字形位图缓冲区，避免每次动态分配
+  mutable std::vector<uint8_t> glyphBitmapCache_;
+  mutable std::vector<uint8_t> glyphRgbaCache_;
 
   void createAtlas();
   void cacheGlyph(char32_t codepoint) const;
