@@ -11,6 +11,34 @@
 namespace extra2d {
 
 // ============================================================================
+// 快速随机数生成器 - 使用 xorshift 算法，比 std::mt19937 更快
+// ============================================================================
+class FastRNG {
+public:
+  explicit FastRNG(uint32_t seed = 0) : state_(seed ? seed : 0x853c49e67) {}
+
+  float nextFloat() {
+    return static_cast<float>(next()) / static_cast<float>(UINT32_MAX);
+  }
+
+  float nextFloat(float min, float max) {
+    return min + (max - min) * nextFloat();
+  }
+
+private:
+  uint32_t state_;
+
+  uint32_t next() {
+    uint32_t x = state_;
+    x ^= x << 13;
+    x ^= x >> 17;
+    x ^= x << 5;
+    state_ = x;
+    return x;
+  }
+};
+
+// ============================================================================
 // 粒子数据
 // ============================================================================
 struct Particle {
@@ -96,6 +124,12 @@ class ParticleEmitter {
 public:
   ParticleEmitter();
   ~ParticleEmitter() = default;
+
+  // 形状生成函数（公有，用于查找表）
+  Vec2 randomPointShape();
+  Vec2 randomCircleShape();
+  Vec2 randomRectangleShape();
+  Vec2 randomConeShape();
 
   // ------------------------------------------------------------------------
   // 初始化和关闭
@@ -192,7 +226,7 @@ private:
   float emissionTimer_ = 0.0f;
   float emissionTime_ = 0.0f;
 
-  std::mt19937 rng_;
+  FastRNG rng_; // 使用快速 RNG 替代 std::mt19937
 
   void emitParticle();
   float randomFloat(float min, float max);

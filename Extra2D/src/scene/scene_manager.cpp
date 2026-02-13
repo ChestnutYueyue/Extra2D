@@ -9,6 +9,52 @@
 
 namespace extra2d {
 
+// ============================================================================
+// Transition 工厂映射 - 使用函数指针数组替代 switch
+// ============================================================================
+using TransitionFactory = Ptr<Transition> (*)(float);
+
+static Ptr<Transition> createFadeTransition(float duration) {
+  return makePtr<FadeTransition>(duration);
+}
+
+static Ptr<Transition> createSlideLeftTransition(float duration) {
+  return makePtr<SlideTransition>(duration, TransitionDirection::Left);
+}
+
+static Ptr<Transition> createSlideRightTransition(float duration) {
+  return makePtr<SlideTransition>(duration, TransitionDirection::Right);
+}
+
+static Ptr<Transition> createSlideUpTransition(float duration) {
+  return makePtr<SlideTransition>(duration, TransitionDirection::Up);
+}
+
+static Ptr<Transition> createSlideDownTransition(float duration) {
+  return makePtr<SlideTransition>(duration, TransitionDirection::Down);
+}
+
+static Ptr<Transition> createScaleTransition(float duration) {
+  return makePtr<ScaleTransition>(duration);
+}
+
+static Ptr<Transition> createFlipTransition(float duration) {
+  return makePtr<FlipTransition>(duration);
+}
+
+// 工厂函数指针数组，索引对应 TransitionType 枚举值
+static constexpr TransitionFactory TRANSITION_FACTORIES[] = {
+  createFadeTransition,      // TransitionType::Fade = 0
+  createSlideLeftTransition, // TransitionType::SlideLeft = 1
+  createSlideRightTransition,// TransitionType::SlideRight = 2
+  createSlideUpTransition,   // TransitionType::SlideUp = 3
+  createSlideDownTransition, // TransitionType::SlideDown = 4
+  createScaleTransition,     // TransitionType::Scale = 5
+  createFlipTransition       // TransitionType::Flip = 6
+};
+
+static constexpr size_t TRANSITION_FACTORY_COUNT = sizeof(TRANSITION_FACTORIES) / sizeof(TRANSITION_FACTORIES[0]);
+
 namespace {
 
 Node *hitTestTopmost(const Ptr<Node> &node, const Vec2 &worldPos) {
@@ -509,32 +555,14 @@ void SceneManager::startTransition(Ptr<Scene> from, Ptr<Scene> to,
     return;
   }
 
+  // 使用工厂映射替代 switch
   Ptr<Transition> transition;
-  switch (type) {
-  case TransitionType::Fade:
-    transition = makePtr<FadeTransition>(duration);
-    break;
-  case TransitionType::SlideLeft:
-    transition = makePtr<SlideTransition>(duration, TransitionDirection::Left);
-    break;
-  case TransitionType::SlideRight:
-    transition = makePtr<SlideTransition>(duration, TransitionDirection::Right);
-    break;
-  case TransitionType::SlideUp:
-    transition = makePtr<SlideTransition>(duration, TransitionDirection::Up);
-    break;
-  case TransitionType::SlideDown:
-    transition = makePtr<SlideTransition>(duration, TransitionDirection::Down);
-    break;
-  case TransitionType::Scale:
-    transition = makePtr<ScaleTransition>(duration);
-    break;
-  case TransitionType::Flip:
-    transition = makePtr<FlipTransition>(duration);
-    break;
-  default:
-    transition = makePtr<FadeTransition>(duration);
-    break;
+  size_t typeIndex = static_cast<size_t>(type);
+  if (typeIndex < TRANSITION_FACTORY_COUNT) {
+    transition = TRANSITION_FACTORIES[typeIndex](duration);
+  } else {
+    // 默认使用 Fade 过渡
+    transition = TRANSITION_FACTORIES[0](duration);
   }
 
   transition->start(from, to);

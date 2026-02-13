@@ -6,10 +6,25 @@
 namespace extra2d {
 
 // ============================================================================
+// 形状生成函数类型和查找表
+// ============================================================================
+using ShapeGenerator = Vec2 (ParticleEmitter::*)();
+
+// 形状生成函数指针数组，索引对应 EmitterConfig::Shape 枚举值
+static constexpr ShapeGenerator SHAPE_GENERATORS[] = {
+  &ParticleEmitter::randomPointShape,      // Shape::Point = 0
+  &ParticleEmitter::randomCircleShape,     // Shape::Circle = 1
+  &ParticleEmitter::randomRectangleShape,  // Shape::Rectangle = 2
+  &ParticleEmitter::randomConeShape        // Shape::Cone = 3
+};
+
+static constexpr size_t SHAPE_GENERATOR_COUNT = sizeof(SHAPE_GENERATORS) / sizeof(SHAPE_GENERATORS[0]);
+
+// ============================================================================
 // ParticleEmitter实现
 // ============================================================================
 
-ParticleEmitter::ParticleEmitter() : rng_(std::random_device{}()) {}
+ParticleEmitter::ParticleEmitter() : rng_(static_cast<uint32_t>(std::random_device{}())) {}
 
 bool ParticleEmitter::init(size_t maxParticles) {
   particles_.resize(maxParticles);
@@ -187,36 +202,40 @@ void ParticleEmitter::emitParticle() {
 }
 
 float ParticleEmitter::randomFloat(float min, float max) {
-  std::uniform_real_distribution<float> dist(min, max);
-  return dist(rng_);
+  return rng_.nextFloat(min, max);
 }
 
 Vec2 ParticleEmitter::randomPointInShape() {
-  switch (config_.shape) {
-  case EmitterConfig::Shape::Point:
-    return Vec2::Zero();
-
-  case EmitterConfig::Shape::Circle: {
-    float angle = randomFloat(0.0f, 2.0f * 3.14159265359f);
-    float radius = randomFloat(0.0f, config_.shapeRadius);
-    return Vec2(std::cos(angle) * radius, std::sin(angle) * radius);
+  // 使用查找表替代 switch
+  size_t shapeIndex = static_cast<size_t>(config_.shape);
+  if (shapeIndex < SHAPE_GENERATOR_COUNT) {
+    return (this->*SHAPE_GENERATORS[shapeIndex])();
   }
-
-  case EmitterConfig::Shape::Rectangle:
-    return Vec2(
-        randomFloat(-config_.shapeSize.x * 0.5f, config_.shapeSize.x * 0.5f),
-        randomFloat(-config_.shapeSize.y * 0.5f, config_.shapeSize.y * 0.5f));
-
-  case EmitterConfig::Shape::Cone: {
-    float angle =
-        randomFloat(-config_.coneAngle * 0.5f, config_.coneAngle * 0.5f);
-    float radius = randomFloat(0.0f, config_.shapeRadius);
-    float rad = angle * 3.14159265359f / 180.0f;
-    return Vec2(std::cos(rad) * radius, std::sin(rad) * radius);
-  }
-  }
-
   return Vec2::Zero();
+}
+
+Vec2 ParticleEmitter::randomPointShape() {
+  return Vec2::Zero();
+}
+
+Vec2 ParticleEmitter::randomCircleShape() {
+  float angle = randomFloat(0.0f, 2.0f * 3.14159265359f);
+  float radius = randomFloat(0.0f, config_.shapeRadius);
+  return Vec2(std::cos(angle) * radius, std::sin(angle) * radius);
+}
+
+Vec2 ParticleEmitter::randomRectangleShape() {
+  return Vec2(
+      randomFloat(-config_.shapeSize.x * 0.5f, config_.shapeSize.x * 0.5f),
+      randomFloat(-config_.shapeSize.y * 0.5f, config_.shapeSize.y * 0.5f));
+}
+
+Vec2 ParticleEmitter::randomConeShape() {
+  float angle =
+      randomFloat(-config_.coneAngle * 0.5f, config_.coneAngle * 0.5f);
+  float radius = randomFloat(0.0f, config_.shapeRadius);
+  float rad = angle * 3.14159265359f / 180.0f;
+  return Vec2(std::cos(rad) * radius, std::sin(rad) * radius);
 }
 
 Vec2 ParticleEmitter::randomVelocity() {

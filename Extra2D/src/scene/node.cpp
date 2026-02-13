@@ -253,24 +253,23 @@ glm::mat4 Node::getLocalTransform() const {
 
 glm::mat4 Node::getWorldTransform() const {
   if (worldTransformDirty_) {
-    // 迭代计算世界变换，避免深层级时的栈溢出
-    // 收集父节点链
-    std::vector<const Node *> nodeChain;
+    // 使用线程局部存储的固定数组，避免每帧内存分配
+    // 限制最大深度为 256 层，足以覆盖绝大多数场景
+    thread_local std::array<const Node*, 256> nodeChainCache;
+    thread_local size_t chainCount = 0;
+    
+    chainCount = 0;
     const Node *current = this;
-    while (current) {
-      nodeChain.push_back(current);
+    while (current && chainCount < nodeChainCache.size()) {
+      nodeChainCache[chainCount++] = current;
       auto p = current->parent_.lock();
       current = p.get();
-      // 限制最大深度，防止异常循环
-      if (nodeChain.size() > 1000) {
-        break;
-      }
     }
 
     // 从根节点开始计算
     glm::mat4 transform = glm::mat4(1.0f);
-    for (auto it = nodeChain.rbegin(); it != nodeChain.rend(); ++it) {
-      transform = transform * (*it)->getLocalTransform();
+    for (size_t i = chainCount; i > 0; --i) {
+      transform = transform * nodeChainCache[i - 1]->getLocalTransform();
     }
     worldTransform_ = transform;
     worldTransformDirty_ = false;

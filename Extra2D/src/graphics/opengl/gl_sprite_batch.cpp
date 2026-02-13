@@ -5,6 +5,50 @@
 
 namespace extra2d {
 
+// ============================================================================
+// 三角函数查表 - 避免每帧重复计算 sin/cos
+// ============================================================================
+class TrigLookup {
+public:
+  static constexpr size_t TABLE_SIZE = 360 * 4;  // 0.25度精度
+  static constexpr float INDEX_SCALE = 4.0f;      // 每度4个采样点
+  static constexpr float RAD_TO_INDEX = INDEX_SCALE * 180.0f / 3.14159265359f;
+  
+  static float sinRad(float radians) {
+    return table_.sinTable[normalizeIndexRad(radians)];
+  }
+  
+  static float cosRad(float radians) {
+    return table_.cosTable[normalizeIndexRad(radians)];
+  }
+  
+private:
+  struct Tables {
+    std::array<float, TABLE_SIZE> sinTable;
+    std::array<float, TABLE_SIZE> cosTable;
+    
+    Tables() {
+      for (size_t i = 0; i < TABLE_SIZE; ++i) {
+        float angle = static_cast<float>(i) / INDEX_SCALE * 3.14159265359f / 180.0f;
+        sinTable[i] = std::sin(angle);
+        cosTable[i] = std::cos(angle);
+      }
+    }
+  };
+  
+  static size_t normalizeIndexRad(float radians) {
+    int idx = static_cast<int>(radians * RAD_TO_INDEX) % static_cast<int>(TABLE_SIZE);
+    if (idx < 0) {
+      idx += static_cast<int>(TABLE_SIZE);
+    }
+    return static_cast<size_t>(idx);
+  }
+  
+  static const Tables table_;
+};
+
+const TrigLookup::Tables TrigLookup::table_;
+
 // 顶点着色器 (GLES 3.2)
 static const char *SPRITE_VERTEX_SHADER = R"(
 #version 300 es
@@ -156,8 +200,9 @@ void GLSpriteBatch::addVertices(const SpriteData &data) {
   glm::vec2 anchorOffset(data.size.x * data.anchor.x,
                          data.size.y * data.anchor.y);
 
-  float cosR = cosf(data.rotation);
-  float sinR = sinf(data.rotation);
+  // 使用三角函数查表替代 cosf/sinf
+  float cosR = TrigLookup::cosRad(data.rotation);
+  float sinR = TrigLookup::sinRad(data.rotation);
 
   auto transform = [&](float x, float y) -> glm::vec2 {
     float rx = x - anchorOffset.x;
