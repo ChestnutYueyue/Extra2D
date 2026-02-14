@@ -26,6 +26,13 @@ option("debug_logs")
     set_description("Enable debug logging")
 option_end()
 
+option("backend")
+    set_default("sdl2")
+    set_showmenu(true)
+    set_values("sdl2", "glfw")
+    set_description("Platform backend (sdl2, glfw)")
+option_end()
+
 -- ==============================================
 -- 平台检测与配置
 -- ==============================================
@@ -66,7 +73,16 @@ end
 -- ==============================================
 
 if target_plat == "mingw" then
-    add_requires("glm", "libsdl2")
+    local backend = get_config("backend") or "sdl2"
+    
+    add_requires("glm")
+    add_requires("nlohmann_json")
+    
+    if backend == "sdl2" then
+        add_requires("libsdl2")
+    elseif backend == "glfw" then
+        add_requires("glfw")
+    end
 end
 
 -- ==============================================

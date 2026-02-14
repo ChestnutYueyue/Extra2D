@@ -8,21 +8,40 @@ local function get_current_plat()
     return get_config("plat") or os.host()
 end
 
+-- 获取后端配置
+local function get_backend()
+    return get_config("backend") or "sdl2"
+end
+
 -- 定义 Extra2D 引擎库目标
 function define_extra2d_engine()
     target("extra2d")
         set_kind("static")
 
-        -- 引擎源文件
+        -- 引擎核心源文件
         add_files("Extra2D/src/**.cpp")
         add_files("Extra2D/src/glad/glad.c")
+
+        -- 平台后端源文件
+        local plat = get_current_plat()
+        local backend = get_backend()
+        
+        if plat == "switch" then
+            add_files("Extra2D/src/platform/backends/switch/*.cpp")
+            add_defines("E2D_BACKEND_SWITCH")
+        elseif backend == "sdl2" then
+            add_files("Extra2D/src/platform/backends/sdl2/*.cpp")
+            add_defines("E2D_BACKEND_SDL2")
+        elseif backend == "glfw" then
+            add_files("Extra2D/src/platform/backends/glfw/*.cpp")
+            add_defines("E2D_BACKEND_GLFW")
+        end
 
         -- 头文件路径
         add_includedirs("Extra2D/include", {public = true})
         add_includedirs("Extra2D/include/extra2d/platform", {public = true})
 
         -- 平台配置
-        local plat = get_current_plat()
         if plat == "switch" then
             local devkitPro = os.getenv("DEVKITPRO") or "C:/devkitPro"
             add_includedirs(devkitPro .. "/portlibs/switch/include", {public = true})
@@ -30,7 +49,14 @@ function define_extra2d_engine()
             add_syslinks("SDL2", "GLESv2", "EGL", "glapi", "drm_nouveau",
                          {public = true})
         elseif plat == "mingw" then
-            add_packages("glm", "libsdl2", {public = true})
+            add_packages("glm", "nlohmann_json", {public = true})
+            
+            if backend == "sdl2" then
+                add_packages("libsdl2", {public = true})
+            elseif backend == "glfw" then
+                add_packages("glfw", {public = true})
+            end
+            
             add_syslinks("opengl32", "glu32", "winmm", "imm32", "version", "setupapi", {public = true})
         end
 

@@ -9,8 +9,10 @@
 #include <extra2d/core/types.h>
 
 // Platform
-#include <extra2d/platform/input.h>
-#include <extra2d/platform/window.h>
+#include <extra2d/platform/iinput.h>
+#include <extra2d/platform/iwindow.h>
+#include <extra2d/platform/keys.h>
+#include <extra2d/platform/platform_module.h>
 
 // Graphics
 #include <extra2d/graphics/camera.h>

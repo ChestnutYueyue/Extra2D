@@ -2,7 +2,7 @@
 #include <extra2d/app/application.h>
 #include <extra2d/graphics/render_backend.h>
 #include <extra2d/graphics/render_command.h>
-#include <extra2d/platform/input.h>
+#include <extra2d/platform/iinput.h>
 #include <extra2d/scene/scene_manager.h>
 #include <extra2d/utils/logger.h>
 
@@ -389,7 +389,7 @@ void SceneManager::purgeCachedScenes() { namedScenes_.clear(); }
  */
 void SceneManager::dispatchPointerEvents(Scene &scene) {
   auto &input = Application::get().input();
-  Vec2 screenPos = input.getMousePosition();
+  Vec2 screenPos = input.mouse();
 
   Vec2 worldPos = screenPos;
   if (auto *camera = scene.getActiveCamera()) {
@@ -426,17 +426,17 @@ void SceneManager::dispatchPointerEvents(Scene &scene) {
     dispatchToNode(hoverTarget_, evt);
   }
 
-  float scrollDelta = input.getMouseScrollDelta();
+  float scrollDelta = input.scrollDelta();
   if (hoverTarget_ && scrollDelta != 0.0f) {
     Event evt = Event::createMouseScroll(Vec2(0.0f, scrollDelta), worldPos);
     dispatchToNode(hoverTarget_, evt);
   }
 
-  if (input.isMousePressed(MouseButton::Left)) {
+  if (input.pressed(Mouse::Left)) {
     captureTarget_ = hoverTarget_;
     if (captureTarget_) {
-      Event evt = Event::createMouseButtonPress(
-          static_cast<int>(MouseButton::Left), 0, worldPos);
+      Event evt = Event::createMouseButtonPress(static_cast<int>(Mouse::Left),
+                                                0, worldPos);
       dispatchToNode(captureTarget_, evt);
 
       Event pressed;
@@ -446,11 +446,11 @@ void SceneManager::dispatchPointerEvents(Scene &scene) {
     }
   }
 
-  if (input.isMouseReleased(MouseButton::Left)) {
+  if (input.released(Mouse::Left)) {
     Node *target = captureTarget_ ? captureTarget_ : hoverTarget_;
     if (target) {
-      Event evt = Event::createMouseButtonRelease(
-          static_cast<int>(MouseButton::Left), 0, worldPos);
+      Event evt = Event::createMouseButtonRelease(static_cast<int>(Mouse::Left),
+                                                  0, worldPos);
       dispatchToNode(target, evt);
 
       Event released;

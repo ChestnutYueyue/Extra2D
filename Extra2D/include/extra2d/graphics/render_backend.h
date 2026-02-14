@@ -8,7 +8,7 @@
 namespace extra2d {
 
 // 前向声明
-class Window;
+class IWindow;
 class Texture;
 class FontAtlas;
 class Shader;
@@ -44,7 +44,7 @@ public:
   // ------------------------------------------------------------------------
   // 生命周期
   // ------------------------------------------------------------------------
-  virtual bool init(Window *window) = 0;
+  virtual bool init(IWindow* window) = 0;
   virtual void shutdown() = 0;
 
   // ------------------------------------------------------------------------

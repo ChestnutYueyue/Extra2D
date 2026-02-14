@@ -10,7 +10,7 @@
 
 namespace extra2d {
 
-class Window;
+class IWindow;
 
 // ============================================================================
 // OpenGL 渲染器实现
@@ -21,7 +21,7 @@ public:
   ~GLRenderer() override;
 
   // RenderBackend 接口实现
-  bool init(Window *window) override;
+  bool init(IWindow* window) override;
   void shutdown() override;
 
   void beginFrame(const Color &clearColor) override;
@@ -88,7 +88,7 @@ private:
     float r, g, b, a;
   };
 
-  Window *window_;
+  IWindow* window_;
   GLSpriteBatch spriteBatch_;
   GLShader shapeShader_;
 

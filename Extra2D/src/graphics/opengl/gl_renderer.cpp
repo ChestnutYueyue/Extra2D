@@ -7,7 +7,7 @@
 #include <extra2d/graphics/opengl/gl_renderer.h>
 #include <extra2d/graphics/opengl/gl_texture.h>
 #include <extra2d/graphics/vram_manager.h>
-#include <extra2d/platform/window.h>
+#include <extra2d/platform/iwindow.h>
 #include <extra2d/utils/logger.h>
 #include <vector>
 
@@ -85,7 +85,7 @@ GLRenderer::~GLRenderer() { shutdown(); }
  * @param window 窗口指针
  * @return 初始化成功返回true，失败返回false
  */
-bool GLRenderer::init(Window *window) {
+bool GLRenderer::init(IWindow* window) {
   window_ = window;
 
   // Switch: GL 上下文已通过 SDL2 + EGL 初始化，无需 glewInit()
