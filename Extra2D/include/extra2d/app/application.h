@@ -6,20 +6,13 @@
 
 namespace extra2d {
 
-// 前向声明
 class Input;
-class AudioEngine;
 class SceneManager;
-class ResourceManager;
 class TimerManager;
 class EventQueue;
 class EventDispatcher;
 class Camera;
 class ViewportAdapter;
-
-// ============================================================================
-// Application 配置
-// ============================================================================
 
 enum class PlatformType { Auto = 0, PC, Switch };
 
@@ -34,71 +27,46 @@ struct AppConfig {
   BackendType renderBackend = BackendType::OpenGL;
   int msaaSamples = 0;
   PlatformType platform = PlatformType::Auto;
-  // 窗口高级配置
-  bool enableCursors = true;   // 是否启用光标
-  bool enableDpiScale = false; // 是否启用DPI缩放
+  bool enableCursors = true;
+  bool enableDpiScale = false;
 };
 
-// ============================================================================
-// Application 单例 - 应用主控
-// ============================================================================
+/**
+ * @brief Application 单例 - 应用主控
+ */
 class Application {
 public:
-  // Meyer's 单例
   static Application &instance();
 
-  // 禁止拷贝
   Application(const Application &) = delete;
   Application &operator=(const Application &) = delete;
 
-  // ------------------------------------------------------------------------
-  // 生命周期
-  // ------------------------------------------------------------------------
   bool init(const AppConfig &config);
   void shutdown();
   void run();
   void quit();
 
-  // ------------------------------------------------------------------------
-  // 状态控制
-  // ------------------------------------------------------------------------
   void pause();
   void resume();
   bool isPaused() const { return paused_; }
   bool isRunning() const { return running_; }
 
-  // ------------------------------------------------------------------------
-  // 子系统访问
-  // ------------------------------------------------------------------------
   Window &window() { return *window_; }
   RenderBackend &renderer() { return *renderer_; }
   Input &input();
-  AudioEngine &audio();
   SceneManager &scenes();
-  ResourceManager &resources();
   TimerManager &timers();
   EventQueue &eventQueue();
   EventDispatcher &eventDispatcher();
   Camera &camera();
-
-  /**
-   * @brief 获取视口适配器
-   * @return 视口适配器引用
-   */
   ViewportAdapter &viewportAdapter();
 
-  // ------------------------------------------------------------------------
-  // 便捷方法
-  // ------------------------------------------------------------------------
   void enterScene(Ptr<class Scene> scene);
-  void enterScene(Ptr<class Scene> scene,
-                  Ptr<class TransitionScene> transitionScene);
 
   float deltaTime() const { return deltaTime_; }
   float totalTime() const { return totalTime_; }
   int fps() const { return currentFps_; }
 
-  // 获取配置
   const AppConfig &getConfig() const { return config_; }
 
 private:
@@ -108,29 +76,23 @@ private:
   void mainLoop();
   void update();
   void render();
-  void prewarmObjectPools();
 
-  // 配置
   AppConfig config_;
 
-  // 子系统
   UniquePtr<Window> window_;
   UniquePtr<RenderBackend> renderer_;
   UniquePtr<SceneManager> sceneManager_;
-  UniquePtr<ResourceManager> resourceManager_;
   UniquePtr<TimerManager> timerManager_;
   UniquePtr<EventQueue> eventQueue_;
   UniquePtr<EventDispatcher> eventDispatcher_;
   UniquePtr<Camera> camera_;
   UniquePtr<ViewportAdapter> viewportAdapter_;
 
-  // 状态
   bool initialized_ = false;
   bool running_ = false;
   bool paused_ = false;
   bool shouldQuit_ = false;
 
-  // 时间
   float deltaTime_ = 0.0f;
   float totalTime_ = 0.0f;
   double lastFrameTime_ = 0.0;

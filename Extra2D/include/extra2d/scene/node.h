@@ -1,12 +1,11 @@
 #pragma once
 
-#include <algorithm>
 #include <extra2d/core/color.h>
 #include <extra2d/core/math_types.h>
 #include <extra2d/core/types.h>
 #include <extra2d/event/event_dispatcher.h>
 #include <extra2d/graphics/render_backend.h>
-#include <functional>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -79,7 +78,7 @@ public:
    * @brief 设置颜色
    * @param color RGB颜色
    */
-  void setColor(const Color3B& color);
+  void setColor(const Color3B &color);
   Color3B getColor() const { return color_; }
 
   /**
@@ -183,58 +182,58 @@ protected:
 private:
   // ==========================================================================
   // 成员变量按类型大小降序排列，减少内存对齐填充
-  // 64位系统对齐：std::string(32) > glm::mat4(64) > std::vector(24) > 
+  // 64位系统对齐：std::string(32) > glm::mat4(64) > std::vector(24) >
   //              double(8) > float(4) > int(4) > bool(1)
   // ==========================================================================
 
   // 1. 大块内存（64字节）
-  mutable glm::mat4 localTransform_;   // 64 bytes
-  mutable glm::mat4 worldTransform_;   // 64 bytes
+  mutable glm::mat4 localTransform_; // 64 bytes
+  mutable glm::mat4 worldTransform_; // 64 bytes
 
   // 2. 字符串和容器（24-32字节）
-  std::string name_;                   // 32 bytes
-  std::vector<Ptr<Node>> children_;    // 24 bytes
+  std::string name_;                // 32 bytes
+  std::vector<Ptr<Node>> children_; // 24 bytes
 
   // 3. 子节点索引（加速查找）
   std::unordered_map<std::string, WeakPtr<Node>> nameIndex_; // 56 bytes
   std::unordered_map<int, WeakPtr<Node>> tagIndex_;          // 56 bytes
 
   // 4. 事件分发器
-  EventDispatcher eventDispatcher_;    // 大小取决于实现
+  EventDispatcher eventDispatcher_; // 大小取决于实现
 
   // 5. 父节点引用
-  WeakPtr<Node> parent_;               // 16 bytes
+  WeakPtr<Node> parent_; // 16 bytes
 
   // 7. 变换属性（按访问频率分组）
-  Vec2 position_ = Vec2::Zero();       // 8 bytes
-  Vec2 scale_ = Vec2(1.0f, 1.0f);      // 8 bytes
-  Vec2 anchor_ = Vec2(0.5f, 0.5f);     // 8 bytes
-  Vec2 skew_ = Vec2::Zero();           // 8 bytes
+  Vec2 position_ = Vec2::Zero();   // 8 bytes
+  Vec2 scale_ = Vec2(1.0f, 1.0f);  // 8 bytes
+  Vec2 anchor_ = Vec2(0.5f, 0.5f); // 8 bytes
+  Vec2 skew_ = Vec2::Zero();       // 8 bytes
 
   // 8. 浮点属性
-  float rotation_ = 0.0f;              // 4 bytes
-  float opacity_ = 1.0f;               // 4 bytes
+  float rotation_ = 0.0f; // 4 bytes
+  float opacity_ = 1.0f;  // 4 bytes
 
   // 10. 颜色属性
   Color3B color_ = Color3B(255, 255, 255); // 3 bytes
 
   // 11. 整数属性
-  int zOrder_ = 0;                     // 4 bytes
-  int tag_ = -1;                       // 4 bytes
+  int zOrder_ = 0; // 4 bytes
+  int tag_ = -1;   // 4 bytes
 
   // 12. 布尔属性
-  bool flipX_ = false;                 // 1 byte
-  bool flipY_ = false;                 // 1 byte
+  bool flipX_ = false; // 1 byte
+  bool flipY_ = false; // 1 byte
 
   // 13. 场景指针
-  Scene *scene_ = nullptr;             // 8 bytes
+  Scene *scene_ = nullptr; // 8 bytes
 
   // 14. 布尔标志（打包在一起）
-  mutable bool transformDirty_ = true;         // 1 byte
-  mutable bool worldTransformDirty_ = true;    // 1 byte
-  bool childrenOrderDirty_ = false;            // 1 byte
-  bool visible_ = true;                        // 1 byte
-  bool running_ = false;                       // 1 byte
+  mutable bool transformDirty_ = true;      // 1 byte
+  mutable bool worldTransformDirty_ = true; // 1 byte
+  bool childrenOrderDirty_ = false;         // 1 byte
+  bool visible_ = true;                     // 1 byte
+  bool running_ = false;                    // 1 byte
 };
 
 } // namespace extra2d

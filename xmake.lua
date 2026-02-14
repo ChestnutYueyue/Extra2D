@@ -20,12 +20,6 @@ add_rules("mode.debug", "mode.release")
 -- 构建选项
 -- ==============================================
 
-option("examples")
-    set_default(false)
-    set_showmenu(true)
-    set_description("Build example programs")
-option_end()
-
 option("debug_logs")
     set_default(false)
     set_showmenu(true)
@@ -72,7 +66,7 @@ end
 -- ==============================================
 
 if target_plat == "mingw" then
-    add_requires("glm", "libsdl2", "libsdl2_mixer")
+    add_requires("glm", "libsdl2")
 end
 
 -- ==============================================
@@ -85,11 +79,6 @@ includes("xmake/engine.lua")
 -- 定义引擎库
 define_extra2d_engine()
 
--- 示例程序目标（作为子项目）
-if is_config("examples","true") then
-    includes("examples/hello_world", {rootdir = "examples/hello_world"})
-end
-
 -- ==============================================
 -- 项目信息输出
 -- ==============================================
@@ -100,5 +89,4 @@ print("========================================")
 print("Platform: " .. target_plat)
 print("Architecture: " .. (get_config("arch") or "auto"))
 print("Mode: " .. (is_mode("debug") and "debug" or "release"))
-print("Examples: " .. (has_config("examples") and "enabled" or "disabled"))
 print("========================================")

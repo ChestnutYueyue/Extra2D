@@ -1,6 +1,6 @@
 #pragma once
 
-// Easy2D v3.0 - 统一入口头文件
+// Extra2D - 统一入口头文件
 // 包含所有公共 API
 
 // Core
@@ -23,18 +23,14 @@
 #include <extra2d/graphics/viewport_adapter.h>
 #include <extra2d/graphics/vram_manager.h>
 
+#include <extra2d/graphics/texture_pool.h>
+
 // Scene
 #include <extra2d/scene/node.h>
 #include <extra2d/scene/scene.h>
 #include <extra2d/scene/scene_manager.h>
 #include <extra2d/scene/shape_node.h>
 #include <extra2d/scene/sprite.h>
-#include <extra2d/scene/transition_box_scene.h>
-#include <extra2d/scene/transition_fade_scene.h>
-#include <extra2d/scene/transition_flip_scene.h>
-#include <extra2d/scene/transition_scale_scene.h>
-#include <extra2d/scene/transition_scene.h>
-#include <extra2d/scene/transition_slide_scene.h>
 
 // Event
 #include <extra2d/event/event.h>
@@ -42,15 +38,7 @@
 #include <extra2d/event/event_queue.h>
 #include <extra2d/event/input_codes.h>
 
-// Audio
-#include <extra2d/audio/audio_engine.h>
-#include <extra2d/audio/sound.h>
-
-// Resource
-#include <extra2d/resource/resource_manager.h>
-
 // Utils
-#include <extra2d/utils/data.h>
 #include <extra2d/utils/logger.h>
 #include <extra2d/utils/random.h>
 #include <extra2d/utils/timer.h>

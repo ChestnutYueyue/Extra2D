@@ -27,11 +27,10 @@ function define_extra2d_engine()
             local devkitPro = os.getenv("DEVKITPRO") or "C:/devkitPro"
             add_includedirs(devkitPro .. "/portlibs/switch/include", {public = true})
             add_linkdirs(devkitPro .. "/portlibs/switch/lib")
-            add_syslinks("SDL2_mixer", "SDL2", "opusfile", "opus", "vorbisidec", "ogg",
-                         "modplug", "mpg123", "FLAC", "GLESv2", "EGL", "glapi", "drm_nouveau",
+            add_syslinks("SDL2", "GLESv2", "EGL", "glapi", "drm_nouveau",
                          {public = true})
         elseif plat == "mingw" then
-            add_packages("glm", "libsdl2", "libsdl2_mixer", {public = true})
+            add_packages("glm", "libsdl2", {public = true})
             add_syslinks("opengl32", "glu32", "winmm", "imm32", "version", "setupapi", {public = true})
         end
 

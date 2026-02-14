@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cstdarg>
 #include <cstdio>
 #include <extra2d/core/types.h>
 #include <sstream>
@@ -16,13 +15,13 @@ namespace extra2d {
 // 日志级别枚举 - 映射到 SDL_LogPriority
 // ============================================================================
 enum class LogLevel {
-  Trace = SDL_LOG_PRIORITY_VERBOSE,  // SDL 详细日志
-  Debug = SDL_LOG_PRIORITY_DEBUG,    // SDL 调试日志
-  Info = SDL_LOG_PRIORITY_INFO,      // SDL 信息日志
-  Warn = SDL_LOG_PRIORITY_WARN,      // SDL 警告日志
-  Error = SDL_LOG_PRIORITY_ERROR,    // SDL 错误日志
-  Fatal = SDL_LOG_PRIORITY_CRITICAL, // SDL 严重日志
-  Off = SDL_LOG_PRIORITY_CRITICAL + 1  // 关闭日志 (使用 Critical+1 作为关闭标记)
+  Trace = SDL_LOG_PRIORITY_VERBOSE,   // SDL 详细日志
+  Debug = SDL_LOG_PRIORITY_DEBUG,     // SDL 调试日志
+  Info = SDL_LOG_PRIORITY_INFO,       // SDL 信息日志
+  Warn = SDL_LOG_PRIORITY_WARN,       // SDL 警告日志
+  Error = SDL_LOG_PRIORITY_ERROR,     // SDL 错误日志
+  Fatal = SDL_LOG_PRIORITY_CRITICAL,  // SDL 严重日志
+  Off = SDL_LOG_PRIORITY_CRITICAL + 1 // 关闭日志 (使用 Critical+1 作为关闭标记)
 };
 
 // ============================================================================

@@ -19,9 +19,7 @@ void Sprite::setTexture(Ptr<Texture> texture) {
   }
 }
 
-void Sprite::setTextureRect(const Rect &rect) {
-  textureRect_ = rect;
-}
+void Sprite::setTextureRect(const Rect &rect) { textureRect_ = rect; }
 
 void Sprite::setColor(const Color &color) { color_ = color; }
 
