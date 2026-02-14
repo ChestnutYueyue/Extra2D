@@ -1,4 +1,3 @@
-#include <extra2d/action/action_manager.h>
 #include <extra2d/app/application.h>
 #include <extra2d/audio/audio_engine.h>
 #include <extra2d/event/event_dispatcher.h>
@@ -342,9 +341,6 @@ void Application::mainLoop() {
 }
 
 void Application::update() {
-  // Update action manager (single update per frame)
-  ActionManager::getInstance()->update(deltaTime_);
-
   if (timerManager_) {
     timerManager_->update(deltaTime_);
   }

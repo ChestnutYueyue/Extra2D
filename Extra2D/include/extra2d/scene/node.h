@@ -14,7 +14,6 @@ namespace extra2d {
 
 // 前向声明
 class Scene;
-class Action;
 class RenderBackend;
 struct RenderCommand;
 
@@ -154,58 +153,6 @@ public:
 
   // 更新空间索引（手动调用，通常在边界框变化后）
   void updateSpatialIndex();
-
-  // ------------------------------------------------------------------------
-  // 动作系统
-  // ------------------------------------------------------------------------
-  /**
-   * @brief 运行动作
-   * @param action 动作指针（所有权转移）
-   * @return 动作指针
-   */
-  Action* runAction(Action* action);
-
-  /**
-   * @brief 停止所有动作
-   */
-  void stopAllActions();
-
-  /**
-   * @brief 停止指定动作
-   * @param action 动作指针
-   */
-  void stopAction(Action* action);
-
-  /**
-   * @brief 根据标签停止动作
-   * @param tag 标签值
-   */
-  void stopActionByTag(int tag);
-
-  /**
-   * @brief 根据标志位停止动作
-   * @param flags 标志位
-   */
-  void stopActionsByFlags(unsigned int flags);
-
-  /**
-   * @brief 根据标签获取动作
-   * @param tag 标签值
-   * @return 动作指针，未找到返回 nullptr
-   */
-  Action* getActionByTag(int tag);
-
-  /**
-   * @brief 获取运行中的动作数量
-   * @return 动作数量
-   */
-  size_t getActionCount() const;
-
-  /**
-   * @brief 检查是否有动作在运行
-   * @return true 如果有动作在运行
-   */
-  bool isRunningActions() const;
 
   // ------------------------------------------------------------------------
   // 事件系统

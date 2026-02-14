@@ -1,7 +1,5 @@
 #include <algorithm>
 #include <cmath>
-#include <extra2d/action/action.h>
-#include <extra2d/action/action_manager.h>
 #include <extra2d/graphics/render_command.h>
 #include <extra2d/scene/node.h>
 #include <extra2d/scene/scene.h>
@@ -13,8 +11,6 @@ Node::Node() = default;
 
 Node::~Node() {
   removeAllChildren();
-  stopAllActions();
-  ActionManager::getInstance()->removeAllActionsFromTarget(this);
 }
 
 void Node::addChild(Ptr<Node> child) {
@@ -401,46 +397,6 @@ void Node::updateSpatialIndex() {
     scene_->updateNodeInSpatialIndex(this, lastSpatialBounds_, newBounds);
     lastSpatialBounds_ = newBounds;
   }
-}
-
-// ============================================================================
-// 动作系统 - 新接口
-// ============================================================================
-
-Action* Node::runAction(Action* action) {
-  if (!action) {
-    return nullptr;
-  }
-  ActionManager::getInstance()->addAction(action, this);
-  return action;
-}
-
-void Node::stopAllActions() {
-  ActionManager::getInstance()->removeAllActionsFromTarget(this);
-}
-
-void Node::stopAction(Action* action) {
-  ActionManager::getInstance()->removeAction(action);
-}
-
-void Node::stopActionByTag(int tag) {
-  ActionManager::getInstance()->removeActionByTag(tag, this);
-}
-
-void Node::stopActionsByFlags(unsigned int flags) {
-  ActionManager::getInstance()->removeActionsByFlags(flags, this);
-}
-
-Action* Node::getActionByTag(int tag) {
-  return ActionManager::getInstance()->getActionByTag(tag, this);
-}
-
-size_t Node::getActionCount() const {
-  return ActionManager::getInstance()->getActionCount(const_cast<Node*>(this));
-}
-
-bool Node::isRunningActions() const {
-  return getActionCount() > 0;
 }
 
 void Node::update(float dt) { onUpdate(dt); }

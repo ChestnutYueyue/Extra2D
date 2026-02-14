@@ -88,10 +88,6 @@ define_extra2d_engine()
 -- 示例程序目标（作为子项目）
 if is_config("examples","true") then
     includes("examples/hello_world", {rootdir = "examples/hello_world"})
-    includes("examples/spatial_index_demo", {rootdir = "examples/spatial_index_demo"})
-    includes("examples/collision_demo", {rootdir = "examples/collision_demo"})
-    includes("examples/push_box", {rootdir = "examples/push_box"})
-    includes("examples/flappy_bird", {rootdir = "examples/flappy_bird"})
 end
 
 -- ==============================================
