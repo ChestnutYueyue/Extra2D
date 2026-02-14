@@ -1,10 +1,8 @@
 #pragma once
 
-#include <extra2d/core/string.h>
 #include <extra2d/core/types.h>
 #include <extra2d/graphics/render_backend.h>
 #include <extra2d/platform/window.h>
-#include <memory>
 
 namespace extra2d {
 
@@ -22,11 +20,7 @@ class Camera;
 // Application 配置
 // ============================================================================
 
-enum class PlatformType {
-  Auto = 0,
-  PC,
-  Switch
-};
+enum class PlatformType { Auto = 0, PC, Switch };
 
 struct AppConfig {
   std::string title = "Easy2D Application";
@@ -40,8 +34,8 @@ struct AppConfig {
   int msaaSamples = 0;
   PlatformType platform = PlatformType::Auto;
   // 窗口高级配置
-  bool enableCursors = true;        // 是否启用光标
-  bool enableDpiScale = false;      // 是否启用DPI缩放
+  bool enableCursors = true;   // 是否启用光标
+  bool enableDpiScale = false; // 是否启用DPI缩放
 };
 
 // ============================================================================
@@ -90,7 +84,8 @@ public:
   // 便捷方法
   // ------------------------------------------------------------------------
   void enterScene(Ptr<class Scene> scene);
-  void enterScene(Ptr<class Scene> scene, Ptr<class TransitionScene> transitionScene);
+  void enterScene(Ptr<class Scene> scene,
+                  Ptr<class TransitionScene> transitionScene);
 
   float deltaTime() const { return deltaTime_; }
   float totalTime() const { return totalTime_; }
