@@ -13,6 +13,12 @@ namespace extra2d {
 // ============================================================================
 // 构造函数 - 初始化字体图集
 // ============================================================================
+/**
+ * @brief 构造函数，从字体文件初始化字体图集
+ * @param filepath 字体文件路径
+ * @param fontSize 字体大小（像素）
+ * @param useSDF 是否使用有符号距离场渲染
+ */
 GLFontAtlas::GLFontAtlas(const std::string &filepath, int fontSize, bool useSDF)
     : fontSize_(fontSize), useSDF_(useSDF), currentY_(0), scale_(0.0f),
       ascent_(0.0f), descent_(0.0f), lineGap_(0.0f) {
@@ -53,11 +59,19 @@ GLFontAtlas::GLFontAtlas(const std::string &filepath, int fontSize, bool useSDF)
 // ============================================================================
 // 析构函数
 // ============================================================================
+/**
+ * @brief 析构函数
+ */
 GLFontAtlas::~GLFontAtlas() = default;
 
 // ============================================================================
 // 获取字形 - 如果字形不存在则缓存它
 // ============================================================================
+/**
+ * @brief 获取字形信息，如果字形不存在则动态缓存
+ * @param codepoint Unicode码点
+ * @return 字形信息指针，如果获取失败返回nullptr
+ */
 const Glyph *GLFontAtlas::getGlyph(char32_t codepoint) const {
   auto it = glyphs_.find(codepoint);
   if (it == glyphs_.end()) {
@@ -70,6 +84,11 @@ const Glyph *GLFontAtlas::getGlyph(char32_t codepoint) const {
 // ============================================================================
 // 测量文本尺寸
 // ============================================================================
+/**
+ * @brief 测量文本渲染后的尺寸
+ * @param text 要测量的文本
+ * @return 文本的宽度和高度
+ */
 Vec2 GLFontAtlas::measureText(const std::string &text) {
   float width = 0.0f;
   float height = getAscent() - getDescent();
@@ -97,6 +116,9 @@ Vec2 GLFontAtlas::measureText(const std::string &text) {
 // ============================================================================
 // 创建图集纹理 - 初始化空白纹理和矩形打包上下文
 // ============================================================================
+/**
+ * @brief 创建字体图集纹理，初始化空白纹理和矩形打包上下文
+ */
 void GLFontAtlas::createAtlas() {
   // 统一使用 4 通道格式
   int channels = 4;
@@ -121,6 +143,10 @@ void GLFontAtlas::createAtlas() {
 // 缓存字形 - 渲染字形到图集并存储信息
 // 使用 stb_rect_pack 进行矩形打包
 // ============================================================================
+/**
+ * @brief 缓存字形到图集，渲染字形位图并存储字形信息
+ * @param codepoint Unicode码点
+ */
 void GLFontAtlas::cacheGlyph(char32_t codepoint) const {
   int advance = 0;
   stbtt_GetCodepointHMetrics(&fontInfo_, static_cast<int>(codepoint), &advance,

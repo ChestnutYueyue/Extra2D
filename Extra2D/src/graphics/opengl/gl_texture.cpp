@@ -80,6 +80,14 @@ struct DDSHeaderDXT10 {
 static constexpr uint32_t DDS_MAGIC = 0x20534444; // "DDS "
 static constexpr uint32_t DDPF_FOURCC = 0x04;
 
+/**
+ * @brief 生成四字符代码（FourCC）
+ * @param a 第一个字符
+ * @param b 第二个字符
+ * @param c 第三个字符
+ * @param d 第四个字符
+ * @return 组合后的32位无符号整数
+ */
 static uint32_t makeFourCC(char a, char b, char c, char d) {
   return static_cast<uint32_t>(a) | (static_cast<uint32_t>(b) << 8) |
          (static_cast<uint32_t>(c) << 16) | (static_cast<uint32_t>(d) << 24);
@@ -89,6 +97,13 @@ static uint32_t makeFourCC(char a, char b, char c, char d) {
 // GLTexture 实现
 // ============================================================================
 
+/**
+ * @brief 从像素数据构造纹理对象
+ * @param width 纹理宽度（像素）
+ * @param height 纹理高度（像素）
+ * @param pixels 像素数据指针，可为nullptr创建空纹理
+ * @param channels 颜色通道数（1=R, 3=RGB, 4=RGBA）
+ */
 GLTexture::GLTexture(int width, int height, const uint8_t *pixels, int channels)
     : textureID_(0), width_(width), height_(height), channels_(channels),
       format_(PixelFormat::RGBA8), dataSize_(0) {
@@ -100,6 +115,10 @@ GLTexture::GLTexture(int width, int height, const uint8_t *pixels, int channels)
   createTexture(pixels);
 }
 
+/**
+ * @brief 从文件路径构造纹理对象
+ * @param filepath 纹理文件路径，支持普通图片格式和压缩格式（KTX/DDS）
+ */
 GLTexture::GLTexture(const std::string &filepath)
     : textureID_(0), width_(0), height_(0), channels_(0),
       format_(PixelFormat::RGBA8), dataSize_(0) {
@@ -133,12 +152,12 @@ GLTexture::~GLTexture() {
   if (textureID_ != 0) {
     // 检查 GPU 上下文是否仍然有效
     // 如果 OpenGL 上下文已销毁，则跳过 glDeleteTextures 调用
-    if (GPUContext::getInstance().isValid()) {
+    if (GPUContext::get().isValid()) {
       glDeleteTextures(1, &textureID_);
     }
     // VRAM 跟踪: 释放纹理显存（无论上下文是否有效都需要更新统计）
     if (dataSize_ > 0) {
-      VRAMManager::getInstance().freeTexture(dataSize_);
+      VRAMMgr::get().freeTexture(dataSize_);
     }
   }
 }
@@ -164,8 +183,15 @@ void GLTexture::bind(unsigned int slot) const {
   glBindTexture(GL_TEXTURE_2D, textureID_);
 }
 
+/**
+ * @brief 解绑当前纹理
+ */
 void GLTexture::unbind() const { glBindTexture(GL_TEXTURE_2D, 0); }
 
+/**
+ * @brief 创建OpenGL纹理对象并上传像素数据
+ * @param pixels 像素数据指针
+ */
 void GLTexture::createTexture(const uint8_t *pixels) {
   GLenum format = GL_RGBA;
   GLenum internalFormat = GL_RGBA8;
@@ -208,7 +234,7 @@ void GLTexture::createTexture(const uint8_t *pixels) {
 
   // VRAM 跟踪
   dataSize_ = static_cast<size_t>(width_ * height_ * channels_);
-  VRAMManager::getInstance().allocTexture(dataSize_);
+  VRAMMgr::get().allocTexture(dataSize_);
 }
 
 // ============================================================================
@@ -227,6 +253,11 @@ bool GLTexture::loadCompressed(const std::string &filepath) {
   return false;
 }
 
+/**
+ * @brief 加载KTX格式压缩纹理
+ * @param filepath KTX文件路径
+ * @return 加载成功返回true，失败返回false
+ */
 bool GLTexture::loadKTX(const std::string &filepath) {
   std::ifstream file(filepath, std::ios::binary);
   if (!file.is_open()) {
@@ -316,13 +347,18 @@ bool GLTexture::loadKTX(const std::string &filepath) {
 
   // VRAM 跟踪
   dataSize_ = imageSize;
-  VRAMManager::getInstance().allocTexture(dataSize_);
+  VRAMMgr::get().allocTexture(dataSize_);
 
   E2D_LOG_INFO("Loaded compressed KTX texture: {} ({}x{}, format={:#06x})",
                filepath, width_, height_, glInternalFormat);
   return true;
 }
 
+/**
+ * @brief 加载DDS格式压缩纹理
+ * @param filepath DDS文件路径
+ * @return 加载成功返回true，失败返回false
+ */
 bool GLTexture::loadDDS(const std::string &filepath) {
   std::ifstream file(filepath, std::ios::binary);
   if (!file.is_open()) {
@@ -415,7 +451,7 @@ bool GLTexture::loadDDS(const std::string &filepath) {
 
   // VRAM 跟踪
   dataSize_ = imageSize;
-  VRAMManager::getInstance().allocTexture(dataSize_);
+  VRAMMgr::get().allocTexture(dataSize_);
 
   E2D_LOG_INFO("Loaded compressed DDS texture: {} ({}x{})", filepath, width_,
                height_);
@@ -436,6 +472,13 @@ void GLTexture::generateAlphaMask() {
 
 PixelFormat GLTexture::getFormat() const { return format_; }
 
+/**
+ * @brief 静态工厂方法，创建指定格式的空纹理
+ * @param width 纹理宽度
+ * @param height 纹理高度
+ * @param format 像素格式
+ * @return 创建的纹理智能指针
+ */
 Ptr<Texture> GLTexture::create(int width, int height, PixelFormat format) {
   int channels = 4;
   switch (format) {

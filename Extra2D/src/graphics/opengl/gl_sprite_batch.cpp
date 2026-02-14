@@ -8,16 +8,29 @@ namespace extra2d {
 // ============================================================================
 // 三角函数查表 - 避免每帧重复计算 sin/cos
 // ============================================================================
+/**
+ * @brief 三角函数查表类，避免每帧重复计算sin/cos
+ */
 class TrigLookup {
 public:
   static constexpr size_t TABLE_SIZE = 360 * 4;  // 0.25度精度
   static constexpr float INDEX_SCALE = 4.0f;      // 每度4个采样点
   static constexpr float RAD_TO_INDEX = INDEX_SCALE * 180.0f / 3.14159265359f;
   
+  /**
+   * @brief 查表获取sin值
+   * @param radians 弧度值
+   * @return sin值
+   */
   static float sinRad(float radians) {
     return table_.sinTable[normalizeIndexRad(radians)];
   }
   
+  /**
+   * @brief 查表获取cos值
+   * @param radians 弧度值
+   * @return cos值
+   */
   static float cosRad(float radians) {
     return table_.cosTable[normalizeIndexRad(radians)];
   }
@@ -50,6 +63,10 @@ private:
 const TrigLookup::Tables TrigLookup::table_;
 
 // 静态索引生成函数
+/**
+ * @brief 获取静态索引数组，用于精灵绘制
+ * @return 索引数组的常量引用
+ */
 static const std::array<GLuint, GLSpriteBatch::MAX_INDICES>& getIndices() {
   static std::array<GLuint, GLSpriteBatch::MAX_INDICES> indices = []() {
     std::array<GLuint, GLSpriteBatch::MAX_INDICES> arr{};
@@ -114,13 +131,23 @@ void main() {
 }
 )";
 
+/**
+ * @brief 构造函数，初始化精灵批处理器成员变量
+ */
 GLSpriteBatch::GLSpriteBatch()
     : vao_(0), vbo_(0), ibo_(0), vertexCount_(0), currentTexture_(nullptr),
       currentIsSDF_(false), drawCallCount_(0), spriteCount_(0), batchCount_(0) {
 }
 
+/**
+ * @brief 析构函数，调用shutdown释放资源
+ */
 GLSpriteBatch::~GLSpriteBatch() { shutdown(); }
 
+/**
+ * @brief 初始化精灵批处理器，创建VAO、VBO、IBO和编译着色器
+ * @return 初始化成功返回true，失败返回false
+ */
 bool GLSpriteBatch::init() {
   // 创建并编译着色器
   if (!shader_.compileFromSource(SPRITE_VERTEX_SHADER,
@@ -167,6 +194,9 @@ bool GLSpriteBatch::init() {
   return true;
 }
 
+/**
+ * @brief 关闭精灵批处理器，释放OpenGL资源
+ */
 void GLSpriteBatch::shutdown() {
   if (vao_ != 0) {
     glDeleteVertexArrays(1, &vao_);
@@ -182,6 +212,10 @@ void GLSpriteBatch::shutdown() {
   }
 }
 
+/**
+ * @brief 开始批处理，重置状态并设置视图投影矩阵
+ * @param viewProjection 视图投影矩阵
+ */
 void GLSpriteBatch::begin(const glm::mat4 &viewProjection) {
   viewProjection_ = viewProjection;
   vertexCount_ = 0;
@@ -192,6 +226,12 @@ void GLSpriteBatch::begin(const glm::mat4 &viewProjection) {
   batchCount_ = 0;
 }
 
+/**
+ * @brief 检查是否需要刷新批次
+ * @param texture 当前纹理
+ * @param isSDF 是否为SDF渲染
+ * @return 需要刷新返回true，否则返回false
+ */
 bool GLSpriteBatch::needsFlush(const Texture &texture, bool isSDF) const {
   if (currentTexture_ == nullptr) {
     return false;
@@ -202,6 +242,10 @@ bool GLSpriteBatch::needsFlush(const Texture &texture, bool isSDF) const {
          (vertexCount_ + VERTICES_PER_SPRITE > MAX_VERTICES);
 }
 
+/**
+ * @brief 添加精灵顶点到顶点缓冲区
+ * @param data 精灵数据
+ */
 void GLSpriteBatch::addVertices(const SpriteData &data) {
   // 计算锚点偏移
   float anchorOffsetX = data.size.x * data.anchor.x;
@@ -254,6 +298,11 @@ void GLSpriteBatch::addVertices(const SpriteData &data) {
   };
 }
 
+/**
+ * @brief 绘制单个精灵
+ * @param texture 纹理引用
+ * @param data 精灵数据
+ */
 void GLSpriteBatch::draw(const Texture &texture, const SpriteData &data) {
   // 如果需要刷新，先提交当前批次
   if (needsFlush(texture, data.isSDF)) {
@@ -267,6 +316,11 @@ void GLSpriteBatch::draw(const Texture &texture, const SpriteData &data) {
   spriteCount_++;
 }
 
+/**
+ * @brief 批量绘制多个精灵
+ * @param texture 纹理引用
+ * @param sprites 精灵数据数组
+ */
 void GLSpriteBatch::drawBatch(const Texture &texture,
                               const std::vector<SpriteData> &sprites) {
   if (sprites.empty()) {
@@ -303,6 +357,11 @@ void GLSpriteBatch::drawBatch(const Texture &texture,
   batchCount_++;
 }
 
+/**
+ * @brief 立即绘制精灵，不缓存
+ * @param texture 纹理引用
+ * @param data 精灵数据
+ */
 void GLSpriteBatch::drawImmediate(const Texture &texture,
                                   const SpriteData &data) {
   // 立即绘制，不缓存 - 用于需要立即显示的情况
@@ -316,12 +375,18 @@ void GLSpriteBatch::drawImmediate(const Texture &texture,
   flush(); // 立即提交
 }
 
+/**
+ * @brief 结束批处理，提交所有待绘制的精灵
+ */
 void GLSpriteBatch::end() {
   if (vertexCount_ > 0) {
     flush();
   }
 }
 
+/**
+ * @brief 刷新批次，执行实际的OpenGL绘制调用
+ */
 void GLSpriteBatch::flush() {
   if (vertexCount_ == 0 || currentTexture_ == nullptr) {
     return;

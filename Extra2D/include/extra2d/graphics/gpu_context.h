@@ -13,7 +13,7 @@ namespace extra2d {
 class GPUContext {
 public:
     /// 获取单例实例
-    static GPUContext& getInstance();
+    static GPUContext& get();
 
     /// 标记 GPU 上下文为有效（在初始化完成后调用）
     void markValid();

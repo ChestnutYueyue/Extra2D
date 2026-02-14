@@ -36,7 +36,7 @@ struct AppConfig {
  */
 class Application {
 public:
-  static Application &instance();
+  static Application &get();
 
   Application(const Application &) = delete;
   Application &operator=(const Application &) = delete;

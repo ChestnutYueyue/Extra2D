@@ -22,8 +22,8 @@ public:
   // ------------------------------------------------------------------------
   // 位置和变换
   // ------------------------------------------------------------------------
-  void setPosition(const Vec2 &position);
-  void setPosition(float x, float y);
+  void setPos(const Vec2 &position);
+  void setPos(float x, float y);
   Vec2 getPosition() const { return position_; }
 
   void setRotation(float degrees);
@@ -74,7 +74,7 @@ public:
    * @brief 设置视口适配器
    * @param adapter 视口适配器指针
    */
-  void setViewportAdapter(ViewportAdapter* adapter);
+  void setViewportAdapter(ViewportAdapter *adapter);
 
   /**
    * @brief 根据视口适配器自动设置视口
@@ -99,7 +99,7 @@ private:
   Rect bounds_;
   bool hasBounds_ = false;
 
-  ViewportAdapter* viewportAdapter_ = nullptr;
+  ViewportAdapter *viewportAdapter_ = nullptr;
 
   mutable glm::mat4 viewMatrix_;
   mutable glm::mat4 projMatrix_;

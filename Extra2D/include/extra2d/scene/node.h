@@ -37,19 +37,19 @@ public:
 
   void removeChild(Ptr<Node> child);
   void removeChildByName(const std::string &name);
-  void removeFromParent();
-  void removeAllChildren();
+  void detach();
+  void clearChildren();
 
   Ptr<Node> getParent() const { return parent_.lock(); }
   const std::vector<Ptr<Node>> &getChildren() const { return children_; }
-  Ptr<Node> getChildByName(const std::string &name) const;
-  Ptr<Node> getChildByTag(int tag) const;
+  Ptr<Node> findChild(const std::string &name) const;
+  Ptr<Node> findChildByTag(int tag) const;
 
   // ------------------------------------------------------------------------
   // 变换属性
   // ------------------------------------------------------------------------
-  void setPosition(const Vec2 &pos);
-  void setPosition(float x, float y);
+  void setPos(const Vec2 &pos);
+  void setPos(float x, float y);
   Vec2 getPosition() const { return position_; }
 
   void setRotation(float degrees);
@@ -99,8 +99,8 @@ public:
   // ------------------------------------------------------------------------
   // 世界变换
   // ------------------------------------------------------------------------
-  Vec2 convertToWorldSpace(const Vec2 &localPos) const;
-  Vec2 convertToNodeSpace(const Vec2 &worldPos) const;
+  Vec2 toWorld(const Vec2 &localPos) const;
+  Vec2 toLocal(const Vec2 &worldPos) const;
 
   glm::mat4 getLocalTransform() const;
   glm::mat4 getWorldTransform() const;
@@ -114,7 +114,7 @@ public:
    * @brief 批量更新变换矩阵
    * 在渲染前统一计算所有脏节点的变换矩阵，避免逐节点计算时的重复递归
    */
-  void batchUpdateTransforms();
+  void batchTransforms();
 
   /**
    * @brief 获取变换脏标记状态
@@ -144,7 +144,7 @@ public:
   // ------------------------------------------------------------------------
   // 边界框
   // ------------------------------------------------------------------------
-  virtual Rect getBoundingBox() const;
+  virtual Rect getBounds() const;
 
   // ------------------------------------------------------------------------
   // 事件系统

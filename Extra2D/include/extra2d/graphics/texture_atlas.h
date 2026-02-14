@@ -146,9 +146,9 @@ private:
 /**
  * @brief 全局图集管理器（单例）
  */
-class TextureAtlasManager {
+class TextureAtlasMgr {
 public:
-  static TextureAtlasManager& getInstance();
+  static TextureAtlasMgr& get();
   
   // 获取主图集
   TextureAtlas& getAtlas() { return atlas_; }
@@ -172,11 +172,11 @@ public:
   }
 
 private:
-  TextureAtlasManager() = default;
-  ~TextureAtlasManager() = default;
+  TextureAtlasMgr() = default;
+  ~TextureAtlasMgr() = default;
   
-  TextureAtlasManager(const TextureAtlasManager&) = delete;
-  TextureAtlasManager& operator=(const TextureAtlasManager&) = delete;
+  TextureAtlasMgr(const TextureAtlasMgr&) = delete;
+  TextureAtlasMgr& operator=(const TextureAtlasMgr&) = delete;
   
   TextureAtlas atlas_;
 };

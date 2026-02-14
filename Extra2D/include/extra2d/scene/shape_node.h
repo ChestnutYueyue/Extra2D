@@ -85,7 +85,7 @@ public:
   void addPoint(const Vec2 &point);
   void clearPoints();
 
-  Rect getBoundingBox() const override;
+  Rect getBounds() const override;
 
 protected:
   void onDraw(RenderBackend &renderer) override;

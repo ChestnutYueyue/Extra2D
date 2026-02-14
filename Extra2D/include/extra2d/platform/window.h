@@ -66,7 +66,7 @@ public:
   // 窗口属性
   void setTitle(const std::string &title);
   void setSize(int width, int height);
-  void setPosition(int x, int y);
+  void setPos(int x, int y);
   void setFullscreen(bool fullscreen);
   void setVSync(bool enabled);
   void setResizable(bool resizable);

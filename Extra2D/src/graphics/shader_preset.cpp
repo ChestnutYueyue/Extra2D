@@ -7,6 +7,14 @@ namespace extra2d {
 // ShaderPreset实现
 // ============================================================================
 
+/**
+ * @brief 创建水波纹效果着色器
+ *
+ * 创建并配置一个水波纹效果的GLShader对象，包含波动速度、振幅和频率参数
+ *
+ * @param params 水波纹效果参数，包含waveSpeed、waveAmplitude和waveFrequency
+ * @return 成功返回配置好的着色器智能指针，失败返回nullptr
+ */
 Ptr<GLShader> ShaderPreset::Water(const WaterParams &params) {
   auto shader = std::make_shared<GLShader>();
 
@@ -25,6 +33,14 @@ Ptr<GLShader> ShaderPreset::Water(const WaterParams &params) {
   return shader;
 }
 
+/**
+ * @brief 创建描边效果着色器
+ *
+ * 创建并配置一个描边效果的GLShader对象，包含描边颜色和厚度参数
+ *
+ * @param params 描边效果参数，包含color和thickness
+ * @return 成功返回配置好的着色器智能指针，失败返回nullptr
+ */
 Ptr<GLShader> ShaderPreset::Outline(const OutlineParams &params) {
   auto shader = std::make_shared<GLShader>();
 
@@ -43,6 +59,14 @@ Ptr<GLShader> ShaderPreset::Outline(const OutlineParams &params) {
   return shader;
 }
 
+/**
+ * @brief 创建扭曲效果着色器
+ *
+ * 创建并配置一个扭曲效果的GLShader对象，包含扭曲强度和时间缩放参数
+ *
+ * @param params 扭曲效果参数，包含distortionAmount和timeScale
+ * @return 成功返回配置好的着色器智能指针，失败返回nullptr
+ */
 Ptr<GLShader> ShaderPreset::Distortion(const DistortionParams &params) {
   auto shader = std::make_shared<GLShader>();
 
@@ -60,6 +84,14 @@ Ptr<GLShader> ShaderPreset::Distortion(const DistortionParams &params) {
   return shader;
 }
 
+/**
+ * @brief 创建像素化效果着色器
+ *
+ * 创建并配置一个像素化效果的GLShader对象，包含像素大小参数
+ *
+ * @param params 像素化效果参数，包含pixelSize
+ * @return 成功返回配置好的着色器智能指针，失败返回nullptr
+ */
 Ptr<GLShader> ShaderPreset::Pixelate(const PixelateParams &params) {
   auto shader = std::make_shared<GLShader>();
 
@@ -76,6 +108,14 @@ Ptr<GLShader> ShaderPreset::Pixelate(const PixelateParams &params) {
   return shader;
 }
 
+/**
+ * @brief 创建反相效果着色器
+ *
+ * 创建并配置一个颜色反相效果的GLShader对象，包含反相强度参数
+ *
+ * @param params 反相效果参数，包含strength
+ * @return 成功返回配置好的着色器智能指针，失败返回nullptr
+ */
 Ptr<GLShader> ShaderPreset::Invert(const InvertParams &params) {
   auto shader = std::make_shared<GLShader>();
 
@@ -92,6 +132,14 @@ Ptr<GLShader> ShaderPreset::Invert(const InvertParams &params) {
   return shader;
 }
 
+/**
+ * @brief 创建灰度效果着色器
+ *
+ * 创建并配置一个灰度效果的GLShader对象，包含灰度强度参数
+ *
+ * @param params 灰度效果参数，包含intensity
+ * @return 成功返回配置好的着色器智能指针，失败返回nullptr
+ */
 Ptr<GLShader> ShaderPreset::Grayscale(const GrayscaleParams &params) {
   auto shader = std::make_shared<GLShader>();
 
@@ -108,6 +156,14 @@ Ptr<GLShader> ShaderPreset::Grayscale(const GrayscaleParams &params) {
   return shader;
 }
 
+/**
+ * @brief 创建模糊效果着色器
+ *
+ * 创建并配置一个模糊效果的GLShader对象，包含模糊半径参数
+ *
+ * @param params 模糊效果参数，包含radius
+ * @return 成功返回配置好的着色器智能指针，失败返回nullptr
+ */
 Ptr<GLShader> ShaderPreset::Blur(const BlurParams &params) {
   auto shader = std::make_shared<GLShader>();
 
@@ -124,6 +180,15 @@ Ptr<GLShader> ShaderPreset::Blur(const BlurParams &params) {
   return shader;
 }
 
+/**
+ * @brief 创建灰度+描边组合效果着色器
+ *
+ * 创建并配置一个同时应用灰度和描边效果的GLShader对象
+ *
+ * @param grayParams 灰度效果参数，包含intensity
+ * @param outlineParams 描边效果参数，包含color和thickness
+ * @return 成功返回配置好的着色器智能指针，失败返回nullptr
+ */
 Ptr<GLShader>
 ShaderPreset::GrayscaleOutline(const GrayscaleParams &grayParams,
                                const OutlineParams &outlineParams) {
@@ -183,6 +248,15 @@ void main() {
   return shader;
 }
 
+/**
+ * @brief 创建像素化+反相组合效果着色器
+ *
+ * 创建并配置一个同时应用像素化和反相效果的GLShader对象
+ *
+ * @param pixParams 像素化效果参数，包含pixelSize
+ * @param invParams 反相效果参数，包含strength
+ * @return 成功返回配置好的着色器智能指针，失败返回nullptr
+ */
 Ptr<GLShader> ShaderPreset::PixelateInvert(const PixelateParams &pixParams,
                                            const InvertParams &invParams) {
   // 创建组合效果的片段着色器 (GLES 3.2)

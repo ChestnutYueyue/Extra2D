@@ -9,9 +9,9 @@ namespace extra2d {
 // ============================================================================
 // VRAM 管理器 - 跟踪显存使用情况
 // ============================================================================
-class VRAMManager {
+class VRAMMgr {
 public:
-    static VRAMManager& getInstance();
+    static VRAMMgr& get();
 
     // 纹理显存跟踪
     void allocTexture(size_t size);
@@ -39,10 +39,10 @@ public:
     void reset();
 
 private:
-    VRAMManager();
-    ~VRAMManager() = default;
-    VRAMManager(const VRAMManager&) = delete;
-    VRAMManager& operator=(const VRAMManager&) = delete;
+    VRAMMgr();
+    ~VRAMMgr() = default;
+    VRAMMgr(const VRAMMgr&) = delete;
+    VRAMMgr& operator=(const VRAMMgr&) = delete;
 
     mutable std::mutex mutex_;
 

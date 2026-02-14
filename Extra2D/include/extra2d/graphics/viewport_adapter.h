@@ -171,13 +171,13 @@ public:
    * @brief 获取视口变换矩阵
    * @return 视口变换矩阵（从逻辑坐标到屏幕坐标）
    */
-  glm::mat4 getViewportMatrix() const;
+  glm::mat4 getMatrix() const;
 
   /**
    * @brief 获取反向视口变换矩阵
    * @return 反向视口变换矩阵（从屏幕坐标到逻辑坐标）
    */
-  glm::mat4 getInverseViewportMatrix() const;
+  glm::mat4 getInvMatrix() const;
 
   // ------------------------------------------------------------------------
   // 区域检测

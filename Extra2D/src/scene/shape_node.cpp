@@ -7,10 +7,25 @@
 
 namespace extra2d {
 
+/**
+ * @brief 默认构造函数
+ *
+ * 创建一个空的形状节点
+ */
 ShapeNode::ShapeNode() = default;
 
+/**
+ * @brief 创建空的形状节点
+ * @return 新创建的形状节点智能指针
+ */
 Ptr<ShapeNode> ShapeNode::create() { return makePtr<ShapeNode>(); }
 
+/**
+ * @brief 创建点形状节点
+ * @param pos 点的位置坐标
+ * @param color 点的颜色
+ * @return 新创建的点形状节点智能指针
+ */
 Ptr<ShapeNode> ShapeNode::createPoint(const Vec2 &pos, const Color &color) {
   auto node = makePtr<ShapeNode>();
   node->shapeType_ = ShapeType::Point;
@@ -19,6 +34,14 @@ Ptr<ShapeNode> ShapeNode::createPoint(const Vec2 &pos, const Color &color) {
   return node;
 }
 
+/**
+ * @brief 创建线段形状节点
+ * @param start 线段起点坐标
+ * @param end 线段终点坐标
+ * @param color 线段颜色
+ * @param width 线段宽度
+ * @return 新创建的线段形状节点智能指针
+ */
 Ptr<ShapeNode> ShapeNode::createLine(const Vec2 &start, const Vec2 &end,
                                      const Color &color, float width) {
   auto node = makePtr<ShapeNode>();
@@ -29,6 +52,13 @@ Ptr<ShapeNode> ShapeNode::createLine(const Vec2 &start, const Vec2 &end,
   return node;
 }
 
+/**
+ * @brief 创建矩形形状节点（空心）
+ * @param rect 矩形区域
+ * @param color 矩形边框颜色
+ * @param width 边框线宽
+ * @return 新创建的矩形形状节点智能指针
+ */
 Ptr<ShapeNode> ShapeNode::createRect(const Rect &rect, const Color &color,
                                      float width) {
   auto node = makePtr<ShapeNode>();
@@ -42,6 +72,12 @@ Ptr<ShapeNode> ShapeNode::createRect(const Rect &rect, const Color &color,
   return node;
 }
 
+/**
+ * @brief 创建填充矩形形状节点
+ * @param rect 矩形区域
+ * @param color 矩形填充颜色
+ * @return 新创建的填充矩形形状节点智能指针
+ */
 Ptr<ShapeNode> ShapeNode::createFilledRect(const Rect &rect,
                                            const Color &color) {
   auto node = createRect(rect, color, 0);
@@ -49,6 +85,15 @@ Ptr<ShapeNode> ShapeNode::createFilledRect(const Rect &rect,
   return node;
 }
 
+/**
+ * @brief 创建圆形形状节点（空心）
+ * @param center 圆心坐标
+ * @param radius 圆的半径
+ * @param color 圆的边框颜色
+ * @param segments 圆的分段数（边数）
+ * @param width 边框线宽
+ * @return 新创建的圆形形状节点智能指针
+ */
 Ptr<ShapeNode> ShapeNode::createCircle(const Vec2 &center, float radius,
                                        const Color &color, int segments,
                                        float width) {
@@ -64,6 +109,14 @@ Ptr<ShapeNode> ShapeNode::createCircle(const Vec2 &center, float radius,
   return node;
 }
 
+/**
+ * @brief 创建填充圆形形状节点
+ * @param center 圆心坐标
+ * @param radius 圆的半径
+ * @param color 圆的填充颜色
+ * @param segments 圆的分段数（边数）
+ * @return 新创建的填充圆形形状节点智能指针
+ */
 Ptr<ShapeNode> ShapeNode::createFilledCircle(const Vec2 &center, float radius,
                                              const Color &color, int segments) {
   auto node = createCircle(center, radius, color, segments, 0);
@@ -71,6 +124,15 @@ Ptr<ShapeNode> ShapeNode::createFilledCircle(const Vec2 &center, float radius,
   return node;
 }
 
+/**
+ * @brief 创建三角形形状节点（空心）
+ * @param p1 三角形第一个顶点坐标
+ * @param p2 三角形第二个顶点坐标
+ * @param p3 三角形第三个顶点坐标
+ * @param color 三角形边框颜色
+ * @param width 边框线宽
+ * @return 新创建的三角形形状节点智能指针
+ */
 Ptr<ShapeNode> ShapeNode::createTriangle(const Vec2 &p1, const Vec2 &p2,
                                          const Vec2 &p3, const Color &color,
                                          float width) {
@@ -83,6 +145,14 @@ Ptr<ShapeNode> ShapeNode::createTriangle(const Vec2 &p1, const Vec2 &p2,
   return node;
 }
 
+/**
+ * @brief 创建填充三角形形状节点
+ * @param p1 三角形第一个顶点坐标
+ * @param p2 三角形第二个顶点坐标
+ * @param p3 三角形第三个顶点坐标
+ * @param color 三角形填充颜色
+ * @return 新创建的填充三角形形状节点智能指针
+ */
 Ptr<ShapeNode> ShapeNode::createFilledTriangle(const Vec2 &p1, const Vec2 &p2,
                                                const Vec2 &p3,
                                                const Color &color) {
@@ -91,6 +161,13 @@ Ptr<ShapeNode> ShapeNode::createFilledTriangle(const Vec2 &p1, const Vec2 &p2,
   return node;
 }
 
+/**
+ * @brief 创建多边形形状节点（空心）
+ * @param points 多边形顶点坐标数组
+ * @param color 多边形边框颜色
+ * @param width 边框线宽
+ * @return 新创建的多边形形状节点智能指针
+ */
 Ptr<ShapeNode> ShapeNode::createPolygon(const std::vector<Vec2> &points,
                                         const Color &color, float width) {
   auto node = makePtr<ShapeNode>();
@@ -102,6 +179,12 @@ Ptr<ShapeNode> ShapeNode::createPolygon(const std::vector<Vec2> &points,
   return node;
 }
 
+/**
+ * @brief 创建填充多边形形状节点
+ * @param points 多边形顶点坐标数组
+ * @param color 多边形填充颜色
+ * @return 新创建的填充多边形形状节点智能指针
+ */
 Ptr<ShapeNode> ShapeNode::createFilledPolygon(const std::vector<Vec2> &points,
                                               const Color &color) {
   auto node = createPolygon(points, color, 0);
@@ -109,19 +192,36 @@ Ptr<ShapeNode> ShapeNode::createFilledPolygon(const std::vector<Vec2> &points,
   return node;
 }
 
+/**
+ * @brief 设置形状的所有顶点
+ * @param points 顶点坐标数组
+ */
 void ShapeNode::setPoints(const std::vector<Vec2> &points) {
   points_ = points;
 }
 
+/**
+ * @brief 添加一个顶点到形状
+ * @param point 要添加的顶点坐标
+ */
 void ShapeNode::addPoint(const Vec2 &point) {
   points_.push_back(point);
 }
 
+/**
+ * @brief 清除所有顶点
+ */
 void ShapeNode::clearPoints() {
   points_.clear();
 }
 
-Rect ShapeNode::getBoundingBox() const {
+/**
+ * @brief 获取形状的边界矩形
+ * @return 包围形状的轴对齐边界矩形
+ *
+ * 计算形状在世界坐标系中的边界框，考虑位置偏移和线宽
+ */
+Rect ShapeNode::getBounds() const {
   if (points_.empty()) {
     return Rect();
   }
@@ -163,6 +263,12 @@ Rect ShapeNode::getBoundingBox() const {
               (maxY - minY) + inflate * 2.0f);
 }
 
+/**
+ * @brief 绘制形状节点
+ * @param renderer 渲染后端引用
+ *
+ * 根据形状类型调用相应的渲染方法进行绘制
+ */
 void ShapeNode::onDraw(RenderBackend &renderer) {
   if (points_.empty()) {
     return;
@@ -245,6 +351,13 @@ void ShapeNode::onDraw(RenderBackend &renderer) {
   }
 }
 
+/**
+ * @brief 生成渲染命令
+ * @param commands 渲染命令输出向量
+ * @param zOrder 渲染层级
+ *
+ * 根据形状类型生成对应的渲染命令并添加到命令列表
+ */
 void ShapeNode::generateRenderCommand(std::vector<RenderCommand> &commands,
                                       int zOrder) {
   if (points_.empty()) {

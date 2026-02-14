@@ -96,13 +96,13 @@ public:
    * @brief 获取逻辑坐标下的鼠标位置
    * @return 逻辑坐标
    */
-  Vec2 getMousePositionLogic() const;
+  Vec2 getMousePosLogic() const;
 
   /**
    * @brief 获取逻辑坐标下的触摸位置
    * @return 逻辑坐标
    */
-  Vec2 getTouchPositionLogic() const;
+  Vec2 getTouchPosLogic() const;
 
   /**
    * @brief 获取逻辑坐标下的鼠标增量

@@ -79,14 +79,3 @@ includes("xmake/engine.lua")
 -- 定义引擎库
 define_extra2d_engine()
 
--- ==============================================
--- 项目信息输出
--- ==============================================
-
-print("========================================")
-print("Extra2D Build Configuration")
-print("========================================")
-print("Platform: " .. target_plat)
-print("Architecture: " .. (get_config("arch") or "auto"))
-print("Mode: " .. (is_mode("debug") and "debug" or "release"))
-print("========================================")

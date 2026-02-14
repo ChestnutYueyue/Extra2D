@@ -13,6 +13,8 @@ namespace extra2d {
 
 /**
  * @brief 默认构造函数
+ *
+ * 创建一个未初始化的纹理池
  */
 TexturePool::TexturePool()
     : scene_(nullptr)
@@ -27,6 +29,8 @@ TexturePool::TexturePool()
  * @brief 构造函数
  * @param scene 场景指针
  * @param maxMemoryUsage 最大内存使用量（0 表示无限制）
+ *
+ * 创建一个指定场景和内存限制的纹理池
  */
 TexturePool::TexturePool(Scene* scene, size_t maxMemoryUsage)
     : scene_(scene)
@@ -42,6 +46,8 @@ TexturePool::TexturePool(Scene* scene, size_t maxMemoryUsage)
  * @brief 初始化纹理池
  * @param scene 场景指针
  * @param maxMemoryUsage 最大内存使用量（0 表示无限制）
+ *
+ * 设置纹理池的场景和内存限制
  */
 void TexturePool::init(Scene* scene, size_t maxMemoryUsage) {
     scene_ = scene;
@@ -51,6 +57,8 @@ void TexturePool::init(Scene* scene, size_t maxMemoryUsage) {
 
 /**
  * @brief 析构函数
+ *
+ * 清理纹理池并释放所有资源
  */
 TexturePool::~TexturePool() {
     clear();
@@ -66,6 +74,8 @@ TexturePool::~TexturePool() {
  * @param path 文件路径
  * @param options 加载选项
  * @return 纹理引用
+ *
+ * 加载完整纹理文件到纹理池
  */
 TextureRef TexturePool::load(const std::string& path, const TextureLoadOptions& options) {
     return load(path, Rect::Zero(), options);
@@ -77,6 +87,8 @@ TextureRef TexturePool::load(const std::string& path, const TextureLoadOptions& 
  * @param region 纹理区域
  * @param options 加载选项
  * @return 纹理引用
+ *
+ * 加载纹理文件的指定区域到纹理池
  */
 TextureRef TexturePool::load(const std::string& path, const Rect& region,
                               const TextureLoadOptions& options) {
@@ -157,6 +169,8 @@ TextureRef TexturePool::load(const std::string& path, const Rect& region,
  * @param channels 通道数
  * @param key 缓存键
  * @return 纹理引用
+ *
+ * 从内存中的像素数据创建纹理并加入纹理池
  */
 TextureRef TexturePool::loadFromMemory(const uint8_t* data, int width, int height,
                                         int channels, const std::string& key) {
@@ -226,6 +240,8 @@ TextureRef TexturePool::loadFromMemory(const uint8_t* data, int width, int heigh
  * @param path 文件路径
  * @param options 加载选项
  * @return 纹理引用
+ *
+ * 如果纹理已缓存则返回缓存，否则加载纹理
  */
 TextureRef TexturePool::getOrLoad(const std::string& path, const TextureLoadOptions& options) {
     return getOrLoad(path, Rect::Zero(), options);
@@ -237,6 +253,8 @@ TextureRef TexturePool::getOrLoad(const std::string& path, const TextureLoadOpti
  * @param region 纹理区域
  * @param options 加载选项
  * @return 纹理引用
+ *
+ * 如果纹理区域已缓存则返回缓存，否则加载纹理区域
  */
 TextureRef TexturePool::getOrLoad(const std::string& path, const Rect& region,
                                    const TextureLoadOptions& options) {
@@ -307,6 +325,8 @@ TextureRef TexturePool::getOrLoad(const std::string& path, const Rect& region,
  * @brief 增加引用计数
  * @param key 纹理键
  * @return 是否成功
+ *
+ * 增加指定纹理的引用计数
  */
 bool TexturePool::addRef(const TextureKey& key) {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -324,6 +344,8 @@ bool TexturePool::addRef(const TextureKey& key) {
  * @brief 减少引用计数
  * @param key 纹理键
  * @return 减少后的引用计数
+ *
+ * 减少指定纹理的引用计数并返回新值
  */
 uint32_t TexturePool::release(const TextureKey& key) {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -340,6 +362,8 @@ uint32_t TexturePool::release(const TextureKey& key) {
  * @brief 获取引用计数
  * @param key 纹理键
  * @return 引用计数
+ *
+ * 获取指定纹理的当前引用计数
  */
 uint32_t TexturePool::getRefCount(const TextureKey& key) const {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -359,6 +383,8 @@ uint32_t TexturePool::getRefCount(const TextureKey& key) const {
  * @brief 检查纹理是否已缓存
  * @param key 纹理键
  * @return 是否已缓存
+ *
+ * 检查指定纹理是否存在于缓存中
  */
 bool TexturePool::isCached(const TextureKey& key) const {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -369,6 +395,8 @@ bool TexturePool::isCached(const TextureKey& key) const {
  * @brief 从缓存中移除纹理
  * @param key 纹理键
  * @return 是否成功
+ *
+ * 从缓存中移除指定的纹理
  */
 bool TexturePool::removeFromCache(const TextureKey& key) {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -386,6 +414,8 @@ bool TexturePool::removeFromCache(const TextureKey& key) {
 /**
  * @brief 垃圾回收（移除引用计数为 0 的纹理）
  * @return 移除的纹理数量
+ *
+ * 清理所有引用计数为0的纹理，释放内存
  */
 size_t TexturePool::collectGarbage() {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -410,6 +440,8 @@ size_t TexturePool::collectGarbage() {
 
 /**
  * @brief 清空所有缓存
+ *
+ * 移除纹理池中的所有纹理
  */
 void TexturePool::clear() {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -427,6 +459,8 @@ void TexturePool::clear() {
 /**
  * @brief 获取当前内存使用量
  * @return 内存使用量（字节）
+ *
+ * 返回纹理池当前的内存使用量
  */
 size_t TexturePool::getMemoryUsage() const {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -436,6 +470,8 @@ size_t TexturePool::getMemoryUsage() const {
 /**
  * @brief 设置最大内存使用量
  * @param maxMemory 最大内存使用量（0 表示无限制）
+ *
+ * 设置纹理池的内存上限，如果当前使用量超过新上限则执行淘汰
  */
 void TexturePool::setMaxMemoryUsage(size_t maxMemory) {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -453,6 +489,8 @@ void TexturePool::setMaxMemoryUsage(size_t maxMemory) {
  * @brief 执行 LRU 淘汰
  * @param targetMemory 目标内存使用量
  * @return 淘汰的纹理数量
+ *
+ * 根据LRU算法淘汰最少使用的纹理以达到目标内存使用量
  */
 size_t TexturePool::evictLRU(size_t targetMemory) {
     // 注意：调用者应该已持有锁
@@ -506,7 +544,9 @@ size_t TexturePool::evictLRU(size_t targetMemory) {
 
 /**
  * @brief 获取统计信息
- * @return 统计信息
+ * @return 统计信息结构体
+ *
+ * 返回纹理池的统计信息，包括纹理数量、内存使用、缓存命中率等
  */
 TexturePool::Stats TexturePool::getStats() const {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -524,6 +564,8 @@ TexturePool::Stats TexturePool::getStats() const {
 
 /**
  * @brief 重置统计信息
+ *
+ * 清零缓存命中、未命中和淘汰计数
  */
 void TexturePool::resetStats() {
     cacheHits_.store(0, std::memory_order_relaxed);
@@ -539,6 +581,8 @@ void TexturePool::resetStats() {
  * @brief 计算纹理内存大小
  * @param texture 纹理对象
  * @return 内存大小（字节）
+ *
+ * 根据纹理的尺寸、通道数和像素格式计算内存占用
  */
 size_t TexturePool::calculateTextureMemory(const Texture* texture) {
     if (!texture) {
@@ -587,6 +631,8 @@ size_t TexturePool::calculateTextureMemory(const Texture* texture) {
 /**
  * @brief 检查是否需要淘汰
  * @return 是否需要淘汰
+ *
+ * 检查当前内存使用量是否超过限制
  */
 bool TexturePool::needsEviction() const {
     return maxMemoryUsage_ > 0 && currentMemoryUsage_ > maxMemoryUsage_;
@@ -594,6 +640,8 @@ bool TexturePool::needsEviction() const {
 
 /**
  * @brief 尝试自动淘汰
+ *
+ * 如果内存使用量超过限制，执行LRU淘汰
  */
 void TexturePool::tryAutoEvict() {
     if (needsEviction()) {

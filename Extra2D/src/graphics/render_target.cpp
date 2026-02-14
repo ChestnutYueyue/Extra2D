@@ -12,10 +12,26 @@ namespace extra2d {
 // RenderTarget实现
 // ============================================================================
 
+/**
+ * @brief 默认构造函数
+ *
+ * 创建一个空的渲染目标对象
+ */
 RenderTarget::RenderTarget() = default;
 
+/**
+ * @brief 析构函数
+ *
+ * 销毁渲染目标并释放相关资源
+ */
 RenderTarget::~RenderTarget() { destroy(); }
 
+/**
+ * @brief 移动构造函数
+ * @param other 源渲染目标对象
+ *
+ * 将其他渲染目标的资源转移到新对象
+ */
 RenderTarget::RenderTarget(RenderTarget &&other) noexcept
     : fbo_(other.fbo_), rbo_(other.rbo_),
       colorTexture_(std::move(other.colorTexture_)),
@@ -29,6 +45,13 @@ RenderTarget::RenderTarget(RenderTarget &&other) noexcept
   other.height_ = 0;
 }
 
+/**
+ * @brief 移动赋值运算符
+ * @param other 源渲染目标对象
+ * @return 当前对象引用
+ *
+ * 将其他渲染目标的资源转移到当前对象
+ */
 RenderTarget &RenderTarget::operator=(RenderTarget &&other) noexcept {
   if (this != &other) {
     destroy();
@@ -52,6 +75,13 @@ RenderTarget &RenderTarget::operator=(RenderTarget &&other) noexcept {
   return *this;
 }
 
+/**
+ * @brief 根据配置创建渲染目标
+ * @param config 渲染目标配置
+ * @return 创建成功返回true，失败返回false
+ *
+ * 根据指定的配置参数创建帧缓冲对象
+ */
 bool RenderTarget::create(const RenderTargetConfig &config) {
   destroy();
 
@@ -73,6 +103,14 @@ bool RenderTarget::create(const RenderTargetConfig &config) {
   return true;
 }
 
+/**
+ * @brief 从现有纹理创建渲染目标
+ * @param texture 颜色纹理
+ * @param hasDepth 是否创建深度缓冲
+ * @return 创建成功返回true，失败返回false
+ *
+ * 使用现有纹理作为颜色附件创建帧缓冲对象
+ */
 bool RenderTarget::createFromTexture(Ptr<Texture> texture, bool hasDepth) {
   if (!texture || !texture->isValid()) {
     E2D_ERROR("无效的颜色纹理");
@@ -125,6 +163,11 @@ bool RenderTarget::createFromTexture(Ptr<Texture> texture, bool hasDepth) {
   return true;
 }
 
+/**
+ * @brief 销毁渲染目标
+ *
+ * 释放帧缓冲对象和相关资源
+ */
 void RenderTarget::destroy() {
   deleteFBO();
 
@@ -135,6 +178,11 @@ void RenderTarget::destroy() {
   height_ = 0;
 }
 
+/**
+ * @brief 绑定渲染目标
+ *
+ * 将此渲染目标绑定为当前渲染目标
+ */
 void RenderTarget::bind() {
   if (!isValid()) {
     return;
@@ -144,8 +192,19 @@ void RenderTarget::bind() {
   glViewport(0, 0, width_, height_);
 }
 
+/**
+ * @brief 解绑渲染目标
+ *
+ * 恢复默认帧缓冲
+ */
 void RenderTarget::unbind() { bindDefault(); }
 
+/**
+ * @brief 清除渲染目标
+ * @param color 清除颜色
+ *
+ * 使用指定颜色清除颜色缓冲，如有深度/模板缓冲也会清除
+ */
 void RenderTarget::clear(const Color &color) {
   if (!isValid()) {
     return;
@@ -167,6 +226,15 @@ void RenderTarget::clear(const Color &color) {
   glClear(mask);
 }
 
+/**
+ * @brief 设置视口区域
+ * @param x 视口左下角X坐标
+ * @param y 视口左下角Y坐标
+ * @param width 视口宽度
+ * @param height 视口高度
+ *
+ * 设置渲染目标的视口区域
+ */
 void RenderTarget::setViewport(int x, int y, int width, int height) {
   if (!isValid()) {
     return;
@@ -176,6 +244,15 @@ void RenderTarget::setViewport(int x, int y, int width, int height) {
   glViewport(x, y, width, height);
 }
 
+/**
+ * @brief 获取完整视口区域
+ * @param[out] x 视口左下角X坐标
+ * @param[out] y 视口左下角Y坐标
+ * @param[out] width 视口宽度
+ * @param[out] height 视口高度
+ *
+ * 获取渲染目标的完整视口区域
+ */
 void RenderTarget::getFullViewport(int &x, int &y, int &width,
                                    int &height) const {
   x = 0;
@@ -184,6 +261,14 @@ void RenderTarget::getFullViewport(int &x, int &y, int &width,
   height = height_;
 }
 
+/**
+ * @brief 调整渲染目标大小
+ * @param width 新宽度
+ * @param height 新高度
+ * @return 调整成功返回true，失败返回false
+ *
+ * 重新创建指定大小的渲染目标
+ */
 bool RenderTarget::resize(int width, int height) {
   if (!isValid()) {
     return false;
@@ -200,6 +285,12 @@ bool RenderTarget::resize(int width, int height) {
   return create(config);
 }
 
+/**
+ * @brief 复制到另一个渲染目标
+ * @param target 目标渲染目标
+ *
+ * 使用glBlitFramebuffer将内容复制到目标渲染目标
+ */
 void RenderTarget::copyTo(RenderTarget &target) {
   if (!isValid() || !target.isValid()) {
     return;
@@ -220,6 +311,14 @@ void RenderTarget::copyTo(RenderTarget &target) {
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
+/**
+ * @brief 将内容传输到另一个渲染目标
+ * @param target 目标渲染目标
+ * @param color 是否复制颜色缓冲
+ * @param depth 是否复制深度缓冲
+ *
+ * 使用glBlitFramebuffer进行选择性复制
+ */
 void RenderTarget::blitTo(RenderTarget &target, bool color, bool depth) {
   if (!isValid() || !target.isValid()) {
     return;
@@ -245,6 +344,13 @@ void RenderTarget::blitTo(RenderTarget &target, bool color, bool depth) {
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
+/**
+ * @brief 复制到屏幕
+ * @param screenWidth 屏幕宽度
+ * @param screenHeight 屏幕高度
+ *
+ * 将渲染目标内容复制到默认帧缓冲（屏幕）
+ */
 void RenderTarget::copyToScreen(int screenWidth, int screenHeight) {
   if (!isValid()) {
     return;
@@ -259,6 +365,13 @@ void RenderTarget::copyToScreen(int screenWidth, int screenHeight) {
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
+/**
+ * @brief 保存渲染目标到文件
+ * @param filepath 文件路径
+ * @return 保存成功返回true，失败返回false
+ *
+ * 将渲染目标内容保存为PNG图片文件
+ */
 bool RenderTarget::saveToFile(const std::string &filepath) {
   if (!isValid() || !colorTexture_) {
     return false;
@@ -296,6 +409,13 @@ bool RenderTarget::saveToFile(const std::string &filepath) {
   return true;
 }
 
+/**
+ * @brief 根据配置创建渲染目标
+ * @param config 渲染目标配置
+ * @return 创建成功返回渲染目标指针，失败返回nullptr
+ *
+ * 静态工厂方法，创建并初始化渲染目标
+ */
 Ptr<RenderTarget>
 RenderTarget::createFromConfig(const RenderTargetConfig &config) {
   auto rt = std::make_shared<RenderTarget>();
@@ -305,18 +425,35 @@ RenderTarget::createFromConfig(const RenderTargetConfig &config) {
   return nullptr;
 }
 
+/**
+ * @brief 获取当前绑定的帧缓冲对象ID
+ * @return 当前绑定的FBO ID
+ *
+ * 查询OpenGL当前绑定的帧缓冲对象
+ */
 GLuint RenderTarget::getCurrentFBO() {
   GLint fbo = 0;
   glGetIntegerv(GL_FRAMEBUFFER_BINDING, &fbo);
   return static_cast<GLuint>(fbo);
 }
 
+/**
+ * @brief 绑定默认帧缓冲
+ *
+ * 将默认帧缓冲（屏幕）绑定为当前渲染目标
+ */
 void RenderTarget::bindDefault() { glBindFramebuffer(GL_FRAMEBUFFER, 0); }
 
 // ============================================================================
 // 内部方法
 // ============================================================================
 
+/**
+ * @brief 创建帧缓冲对象
+ * @return 创建成功返回true，失败返回false
+ *
+ * 内部方法，创建FBO及相关附件
+ */
 bool RenderTarget::createFBO() {
   // 创建颜色纹理
   colorTexture_ = GLTexture::create(width_, height_, colorFormat_);
@@ -370,6 +507,11 @@ bool RenderTarget::createFBO() {
   return true;
 }
 
+/**
+ * @brief 删除帧缓冲对象
+ *
+ * 内部方法，删除FBO和渲染缓冲对象
+ */
 void RenderTarget::deleteFBO() {
   if (rbo_ != 0) {
     glDeleteRenderbuffers(1, &rbo_);
@@ -386,6 +528,15 @@ void RenderTarget::deleteFBO() {
 // MultisampleRenderTarget实现
 // ============================================================================
 
+/**
+ * @brief 创建多重采样渲染目标
+ * @param width 宽度
+ * @param height 高度
+ * @param samples 采样数
+ * @return 创建成功返回true，失败返回false
+ *
+ * 创建支持多重采样抗锯齿的渲染目标
+ */
 bool MultisampleRenderTarget::create(int width, int height, int samples) {
   // 先销毁现有的
   destroy();
@@ -433,6 +584,11 @@ bool MultisampleRenderTarget::create(int width, int height, int samples) {
   return true;
 }
 
+/**
+ * @brief 销毁多重采样渲染目标
+ *
+ * 释放多重采样渲染缓冲和帧缓冲对象
+ */
 void MultisampleRenderTarget::destroy() {
   // 删除颜色渲染缓冲
   if (colorRBO_ != 0) {
@@ -444,6 +600,12 @@ void MultisampleRenderTarget::destroy() {
   RenderTarget::destroy();
 }
 
+/**
+ * @brief 解析多重采样到目标渲染目标
+ * @param target 目标渲染目标
+ *
+ * 将多重采样渲染目标解析到普通渲染目标
+ */
 void MultisampleRenderTarget::resolveTo(RenderTarget &target) {
   if (!isValid() || !target.isValid()) {
     return;
@@ -463,11 +625,23 @@ void MultisampleRenderTarget::resolveTo(RenderTarget &target) {
 // RenderTargetStack实现
 // ============================================================================
 
-RenderTargetStack &RenderTargetStack::getInstance() {
+/**
+ * @brief 获取RenderTargetStack单例实例
+ * @return RenderTargetStack单例的引用
+ *
+ * 使用静态局部变量实现线程安全的单例模式
+ */
+RenderTargetStack &RenderTargetStack::get() {
   static RenderTargetStack instance;
   return instance;
 }
 
+/**
+ * @brief 压入渲染目标到栈
+ * @param target 渲染目标指针
+ *
+ * 将渲染目标压入栈并绑定为当前渲染目标
+ */
 void RenderTargetStack::push(RenderTarget *target) {
   std::lock_guard<std::mutex> lock(mutex_);
 
@@ -477,6 +651,11 @@ void RenderTargetStack::push(RenderTarget *target) {
   }
 }
 
+/**
+ * @brief 弹出栈顶渲染目标
+ *
+ * 弹出当前渲染目标并恢复前一个渲染目标
+ */
 void RenderTargetStack::pop() {
   std::lock_guard<std::mutex> lock(mutex_);
 
@@ -492,6 +671,10 @@ void RenderTargetStack::pop() {
   }
 }
 
+/**
+ * @brief 获取当前渲染目标
+ * @return 当前渲染目标指针，栈为空返回nullptr
+ */
 RenderTarget *RenderTargetStack::getCurrent() const {
   std::lock_guard<std::mutex> lock(mutex_);
 
@@ -501,11 +684,20 @@ RenderTarget *RenderTargetStack::getCurrent() const {
   return stack_.back();
 }
 
+/**
+ * @brief 获取栈大小
+ * @return 栈中渲染目标的数量
+ */
 size_t RenderTargetStack::size() const {
   std::lock_guard<std::mutex> lock(mutex_);
   return stack_.size();
 }
 
+/**
+ * @brief 清空渲染目标栈
+ *
+ * 清空栈并恢复默认帧缓冲
+ */
 void RenderTargetStack::clear() {
   std::lock_guard<std::mutex> lock(mutex_);
   stack_.clear();
@@ -513,15 +705,29 @@ void RenderTargetStack::clear() {
 }
 
 // ============================================================================
-// RenderTargetManager实现
+// RenderTargetMgr实现
 // ============================================================================
 
-RenderTargetManager &RenderTargetManager::getInstance() {
-  static RenderTargetManager instance;
+/**
+ * @brief 获取RenderTargetMgr单例实例
+ * @return RenderTargetMgr单例的引用
+ *
+ * 使用静态局部变量实现线程安全的单例模式
+ */
+RenderTargetMgr &RenderTargetMgr::get() {
+  static RenderTargetMgr instance;
   return instance;
 }
 
-bool RenderTargetManager::init(int width, int height) {
+/**
+ * @brief 初始化渲染目标管理器
+ * @param width 默认渲染目标宽度
+ * @param height 默认渲染目标高度
+ * @return 初始化成功返回true，失败返回false
+ *
+ * 创建默认渲染目标
+ */
+bool RenderTargetMgr::init(int width, int height) {
   if (initialized_) {
     return true;
   }
@@ -544,7 +750,12 @@ bool RenderTargetManager::init(int width, int height) {
   return true;
 }
 
-void RenderTargetManager::shutdown() {
+/**
+ * @brief 关闭渲染目标管理器
+ *
+ * 清理所有渲染目标资源
+ */
+void RenderTargetMgr::shutdown() {
   if (!initialized_) {
     return;
   }
@@ -556,8 +767,15 @@ void RenderTargetManager::shutdown() {
   E2D_INFO("渲染目标管理器已关闭");
 }
 
+/**
+ * @brief 创建渲染目标
+ * @param config 渲染目标配置
+ * @return 创建成功返回渲染目标指针，失败返回nullptr
+ *
+ * 创建新的渲染目标并由管理器管理
+ */
 Ptr<RenderTarget>
-RenderTargetManager::createRenderTarget(const RenderTargetConfig &config) {
+RenderTargetMgr::createRenderTarget(const RenderTargetConfig &config) {
   if (!initialized_) {
     E2D_ERROR("渲染目标管理器未初始化");
     return nullptr;
@@ -570,7 +788,14 @@ RenderTargetManager::createRenderTarget(const RenderTargetConfig &config) {
   return rt;
 }
 
-void RenderTargetManager::resize(int width, int height) {
+/**
+ * @brief 调整所有渲染目标大小
+ * @param width 新宽度
+ * @param height 新高度
+ *
+ * 调整默认渲染目标的大小
+ */
+void RenderTargetMgr::resize(int width, int height) {
   if (!initialized_) {
     return;
   }

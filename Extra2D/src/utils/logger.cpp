@@ -12,7 +12,7 @@ std::string Logger::logFile_;
 /**
  * @brief 获取日志级别字符串
  * @param level 日志级别
- * @return 级别字符串
+ * @return 级别对应的字符串表示
  */
 const char *Logger::getLevelString(LogLevel level) {
   switch (level) {
@@ -35,6 +35,8 @@ const char *Logger::getLevelString(LogLevel level) {
 
 /**
  * @brief 初始化日志系统
+ *
+ * 初始化日志系统并设置SDL日志级别为详细模式，允许所有级别的日志输出
  */
 void Logger::init() {
   if (initialized_) {
@@ -50,6 +52,8 @@ void Logger::init() {
 
 /**
  * @brief 关闭日志系统
+ *
+ * 关闭日志系统并输出关闭日志
  */
 void Logger::shutdown() {
   if (initialized_) {
@@ -60,7 +64,9 @@ void Logger::shutdown() {
 
 /**
  * @brief 设置日志级别
- * @param level 日志级别
+ * @param level 要设置的日志级别
+ *
+ * 设置日志系统的最低输出级别，低于此级别的日志将被忽略
  */
 void Logger::setLevel(LogLevel level) {
   level_ = level;
@@ -73,7 +79,9 @@ void Logger::setLevel(LogLevel level) {
 
 /**
  * @brief 设置是否输出到控制台
- * @param enable 是否启用
+ * @param enable true启用控制台输出，false禁用
+ *
+ * 控制日志是否输出到控制台，通过调整SDL日志优先级实现
  */
 void Logger::setConsoleOutput(bool enable) {
   consoleOutput_ = enable;
@@ -88,7 +96,9 @@ void Logger::setConsoleOutput(bool enable) {
 
 /**
  * @brief 设置日志输出到文件
- * @param filename 日志文件名
+ * @param filename 日志文件路径
+ *
+ * 配置日志输出到指定文件，空字符串则禁用文件输出
  */
 void Logger::setFileOutput(const std::string &filename) {
   logFile_ = filename;

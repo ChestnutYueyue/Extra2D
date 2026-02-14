@@ -59,6 +59,9 @@ static constexpr BlendState BLEND_STATES[] = {
 static constexpr size_t BLEND_STATE_COUNT =
     sizeof(BLEND_STATES) / sizeof(BLEND_STATES[0]);
 
+/**
+ * @brief 构造函数，初始化OpenGL渲染器成员变量
+ */
 GLRenderer::GLRenderer()
     : window_(nullptr), shapeVao_(0), shapeVbo_(0), lineVao_(0), lineVbo_(0),
       vsync_(true), shapeVertexCount_(0), currentShapeMode_(GL_TRIANGLES),
@@ -72,8 +75,16 @@ GLRenderer::GLRenderer()
   }
 }
 
+/**
+ * @brief 析构函数，调用shutdown释放资源
+ */
 GLRenderer::~GLRenderer() { shutdown(); }
 
+/**
+ * @brief 初始化OpenGL渲染器
+ * @param window 窗口指针
+ * @return 初始化成功返回true，失败返回false
+ */
 bool GLRenderer::init(Window *window) {
   window_ = window;
 
@@ -93,7 +104,7 @@ bool GLRenderer::init(Window *window) {
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
   // 标记 GPU 上下文为有效
-  GPUContext::getInstance().markValid();
+  GPUContext::get().markValid();
 
   E2D_LOG_INFO("OpenGL Renderer initialized");
   E2D_LOG_INFO("OpenGL Version: {}",
@@ -102,16 +113,19 @@ bool GLRenderer::init(Window *window) {
   return true;
 }
 
+/**
+ * @brief 关闭渲染器，释放所有GPU资源
+ */
 void GLRenderer::shutdown() {
   // 标记 GPU 上下文为无效
   // 这会在销毁 OpenGL 上下文之前通知所有 GPU 资源
-  GPUContext::getInstance().markInvalid();
+  GPUContext::get().markInvalid();
 
   spriteBatch_.shutdown();
 
   if (lineVbo_ != 0) {
     glDeleteBuffers(1, &lineVbo_);
-    VRAMManager::getInstance().freeBuffer(MAX_LINE_VERTICES *
+    VRAMMgr::get().freeBuffer(MAX_LINE_VERTICES *
                                           sizeof(ShapeVertex));
     lineVbo_ = 0;
   }
@@ -121,7 +135,7 @@ void GLRenderer::shutdown() {
   }
   if (shapeVbo_ != 0) {
     glDeleteBuffers(1, &shapeVbo_);
-    VRAMManager::getInstance().freeBuffer(MAX_SHAPE_VERTICES *
+    VRAMMgr::get().freeBuffer(MAX_SHAPE_VERTICES *
                                           sizeof(ShapeVertex));
     shapeVbo_ = 0;
   }
@@ -131,12 +145,19 @@ void GLRenderer::shutdown() {
   }
 }
 
+/**
+ * @brief 开始新帧，清除颜色缓冲区并重置统计信息
+ * @param clearColor 清屏颜色
+ */
 void GLRenderer::beginFrame(const Color &clearColor) {
   glClearColor(clearColor.r, clearColor.g, clearColor.b, clearColor.a);
   glClear(GL_COLOR_BUFFER_BIT);
   resetStats();
 }
 
+/**
+ * @brief 结束当前帧，刷新所有待处理的渲染批次
+ */
 void GLRenderer::endFrame() {
   // 刷新所有待处理的形状批次
   flushShapeBatch();
@@ -144,16 +165,31 @@ void GLRenderer::endFrame() {
   flushLineBatch();
 }
 
+/**
+ * @brief 设置视口区域
+ * @param x 视口左下角X坐标
+ * @param y 视口左下角Y坐标
+ * @param width 视口宽度
+ * @param height 视口高度
+ */
 void GLRenderer::setViewport(int x, int y, int width, int height) {
   glViewport(x, y, width, height);
 }
 
+/**
+ * @brief 设置垂直同步
+ * @param enabled true启用垂直同步，false禁用
+ */
 void GLRenderer::setVSync(bool enabled) {
   vsync_ = enabled;
   // 使用 SDL2 设置交换间隔
   SDL_GL_SetSwapInterval(enabled ? 1 : 0);
 }
 
+/**
+ * @brief 设置混合模式
+ * @param mode 混合模式枚举值
+ */
 void GLRenderer::setBlendMode(BlendMode mode) {
   // 状态缓存检查，避免冗余 GL 调用
   if (cachedBlendMode_ == mode) {
@@ -182,10 +218,18 @@ void GLRenderer::setBlendMode(BlendMode mode) {
   }
 }
 
+/**
+ * @brief 设置视图投影矩阵
+ * @param matrix 4x4视图投影矩阵
+ */
 void GLRenderer::setViewProjection(const glm::mat4 &matrix) {
   viewProjection_ = matrix;
 }
 
+/**
+ * @brief 压入变换矩阵到变换栈
+ * @param transform 变换矩阵
+ */
 void GLRenderer::pushTransform(const glm::mat4 &transform) {
   if (transformStack_.empty()) {
     transformStack_.push_back(transform);
@@ -194,12 +238,19 @@ void GLRenderer::pushTransform(const glm::mat4 &transform) {
   }
 }
 
+/**
+ * @brief 从变换栈弹出顶部变换矩阵
+ */
 void GLRenderer::popTransform() {
   if (!transformStack_.empty()) {
     transformStack_.pop_back();
   }
 }
 
+/**
+ * @brief 获取当前累积的变换矩阵
+ * @return 当前变换矩阵，如果栈为空则返回单位矩阵
+ */
 glm::mat4 GLRenderer::getCurrentTransform() const {
   if (transformStack_.empty()) {
     return glm::mat4(1.0f);
@@ -207,17 +258,42 @@ glm::mat4 GLRenderer::getCurrentTransform() const {
   return transformStack_.back();
 }
 
+/**
+ * @brief 创建纹理对象
+ * @param width 纹理宽度
+ * @param height 纹理高度
+ * @param pixels 像素数据指针
+ * @param channels 颜色通道数
+ * @return 创建的纹理智能指针
+ */
 Ptr<Texture> GLRenderer::createTexture(int width, int height,
                                        const uint8_t *pixels, int channels) {
   return makePtr<GLTexture>(width, height, pixels, channels);
 }
 
+/**
+ * @brief 从文件加载纹理
+ * @param filepath 纹理文件路径
+ * @return 加载的纹理智能指针
+ */
 Ptr<Texture> GLRenderer::loadTexture(const std::string &filepath) {
   return makePtr<GLTexture>(filepath);
 }
 
+/**
+ * @brief 开始精灵批处理
+ */
 void GLRenderer::beginSpriteBatch() { spriteBatch_.begin(viewProjection_); }
 
+/**
+ * @brief 绘制精灵（带完整参数）
+ * @param texture 纹理引用
+ * @param destRect 目标矩形（屏幕坐标）
+ * @param srcRect 源矩形（纹理坐标）
+ * @param tint 着色颜色
+ * @param rotation 旋转角度（度）
+ * @param anchor 锚点位置（0-1范围）
+ */
 void GLRenderer::drawSprite(const Texture &texture, const Rect &destRect,
                             const Rect &srcRect, const Color &tint,
                             float rotation, const Vec2 &anchor) {
@@ -246,6 +322,12 @@ void GLRenderer::drawSprite(const Texture &texture, const Rect &destRect,
   spriteBatch_.draw(texture, data);
 }
 
+/**
+ * @brief 绘制精灵（简化版本）
+ * @param texture 纹理引用
+ * @param position 绘制位置
+ * @param tint 着色颜色
+ */
 void GLRenderer::drawSprite(const Texture &texture, const Vec2 &position,
                             const Color &tint) {
   Rect destRect(position.x, position.y, static_cast<float>(texture.getWidth()),
@@ -255,11 +337,21 @@ void GLRenderer::drawSprite(const Texture &texture, const Vec2 &position,
   drawSprite(texture, destRect, srcRect, tint, 0.0f, Vec2(0, 0));
 }
 
+/**
+ * @brief 结束精灵批处理并提交绘制
+ */
 void GLRenderer::endSpriteBatch() {
   spriteBatch_.end();
   stats_.drawCalls += spriteBatch_.getDrawCallCount();
 }
 
+/**
+ * @brief 绘制线段
+ * @param start 起点坐标
+ * @param end 终点坐标
+ * @param color 线条颜色
+ * @param width 线条宽度
+ */
 void GLRenderer::drawLine(const Vec2 &start, const Vec2 &end,
                           const Color &color, float width) {
   // 如果线宽改变，需要先刷新线条批次
@@ -300,6 +392,11 @@ void GLRenderer::drawRect(const Rect &rect, const Color &color, float width) {
   addLineVertex(x1, y1, color);
 }
 
+/**
+ * @brief 填充矩形
+ * @param rect 矩形区域
+ * @param color 填充颜色
+ */
 void GLRenderer::fillRect(const Rect &rect, const Color &color) {
   // 提交当前批次（如果模式不同）
   submitShapeBatch(GL_TRIANGLES);
@@ -321,6 +418,14 @@ void GLRenderer::fillRect(const Rect &rect, const Color &color) {
   addShapeVertex(x1, y2, color);
 }
 
+/**
+ * @brief 绘制圆形边框
+ * @param center 圆心坐标
+ * @param radius 半径
+ * @param color 边框颜色
+ * @param segments 分段数
+ * @param width 线条宽度
+ */
 void GLRenderer::drawCircle(const Vec2 &center, float radius,
                             const Color &color, int segments, float width) {
   // 限制段数不超过缓存大小
@@ -348,6 +453,13 @@ void GLRenderer::drawCircle(const Vec2 &center, float radius,
   }
 }
 
+/**
+ * @brief 填充圆形
+ * @param center 圆心坐标
+ * @param radius 半径
+ * @param color 填充颜色
+ * @param segments 分段数
+ */
 void GLRenderer::fillCircle(const Vec2 &center, float radius,
                             const Color &color, int segments) {
   // 限制段数不超过缓存大小
@@ -375,6 +487,14 @@ void GLRenderer::fillCircle(const Vec2 &center, float radius,
   }
 }
 
+/**
+ * @brief 绘制三角形边框
+ * @param p1 第一个顶点
+ * @param p2 第二个顶点
+ * @param p3 第三个顶点
+ * @param color 边框颜色
+ * @param width 线条宽度
+ */
 void GLRenderer::drawTriangle(const Vec2 &p1, const Vec2 &p2, const Vec2 &p3,
                               const Color &color, float width) {
   drawLine(p1, p2, color, width);
@@ -382,6 +502,13 @@ void GLRenderer::drawTriangle(const Vec2 &p1, const Vec2 &p2, const Vec2 &p3,
   drawLine(p3, p1, color, width);
 }
 
+/**
+ * @brief 填充三角形
+ * @param p1 第一个顶点
+ * @param p2 第二个顶点
+ * @param p3 第三个顶点
+ * @param color 填充颜色
+ */
 void GLRenderer::fillTriangle(const Vec2 &p1, const Vec2 &p2, const Vec2 &p3,
                               const Color &color) {
   submitShapeBatch(GL_TRIANGLES);
@@ -391,6 +518,12 @@ void GLRenderer::fillTriangle(const Vec2 &p1, const Vec2 &p2, const Vec2 &p3,
   addShapeVertex(p3.x, p3.y, color);
 }
 
+/**
+ * @brief 绘制多边形边框
+ * @param points 顶点数组
+ * @param color 边框颜色
+ * @param width 线条宽度
+ */
 void GLRenderer::drawPolygon(const std::vector<Vec2> &points,
                              const Color &color, float width) {
   if (points.size() < 2)
@@ -411,6 +544,11 @@ void GLRenderer::drawPolygon(const std::vector<Vec2> &points,
   }
 }
 
+/**
+ * @brief 填充多边形
+ * @param points 顶点数组
+ * @param color 填充颜色
+ */
 void GLRenderer::fillPolygon(const std::vector<Vec2> &points,
                              const Color &color) {
   if (points.size() < 3)
@@ -427,16 +565,38 @@ void GLRenderer::fillPolygon(const std::vector<Vec2> &points,
   }
 }
 
+/**
+ * @brief 创建字体图集
+ * @param filepath 字体文件路径
+ * @param fontSize 字体大小
+ * @param useSDF 是否使用SDF渲染
+ * @return 创建的字体图集智能指针
+ */
 Ptr<FontAtlas> GLRenderer::createFontAtlas(const std::string &filepath,
                                            int fontSize, bool useSDF) {
   return makePtr<GLFontAtlas>(filepath, fontSize, useSDF);
 }
 
+/**
+ * @brief 绘制文本（使用Vec2位置）
+ * @param font 字体图集引用
+ * @param text 文本内容
+ * @param position 绘制位置
+ * @param color 文本颜色
+ */
 void GLRenderer::drawText(const FontAtlas &font, const std::string &text,
                           const Vec2 &position, const Color &color) {
   drawText(font, text, position.x, position.y, color);
 }
 
+/**
+ * @brief 绘制文本（使用浮点坐标）
+ * @param font 字体图集引用
+ * @param text 文本内容
+ * @param x X坐标
+ * @param y Y坐标
+ * @param color 文本颜色
+ */
 void GLRenderer::drawText(const FontAtlas &font, const std::string &text,
                           float x, float y, const Color &color) {
   float cursorX = x;
@@ -488,8 +648,14 @@ void GLRenderer::drawText(const FontAtlas &font, const std::string &text,
   }
 }
 
+/**
+ * @brief 重置渲染统计信息
+ */
 void GLRenderer::resetStats() { stats_ = Stats{}; }
 
+/**
+ * @brief 初始化形状渲染所需的OpenGL资源（VAO、VBO、着色器）
+ */
 void GLRenderer::initShapeRendering() {
   // 编译形状着色器
   shapeShader_.compileFromSource(SHAPE_VERTEX_SHADER, SHAPE_FRAGMENT_SHADER);
@@ -537,12 +703,18 @@ void GLRenderer::initShapeRendering() {
   glBindVertexArray(0);
 
   // VRAM 跟踪
-  VRAMManager::getInstance().allocBuffer(MAX_SHAPE_VERTICES *
+  VRAMMgr::get().allocBuffer(MAX_SHAPE_VERTICES *
                                          sizeof(ShapeVertex));
-  VRAMManager::getInstance().allocBuffer(MAX_LINE_VERTICES *
+  VRAMMgr::get().allocBuffer(MAX_LINE_VERTICES *
                                          sizeof(ShapeVertex));
 }
 
+/**
+ * @brief 添加形状顶点到缓存
+ * @param x X坐标
+ * @param y Y坐标
+ * @param color 顶点颜色
+ */
 void GLRenderer::addShapeVertex(float x, float y, const Color &color) {
   if (shapeVertexCount_ >= MAX_SHAPE_VERTICES) {
     flushShapeBatch();
@@ -556,6 +728,12 @@ void GLRenderer::addShapeVertex(float x, float y, const Color &color) {
   v.a = color.a;
 }
 
+/**
+ * @brief 添加线条顶点到缓存
+ * @param x X坐标
+ * @param y Y坐标
+ * @param color 顶点颜色
+ */
 void GLRenderer::addLineVertex(float x, float y, const Color &color) {
   if (lineVertexCount_ >= MAX_LINE_VERTICES) {
     flushLineBatch();
@@ -569,6 +747,10 @@ void GLRenderer::addLineVertex(float x, float y, const Color &color) {
   v.a = color.a;
 }
 
+/**
+ * @brief 提交形状批次（如果需要切换绘制模式）
+ * @param mode OpenGL绘制模式
+ */
 void GLRenderer::submitShapeBatch(GLenum mode) {
   if (shapeVertexCount_ == 0)
     return;
@@ -580,6 +762,9 @@ void GLRenderer::submitShapeBatch(GLenum mode) {
   currentShapeMode_ = mode;
 }
 
+/**
+ * @brief 刷新形状批次，执行实际的OpenGL绘制调用
+ */
 void GLRenderer::flushShapeBatch() {
   if (shapeVertexCount_ == 0)
     return;
@@ -600,6 +785,9 @@ void GLRenderer::flushShapeBatch() {
   shapeVertexCount_ = 0;
 }
 
+/**
+ * @brief 刷新线条批次，执行实际的OpenGL绘制调用
+ */
 void GLRenderer::flushLineBatch() {
   if (lineVertexCount_ == 0)
     return;

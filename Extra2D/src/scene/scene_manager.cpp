@@ -12,6 +12,9 @@ namespace {
 
 /**
  * @brief 命中测试 - 从节点树中找到最上层的可交互节点
+ * @param node 要测试的节点
+ * @param worldPos 世界坐标位置
+ * @return 命中的节点指针，未命中返回nullptr
  */
 Node *hitTestTopmost(const Ptr<Node> &node, const Vec2 &worldPos) {
   if (!node || !node->isVisible()) {
@@ -34,7 +37,7 @@ Node *hitTestTopmost(const Ptr<Node> &node, const Vec2 &worldPos) {
     return nullptr;
   }
 
-  Rect bounds = node->getBoundingBox();
+  Rect bounds = node->getBounds();
   if (!bounds.empty() && bounds.containsPoint(worldPos)) {
     return node.get();
   }
@@ -44,6 +47,8 @@ Node *hitTestTopmost(const Ptr<Node> &node, const Vec2 &worldPos) {
 
 /**
  * @brief 向节点分发事件
+ * @param node 目标节点
+ * @param event 要分发的事件
  */
 void dispatchToNode(Node *node, Event &event) {
   if (!node) {
@@ -54,11 +59,21 @@ void dispatchToNode(Node *node, Event &event) {
 
 } // namespace
 
-SceneManager &SceneManager::getInstance() {
+/**
+ * @brief 获取场景管理器单例
+ * @return 场景管理器的全局唯一实例引用
+ */
+SceneManager &SceneManager::get() {
   static SceneManager instance;
   return instance;
 }
 
+/**
+ * @brief 运行指定场景
+ * @param scene 要运行的场景智能指针
+ *
+ * 此方法应在应用启动时调用一次，设置初始场景
+ */
 void SceneManager::runWithScene(Ptr<Scene> scene) {
   if (!scene) {
     return;
@@ -74,6 +89,12 @@ void SceneManager::runWithScene(Ptr<Scene> scene) {
   sceneStack_.push(scene);
 }
 
+/**
+ * @brief 替换当前场景
+ * @param scene 新场景智能指针
+ *
+ * 移除当前场景并替换为新场景，场景栈大小保持不变
+ */
 void SceneManager::replaceScene(Ptr<Scene> scene) {
   if (!scene || isTransitioning_) {
     return;
@@ -94,6 +115,12 @@ void SceneManager::replaceScene(Ptr<Scene> scene) {
   sceneStack_.push(scene);
 }
 
+/**
+ * @brief 进入场景
+ * @param scene 要进入的场景智能指针
+ *
+ * 如果场景栈为空则运行场景，否则替换当前场景
+ */
 void SceneManager::enterScene(Ptr<Scene> scene) {
   if (!scene || isTransitioning_) {
     return;
@@ -106,6 +133,12 @@ void SceneManager::enterScene(Ptr<Scene> scene) {
   }
 }
 
+/**
+ * @brief 压入场景到栈顶
+ * @param scene 要压入的场景智能指针
+ *
+ * 将新场景压入栈顶，暂停当前场景
+ */
 void SceneManager::pushScene(Ptr<Scene> scene) {
   if (!scene || isTransitioning_) {
     return;
@@ -120,6 +153,11 @@ void SceneManager::pushScene(Ptr<Scene> scene) {
   sceneStack_.push(scene);
 }
 
+/**
+ * @brief 弹出当前场景
+ *
+ * 移除栈顶场景并恢复上一个场景
+ */
 void SceneManager::popScene() {
   if (sceneStack_.size() <= 1 || isTransitioning_) {
     return;
@@ -135,6 +173,11 @@ void SceneManager::popScene() {
   }
 }
 
+/**
+ * @brief 弹出到根场景
+ *
+ * 移除所有场景直到只剩根场景
+ */
 void SceneManager::popToRootScene() {
   if (sceneStack_.size() <= 1 || isTransitioning_) {
     return;
@@ -150,6 +193,12 @@ void SceneManager::popToRootScene() {
   sceneStack_.top()->resume();
 }
 
+/**
+ * @brief 弹出到指定名称的场景
+ * @param name 目标场景的名称
+ *
+ * 移除栈顶场景直到找到指定名称的场景
+ */
 void SceneManager::popToScene(const std::string &name) {
   if (isTransitioning_) {
     return;
@@ -174,6 +223,10 @@ void SceneManager::popToScene(const std::string &name) {
   }
 }
 
+/**
+ * @brief 获取当前场景
+ * @return 当前栈顶场景的智能指针，栈为空时返回nullptr
+ */
 Ptr<Scene> SceneManager::getCurrentScene() const {
   if (sceneStack_.empty()) {
     return nullptr;
@@ -181,6 +234,10 @@ Ptr<Scene> SceneManager::getCurrentScene() const {
   return sceneStack_.top();
 }
 
+/**
+ * @brief 获取前一个场景
+ * @return 栈顶下一个场景的智能指针，不存在时返回nullptr
+ */
 Ptr<Scene> SceneManager::getPreviousScene() const {
   if (sceneStack_.size() < 2) {
     return nullptr;
@@ -191,6 +248,10 @@ Ptr<Scene> SceneManager::getPreviousScene() const {
   return tempStack.top();
 }
 
+/**
+ * @brief 获取根场景
+ * @return 栈底场景的智能指针，栈为空时返回nullptr
+ */
 Ptr<Scene> SceneManager::getRootScene() const {
   if (sceneStack_.empty()) {
     return nullptr;
@@ -205,6 +266,11 @@ Ptr<Scene> SceneManager::getRootScene() const {
   return root;
 }
 
+/**
+ * @brief 通过名称获取场景
+ * @param name 场景名称
+ * @return 找到的场景智能指针，未找到返回nullptr
+ */
 Ptr<Scene> SceneManager::getSceneByName(const std::string &name) const {
   auto it = namedScenes_.find(name);
   if (it != namedScenes_.end()) {
@@ -223,10 +289,21 @@ Ptr<Scene> SceneManager::getSceneByName(const std::string &name) const {
   return nullptr;
 }
 
+/**
+ * @brief 检查是否存在指定名称的场景
+ * @param name 场景名称
+ * @return 存在返回true，否则返回false
+ */
 bool SceneManager::hasScene(const std::string &name) const {
   return getSceneByName(name) != nullptr;
 }
 
+/**
+ * @brief 更新场景管理器
+ * @param dt 帧间隔时间（秒）
+ *
+ * 更新当前场景并分发指针事件
+ */
 void SceneManager::update(float dt) {
   if (isTransitioning_) {
     hoverTarget_ = nullptr;
@@ -243,6 +320,12 @@ void SceneManager::update(float dt) {
   }
 }
 
+/**
+ * @brief 渲染当前场景
+ * @param renderer 渲染后端引用
+ *
+ * 使用当前场景的背景色清除帧缓冲并渲染场景内容
+ */
 void SceneManager::render(RenderBackend &renderer) {
   Color clearColor = Colors::Black;
   if (!sceneStack_.empty()) {
@@ -264,12 +347,23 @@ void SceneManager::render(RenderBackend &renderer) {
   E2D_LOG_TRACE("SceneManager::render - endFrame");
 }
 
+/**
+ * @brief 收集渲染命令
+ * @param commands 渲染命令输出向量
+ *
+ * 从当前场景收集所有渲染命令
+ */
 void SceneManager::collectRenderCommands(std::vector<RenderCommand> &commands) {
   if (!sceneStack_.empty()) {
     sceneStack_.top()->collectRenderCommands(commands, 0);
   }
 }
 
+/**
+ * @brief 结束场景管理器
+ *
+ * 清空场景栈并触发所有场景的退出回调
+ */
 void SceneManager::end() {
   while (!sceneStack_.empty()) {
     auto scene = sceneStack_.top();
@@ -280,10 +374,21 @@ void SceneManager::end() {
   namedScenes_.clear();
 }
 
+/**
+ * @brief 清除缓存的场景
+ *
+ * 清除命名场景缓存
+ */
 void SceneManager::purgeCachedScenes() { namedScenes_.clear(); }
 
+/**
+ * @brief 分发指针事件
+ * @param scene 目标场景
+ *
+ * 处理鼠标悬停、移动、点击和滚轮事件
+ */
 void SceneManager::dispatchPointerEvents(Scene &scene) {
-  auto &input = Application::instance().input();
+  auto &input = Application::get().input();
   Vec2 screenPos = input.getMousePosition();
 
   Vec2 worldPos = screenPos;

@@ -7,10 +7,27 @@
 
 namespace extra2d {
 
+/**
+ * @brief 默认构造函数
+ *
+ * 创建一个空的精灵对象
+ */
 Sprite::Sprite() = default;
 
+/**
+ * @brief 带纹理的构造函数
+ * @param texture 精灵使用的纹理智能指针
+ *
+ * 创建精灵并设置纹理，纹理区域默认为整个纹理
+ */
 Sprite::Sprite(Ptr<Texture> texture) { setTexture(texture); }
 
+/**
+ * @brief 设置精灵纹理
+ * @param texture 要设置的纹理智能指针
+ *
+ * 设置纹理并将纹理区域初始化为整个纹理大小
+ */
 void Sprite::setTexture(Ptr<Texture> texture) {
   texture_ = texture;
   if (texture_) {
@@ -19,27 +36,68 @@ void Sprite::setTexture(Ptr<Texture> texture) {
   }
 }
 
+/**
+ * @brief 设置纹理区域
+ * @param rect 纹理上的矩形区域
+ *
+ * 设置精灵显示纹理的哪一部分
+ */
 void Sprite::setTextureRect(const Rect &rect) { textureRect_ = rect; }
 
+/**
+ * @brief 设置精灵颜色
+ * @param color 要设置的颜色
+ *
+ * 颜色会与纹理颜色混合
+ */
 void Sprite::setColor(const Color &color) { color_ = color; }
 
+/**
+ * @brief 设置水平翻转
+ * @param flip 是否水平翻转
+ */
 void Sprite::setFlipX(bool flip) { flipX_ = flip; }
 
+/**
+ * @brief 设置垂直翻转
+ * @param flip 是否垂直翻转
+ */
 void Sprite::setFlipY(bool flip) { flipY_ = flip; }
 
+/**
+ * @brief 创建空精灵
+ * @return 新创建的精灵智能指针
+ */
 Ptr<Sprite> Sprite::create() { return makePtr<Sprite>(); }
 
+/**
+ * @brief 创建带纹理的精灵
+ * @param texture 精灵使用的纹理
+ * @return 新创建的精灵智能指针
+ */
 Ptr<Sprite> Sprite::create(Ptr<Texture> texture) {
   return makePtr<Sprite>(texture);
 }
 
+/**
+ * @brief 创建带纹理和纹理区域的精灵
+ * @param texture 精灵使用的纹理
+ * @param rect 纹理区域
+ * @return 新创建的精灵智能指针
+ */
 Ptr<Sprite> Sprite::create(Ptr<Texture> texture, const Rect &rect) {
   auto sprite = makePtr<Sprite>(texture);
   sprite->setTextureRect(rect);
   return sprite;
 }
 
-Rect Sprite::getBoundingBox() const {
+/**
+ * @brief 获取精灵的边界矩形
+ * @return 精灵在世界坐标系中的轴对齐边界矩形
+ *
+ * 考虑位置、锚点、缩放等因素计算边界框
+ */
+Rect Sprite::getBounds() const {
   if (!texture_ || !texture_->isValid()) {
     return Rect();
   }
@@ -63,6 +121,12 @@ Rect Sprite::getBoundingBox() const {
   return Rect(l, t, std::abs(w), std::abs(h));
 }
 
+/**
+ * @brief 绘制精灵
+ * @param renderer 渲染后端引用
+ *
+ * 使用世界变换计算最终位置、缩放和旋转，然后绘制精灵
+ */
 void Sprite::onDraw(RenderBackend &renderer) {
   if (!texture_ || !texture_->isValid()) {
     return;
@@ -108,6 +172,13 @@ void Sprite::onDraw(RenderBackend &renderer) {
                       anchor);
 }
 
+/**
+ * @brief 生成渲染命令
+ * @param commands 渲染命令输出向量
+ * @param zOrder 渲染层级
+ *
+ * 根据精灵的纹理、变换和颜色生成精灵渲染命令
+ */
 void Sprite::generateRenderCommand(std::vector<RenderCommand> &commands,
                                    int zOrder) {
   if (!texture_ || !texture_->isValid()) {

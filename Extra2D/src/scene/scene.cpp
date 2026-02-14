@@ -5,10 +5,26 @@
 
 namespace extra2d {
 
+/**
+ * @brief 构造函数，初始化场景对象
+ *
+ * 创建默认相机实例
+ */
 Scene::Scene() { defaultCamera_ = makePtr<Camera>(); }
 
+/**
+ * @brief 设置场景相机
+ * @param camera 要设置的相机智能指针
+ */
 void Scene::setCamera(Ptr<Camera> camera) { camera_ = camera; }
 
+/**
+ * @brief 设置视口大小
+ * @param width 视口宽度
+ * @param height 视口高度
+ *
+ * 同时更新活动相机的视口参数
+ */
 void Scene::setViewportSize(float width, float height) {
   viewportSize_ = Size(width, height);
   if (defaultCamera_) {
@@ -18,10 +34,20 @@ void Scene::setViewportSize(float width, float height) {
   }
 }
 
+/**
+ * @brief 设置视口大小
+ * @param size 视口尺寸结构体
+ */
 void Scene::setViewportSize(const Size &size) {
   setViewportSize(size.width, size.height);
 }
 
+/**
+ * @brief 渲染场景
+ * @param renderer 渲染后端引用
+ *
+ * 如果场景不可见则直接返回，否则开始帧渲染、渲染内容并结束帧
+ */
 void Scene::renderScene(RenderBackend &renderer) {
   if (!isVisible())
     return;
@@ -32,12 +58,18 @@ void Scene::renderScene(RenderBackend &renderer) {
   renderer.endFrame();
 }
 
+/**
+ * @brief 渲染场景内容
+ * @param renderer 渲染后端引用
+ *
+ * 批量更新节点变换，设置活动相机的视图投影矩阵，开始精灵批处理并渲染
+ */
 void Scene::renderContent(RenderBackend &renderer) {
   if (!isVisible())
     return;
 
   // 在渲染前批量更新所有节点的世界变换
-  batchUpdateTransforms();
+  batchTransforms();
 
   Camera *activeCam = getActiveCamera();
   if (activeCam) {
@@ -49,20 +81,39 @@ void Scene::renderContent(RenderBackend &renderer) {
   renderer.endSpriteBatch();
 }
 
+/**
+ * @brief 更新场景
+ * @param dt 帧间隔时间（秒）
+ *
+ * 如果场景未暂停则调用update方法
+ */
 void Scene::updateScene(float dt) {
   if (!paused_) {
     update(dt);
   }
 }
 
-void Scene::onEnter() {
-  Node::onEnter();
-}
+/**
+ * @brief 场景进入时的回调函数
+ *
+ * 调用父类Node的onEnter方法
+ */
+void Scene::onEnter() { Node::onEnter(); }
 
-void Scene::onExit() {
-  Node::onExit();
-}
+/**
+ * @brief 场景退出时的回调函数
+ *
+ * 调用父类Node的onExit方法
+ */
+void Scene::onExit() { Node::onExit(); }
 
+/**
+ * @brief 收集渲染命令
+ * @param commands 渲染命令输出向量
+ * @param parentZOrder 父节点的Z序
+ *
+ * 如果场景不可见则直接返回，否则从场景的子节点开始收集渲染命令
+ */
 void Scene::collectRenderCommands(std::vector<RenderCommand> &commands,
                                   int parentZOrder) {
   if (!isVisible())
@@ -72,6 +123,10 @@ void Scene::collectRenderCommands(std::vector<RenderCommand> &commands,
   Node::collectRenderCommands(commands, parentZOrder);
 }
 
+/**
+ * @brief 创建场景对象
+ * @return 新创建的场景智能指针
+ */
 Ptr<Scene> Scene::create() { return makePtr<Scene>(); }
 
 } // namespace extra2d

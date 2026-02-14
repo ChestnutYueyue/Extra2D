@@ -182,11 +182,23 @@ void main() {
 // ShaderSystem实现
 // ============================================================================
 
-ShaderSystem &ShaderSystem::getInstance() {
+/**
+ * @brief 获取ShaderSystem单例实例
+ * @return ShaderSystem单例的引用
+ *
+ * 使用静态局部变量实现线程安全的单例模式
+ */
+ShaderSystem &ShaderSystem::get() {
   static ShaderSystem instance;
   return instance;
 }
 
+/**
+ * @brief 初始化Shader系统
+ * @return 初始化成功返回true，失败返回false
+ *
+ * 加载所有内置着色器，包括精灵、粒子、后处理和形状着色器
+ */
 bool ShaderSystem::init() {
   E2D_INFO("初始化Shader系统...");
 
@@ -199,6 +211,11 @@ bool ShaderSystem::init() {
   return true;
 }
 
+/**
+ * @brief 关闭Shader系统
+ *
+ * 清理所有着色器资源，释放内置着色器
+ */
 void ShaderSystem::shutdown() {
   E2D_INFO("关闭Shader系统...");
   clear();
@@ -209,6 +226,12 @@ void ShaderSystem::shutdown() {
   builtinShapeShader_.reset();
 }
 
+/**
+ * @brief 加载内置着色器
+ * @return 加载成功返回true，失败返回false
+ *
+ * 编译并加载所有内置着色器：精灵、粒子、后处理和形状着色器
+ */
 bool ShaderSystem::loadBuiltinShaders() {
   // 加载精灵Shader
   builtinSpriteShader_ = std::make_shared<GLShader>();
@@ -246,6 +269,15 @@ bool ShaderSystem::loadBuiltinShaders() {
   return true;
 }
 
+/**
+ * @brief 从文件加载着色器
+ * @param name 着色器名称
+ * @param vertPath 顶点着色器文件路径
+ * @param fragPath 片段着色器文件路径
+ * @return 加载成功返回着色器指针，失败返回nullptr
+ *
+ * 从指定路径读取顶点和片段着色器源码并编译
+ */
 Ptr<GLShader> ShaderSystem::loadFromFile(const std::string &name,
                                          const std::string &vertPath,
                                          const std::string &fragPath) {
@@ -285,6 +317,15 @@ Ptr<GLShader> ShaderSystem::loadFromFile(const std::string &name,
   return shader;
 }
 
+/**
+ * @brief 从源码加载着色器
+ * @param name 着色器名称
+ * @param vertSource 顶点着色器源码
+ * @param fragSource 片段着色器源码
+ * @return 加载成功返回着色器指针，失败返回nullptr
+ *
+ * 直接从源码字符串编译着色器
+ */
 Ptr<GLShader> ShaderSystem::loadFromSource(const std::string &name,
                                            const std::string &vertSource,
                                            const std::string &fragSource) {
@@ -306,6 +347,11 @@ Ptr<GLShader> ShaderSystem::loadFromSource(const std::string &name,
   return shader;
 }
 
+/**
+ * @brief 获取指定名称的着色器
+ * @param name 着色器名称
+ * @return 找到返回着色器指针，未找到返回nullptr
+ */
 Ptr<GLShader> ShaderSystem::get(const std::string &name) {
   auto it = shaders_.find(name);
   if (it != shaders_.end()) {
@@ -314,14 +360,36 @@ Ptr<GLShader> ShaderSystem::get(const std::string &name) {
   return nullptr;
 }
 
+/**
+ * @brief 检查指定名称的着色器是否存在
+ * @param name 着色器名称
+ * @return 存在返回true，不存在返回false
+ */
 bool ShaderSystem::has(const std::string &name) const {
   return shaders_.find(name) != shaders_.end();
 }
 
+/**
+ * @brief 移除指定名称的着色器
+ * @param name 着色器名称
+ *
+ * 从着色器管理器中移除指定着色器
+ */
 void ShaderSystem::remove(const std::string &name) { shaders_.erase(name); }
 
+/**
+ * @brief 清空所有着色器
+ *
+ * 移除所有已加载的着色器
+ */
 void ShaderSystem::clear() { shaders_.clear(); }
 
+/**
+ * @brief 设置文件监视功能
+ * @param enable 是否启用
+ *
+ * 启用或禁用着色器文件变化监视功能
+ */
 void ShaderSystem::setFileWatching(bool enable) {
   fileWatching_ = enable;
   if (enable) {
@@ -331,6 +399,11 @@ void ShaderSystem::setFileWatching(bool enable) {
   }
 }
 
+/**
+ * @brief 更新文件监视
+ *
+ * 定期检查着色器文件是否发生变化，如有变化则自动重载
+ */
 void ShaderSystem::updateFileWatching() {
   if (!fileWatching_)
     return;
@@ -342,6 +415,11 @@ void ShaderSystem::updateFileWatching() {
   }
 }
 
+/**
+ * @brief 检查并重载变化的着色器
+ *
+ * 检查所有着色器文件的修改时间，如有变化则自动重载
+ */
 void ShaderSystem::checkAndReload() {
   for (auto &[name, info] : shaders_) {
     if (info.isBuiltin)
@@ -359,6 +437,13 @@ void ShaderSystem::checkAndReload() {
   }
 }
 
+/**
+ * @brief 重载指定着色器
+ * @param name 着色器名称
+ * @return 重载成功返回true，失败返回false
+ *
+ * 重新从文件加载并编译指定着色器
+ */
 bool ShaderSystem::reload(const std::string &name) {
   auto it = shaders_.find(name);
   if (it == shaders_.end()) {
@@ -387,6 +472,11 @@ bool ShaderSystem::reload(const std::string &name) {
   return false;
 }
 
+/**
+ * @brief 重载所有着色器
+ *
+ * 重载所有非内置着色器
+ */
 void ShaderSystem::reloadAll() {
   for (const auto &[name, info] : shaders_) {
     if (!info.isBuiltin) {
@@ -395,22 +485,45 @@ void ShaderSystem::reloadAll() {
   }
 }
 
+/**
+ * @brief 获取内置精灵着色器
+ * @return 精灵着色器指针
+ */
 Ptr<GLShader> ShaderSystem::getBuiltinSpriteShader() {
   return builtinSpriteShader_;
 }
 
+/**
+ * @brief 获取内置粒子着色器
+ * @return 粒子着色器指针
+ */
 Ptr<GLShader> ShaderSystem::getBuiltinParticleShader() {
   return builtinParticleShader_;
 }
 
+/**
+ * @brief 获取内置后处理着色器
+ * @return 后处理着色器指针
+ */
 Ptr<GLShader> ShaderSystem::getBuiltinPostProcessShader() {
   return builtinPostProcessShader_;
 }
 
+/**
+ * @brief 获取内置形状着色器
+ * @return 形状着色器指针
+ */
 Ptr<GLShader> ShaderSystem::getBuiltinShapeShader() {
   return builtinShapeShader_;
 }
 
+/**
+ * @brief 读取文件内容
+ * @param filepath 文件路径
+ * @return 文件内容字符串，读取失败返回空字符串
+ *
+ * 以二进制模式读取文件全部内容
+ */
 std::string ShaderSystem::readFile(const std::string &filepath) {
   std::ifstream file(filepath, std::ios::in | std::ios::binary);
   if (!file.is_open()) {
@@ -422,6 +535,13 @@ std::string ShaderSystem::readFile(const std::string &filepath) {
   return buffer.str();
 }
 
+/**
+ * @brief 获取文件修改时间
+ * @param filepath 文件路径
+ * @return 文件最后修改时间戳，失败返回0
+ *
+ * 获取文件的最后修改时间，用于文件监视功能
+ */
 uint64_t ShaderSystem::getFileModifiedTime(const std::string &filepath) {
 #ifdef _WIN32
   struct _stat64 statBuf;
@@ -441,47 +561,103 @@ uint64_t ShaderSystem::getFileModifiedTime(const std::string &filepath) {
 // ShaderParams实现
 // ============================================================================
 
+/**
+ * @brief 构造函数
+ * @param shader 关联的着色器对象
+ *
+ * 创建一个着色器参数设置器
+ */
 ShaderParams::ShaderParams(GLShader &shader) : shader_(shader) {}
 
+/**
+ * @brief 设置布尔类型uniform变量
+ * @param name 变量名
+ * @param value 布尔值
+ * @return 当前对象引用，支持链式调用
+ */
 ShaderParams &ShaderParams::setBool(const std::string &name, bool value) {
   shader_.setBool(name, value);
   return *this;
 }
 
+/**
+ * @brief 设置整数类型uniform变量
+ * @param name 变量名
+ * @param value 整数值
+ * @return 当前对象引用，支持链式调用
+ */
 ShaderParams &ShaderParams::setInt(const std::string &name, int value) {
   shader_.setInt(name, value);
   return *this;
 }
 
+/**
+ * @brief 设置浮点类型uniform变量
+ * @param name 变量名
+ * @param value 浮点值
+ * @return 当前对象引用，支持链式调用
+ */
 ShaderParams &ShaderParams::setFloat(const std::string &name, float value) {
   shader_.setFloat(name, value);
   return *this;
 }
 
+/**
+ * @brief 设置二维向量类型uniform变量
+ * @param name 变量名
+ * @param value 二维向量值
+ * @return 当前对象引用，支持链式调用
+ */
 ShaderParams &ShaderParams::setVec2(const std::string &name,
                                     const glm::vec2 &value) {
   shader_.setVec2(name, value);
   return *this;
 }
 
+/**
+ * @brief 设置三维向量类型uniform变量
+ * @param name 变量名
+ * @param value 三维向量值
+ * @return 当前对象引用，支持链式调用
+ */
 ShaderParams &ShaderParams::setVec3(const std::string &name,
                                     const glm::vec3 &value) {
   shader_.setVec3(name, value);
   return *this;
 }
 
+/**
+ * @brief 设置四维向量类型uniform变量
+ * @param name 变量名
+ * @param value 四维向量值
+ * @return 当前对象引用，支持链式调用
+ */
 ShaderParams &ShaderParams::setVec4(const std::string &name,
                                     const glm::vec4 &value) {
   shader_.setVec4(name, value);
   return *this;
 }
 
+/**
+ * @brief 设置4x4矩阵类型uniform变量
+ * @param name 变量名
+ * @param value 4x4矩阵值
+ * @return 当前对象引用，支持链式调用
+ */
 ShaderParams &ShaderParams::setMat4(const std::string &name,
                                     const glm::mat4 &value) {
   shader_.setMat4(name, value);
   return *this;
 }
 
+/**
+ * @brief 设置颜色类型uniform变量
+ * @param name 变量名
+ * @param color 颜色值
+ * @return 当前对象引用，支持链式调用
+ *
+ * 将颜色对象转换为四维向量并设置
+ */
 ShaderParams &ShaderParams::setColor(const std::string &name,
                                      const Color &color) {
   shader_.setVec4(name, glm::vec4(color.r, color.g, color.b, color.a));

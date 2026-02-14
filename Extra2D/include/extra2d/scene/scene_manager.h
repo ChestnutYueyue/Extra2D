@@ -20,7 +20,7 @@ class SceneManager {
 public:
   using TransitionCallback = std::function<void()>;
 
-  static SceneManager &getInstance();
+  static SceneManager &get();
 
   void runWithScene(Ptr<Scene> scene);
   void replaceScene(Ptr<Scene> scene);

@@ -37,7 +37,7 @@ public:
   static Ptr<Sprite> create(Ptr<Texture> texture);
   static Ptr<Sprite> create(Ptr<Texture> texture, const Rect &rect);
 
-  Rect getBoundingBox() const override;
+  Rect getBounds() const override;
 
 protected:
   void onDraw(RenderBackend &renderer) override;

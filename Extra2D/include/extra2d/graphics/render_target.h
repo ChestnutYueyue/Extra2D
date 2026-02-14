@@ -233,7 +233,7 @@ private:
 // ============================================================================
 class RenderTargetStack {
 public:
-  static RenderTargetStack &getInstance();
+  static RenderTargetStack &get();
 
   /**
    * @brief 压入渲染目标
@@ -271,12 +271,12 @@ private:
 // ============================================================================
 // 渲染目标管理器 - 全局渲染目标管理
 // ============================================================================
-class RenderTargetManager {
+class RenderTargetMgr {
 public:
   /**
    * @brief 获取单例实例
    */
-  static RenderTargetManager &getInstance();
+  static RenderTargetMgr& get();
 
   /**
    * @brief 初始化渲染目标管理器
@@ -313,10 +313,10 @@ public:
   bool isInitialized() const { return initialized_; }
 
 private:
-  RenderTargetManager() = default;
-  ~RenderTargetManager() = default;
-  RenderTargetManager(const RenderTargetManager &) = delete;
-  RenderTargetManager &operator=(const RenderTargetManager &) = delete;
+  RenderTargetMgr() = default;
+  ~RenderTargetMgr() = default;
+  RenderTargetMgr(const RenderTargetMgr &) = delete;
+  RenderTargetMgr &operator=(const RenderTargetMgr &) = delete;
 
   Ptr<RenderTarget> defaultRenderTarget_;
   std::vector<Ptr<RenderTarget>> renderTargets_;
@@ -326,8 +326,7 @@ private:
 // ============================================================================
 // 便捷宏
 // ============================================================================
-#define E2D_RENDER_TARGET_STACK() ::extra2d::RenderTargetStack::getInstance()
-#define E2D_RENDER_TARGET_MANAGER()                                            \
-  ::extra2d::RenderTargetManager::getInstance()
+#define E2D_RENDER_TARGET_STACK() ::extra2d::RenderTargetStack::get()
+#define E2D_RENDER_TARGET_MGR() ::extra2d::RenderTargetMgr::get()
 
 } // namespace extra2d
