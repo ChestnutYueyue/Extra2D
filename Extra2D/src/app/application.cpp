@@ -4,6 +4,7 @@
 #include <extra2d/event/event_queue.h>
 #include <extra2d/graphics/camera.h>
 #include <extra2d/graphics/render_backend.h>
+#include <extra2d/graphics/viewport_adapter.h>
 #include <extra2d/graphics/vram_manager.h>
 #include <extra2d/platform/input.h>
 #include <extra2d/platform/window.h>
@@ -139,12 +140,32 @@ bool Application::init(const AppConfig &config) {
   camera_ = makeUnique<Camera>(0, static_cast<float>(window_->getWidth()),
                                static_cast<float>(window_->getHeight()), 0);
 
+  // 创建视口适配器
+  viewportAdapter_ = makeUnique<ViewportAdapter>();
+  ViewportConfig vpConfig;
+  vpConfig.logicWidth = static_cast<float>(config.width);
+  vpConfig.logicHeight = static_cast<float>(config.height);
+  vpConfig.mode = ViewportMode::AspectRatio;
+  viewportAdapter_->setConfig(vpConfig);
+
+  // 关联到各子系统
+  camera_->setViewportAdapter(viewportAdapter_.get());
+  input().setViewportAdapter(viewportAdapter_.get());
+
+  // 初始更新
+  viewportAdapter_->update(window_->getWidth(), window_->getHeight());
+
   // 窗口大小回调
   window_->setResizeCallback([this](int width, int height) {
-    if (camera_) {
-      camera_->setViewport(0, static_cast<float>(width),
-                           static_cast<float>(height), 0);
+    // 更新视口适配器
+    if (viewportAdapter_) {
+      viewportAdapter_->update(width, height);
     }
+
+    if (camera_) {
+      camera_->applyViewportAdapter();
+    }
+
     if (sceneManager_) {
       auto currentScene = sceneManager_->getCurrentScene();
       if (currentScene) {
@@ -204,6 +225,7 @@ void Application::shutdown() {
   // ========================================
   sceneManager_.reset();    // 场景持有纹理引用
   resourceManager_.reset(); // 纹理缓存持有 GPU 纹理
+  viewportAdapter_.reset(); // 视口适配器
   camera_.reset();          // 相机可能持有渲染目标
 
   // ========================================
@@ -356,7 +378,16 @@ void Application::render() {
     return;
   }
 
-  renderer_->setViewport(0, 0, window_->getWidth(), window_->getHeight());
+  // 应用视口适配器
+  if (viewportAdapter_) {
+    const auto &vp = viewportAdapter_->getViewport();
+    renderer_->setViewport(static_cast<int>(vp.origin.x),
+                           static_cast<int>(vp.origin.y),
+                           static_cast<int>(vp.size.width),
+                           static_cast<int>(vp.size.height));
+  } else {
+    renderer_->setViewport(0, 0, window_->getWidth(), window_->getHeight());
+  }
 
   if (sceneManager_) {
     sceneManager_->render(*renderer_);
@@ -382,6 +413,8 @@ EventQueue &Application::eventQueue() { return *eventQueue_; }
 EventDispatcher &Application::eventDispatcher() { return *eventDispatcher_; }
 
 Camera &Application::camera() { return *camera_; }
+
+ViewportAdapter &Application::viewportAdapter() { return *viewportAdapter_; }
 
 void Application::enterScene(Ptr<Scene> scene) { enterScene(scene, nullptr); }
 

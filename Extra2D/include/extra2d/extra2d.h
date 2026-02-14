@@ -20,6 +20,7 @@
 #include <extra2d/graphics/texture.h>
 
 #include <extra2d/graphics/render_target.h>
+#include <extra2d/graphics/viewport_adapter.h>
 #include <extra2d/graphics/vram_manager.h>
 
 // Scene

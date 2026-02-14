@@ -1,12 +1,12 @@
 #include <extra2d/graphics/opengl/gl_font_atlas.h>
-#include <extra2d/core/string.h>
 #include <extra2d/utils/logger.h>
 #include <fstream>
 #define STB_TRUETYPE_IMPLEMENTATION
 #include <stb/stb_truetype.h>
 #define STB_RECT_PACK_IMPLEMENTATION
-#include <stb/stb_rect_pack.h>
 #include <algorithm>
+#include <stb/stb_rect_pack.h>
+
 
 namespace extra2d {
 
@@ -75,7 +75,8 @@ Vec2 GLFontAtlas::measureText(const std::string &text) {
   float height = getAscent() - getDescent();
   float currentWidth = 0.0f;
 
-  for (char32_t codepoint : utf8ToUtf32(text)) {
+  for (char c : text) {
+    char32_t codepoint = static_cast<char32_t>(static_cast<unsigned char>(c));
     if (codepoint == '\n') {
       width = std::max(width, currentWidth);
       currentWidth = 0.0f;
@@ -108,7 +109,7 @@ void GLFontAtlas::createAtlas() {
   packNodes_.resize(ATLAS_WIDTH);
   stbrp_init_target(&packContext_, ATLAS_WIDTH, ATLAS_HEIGHT, packNodes_.data(),
                     ATLAS_WIDTH);
-  
+
   // 预分配字形缓冲区
   // 假设最大字形尺寸为 fontSize * fontSize * 4 (RGBA)
   size_t maxGlyphSize = static_cast<size_t>(fontSize_ * fontSize_ * 4 * 4);
@@ -218,8 +219,8 @@ void GLFontAtlas::cacheGlyph(char32_t codepoint) const {
   // 使用预分配缓冲区
   size_t pixelCount = static_cast<size_t>(w) * static_cast<size_t>(h);
   glyphBitmapCache_.resize(pixelCount);
-  stbtt_MakeCodepointBitmap(&fontInfo_, glyphBitmapCache_.data(), w, h, w, scale_, scale_,
-                            static_cast<int>(codepoint));
+  stbtt_MakeCodepointBitmap(&fontInfo_, glyphBitmapCache_.data(), w, h, w,
+                            scale_, scale_, static_cast<int>(codepoint));
 
   // 使用 stb_rect_pack 打包矩形
   stbrp_rect rect;

@@ -330,6 +330,221 @@ inline float degrees(float radians) { return radians * RAD_TO_DEG; }
 
 inline float radians(float degrees) { return degrees * DEG_TO_RAD; }
 
+// ---------------------------------------------------------------------------
+// 角度工具函数
+// ---------------------------------------------------------------------------
+
+/**
+ * @brief 规范化角度到 [0, 360) 范围
+ * @param degrees 输入角度（度数）
+ * @return 规范化后的角度，范围 [0, 360)
+ */
+inline float normalizeAngle360(float degrees) {
+  degrees = std::fmod(degrees, 360.0f);
+  if (degrees < 0.0f) {
+    degrees += 360.0f;
+  }
+  return degrees;
+}
+
+/**
+ * @brief 规范化角度到 [-180, 180) 范围
+ * @param degrees 输入角度（度数）
+ * @return 规范化后的角度，范围 [-180, 180)
+ */
+inline float normalizeAngle180(float degrees) {
+  degrees = std::fmod(degrees + 180.0f, 360.0f);
+  if (degrees < 0.0f) {
+    degrees += 360.0f;
+  }
+  return degrees - 180.0f;
+}
+
+/**
+ * @brief 计算两个角度之间的最短差值
+ * @param from 起始角度（度数）
+ * @param to 目标角度（度数）
+ * @return 从 from 到 to 的最短角度差，范围 [-180, 180]
+ */
+inline float angleDifference(float from, float to) {
+  float diff = normalizeAngle360(to - from);
+  if (diff > 180.0f) {
+    diff -= 360.0f;
+  }
+  return diff;
+}
+
+/**
+ * @brief 线性插值角度
+ * @param from 起始角度（度数）
+ * @param to 目标角度（度数）
+ * @param t 插值因子 [0, 1]
+ * @return 插值后的角度
+ */
+inline float lerpAngle(float from, float to, float t) {
+  return from + angleDifference(from, to) * t;
+}
+
+// ---------------------------------------------------------------------------
+// 向量工具函数
+// ---------------------------------------------------------------------------
+
+/**
+ * @brief 计算方向向量（从 from 指向 to 的单位向量）
+ * @param from 起始点
+ * @param to 目标点
+ * @return 归一化的方向向量
+ */
+inline Vec2 direction(const Vec2 &from, const Vec2 &to) {
+  return (to - from).normalized();
+}
+
+/**
+ * @brief 计算两点之间的角度
+ * @param from 起始点
+ * @param to 目标点
+ * @return 角度（度数），范围 [-180, 180]
+ */
+inline float angleBetween(const Vec2 &from, const Vec2 &to) {
+  Vec2 dir = to - from;
+  return std::atan2(dir.y, dir.x) * RAD_TO_DEG;
+}
+
+/**
+ * @brief 根据角度创建方向向量
+ * @param degrees 角度（度数），0度指向右方，逆时针为正
+ * @return 单位方向向量
+ */
+inline Vec2 angleToVector(float degrees) {
+  float rad = degrees * DEG_TO_RAD;
+  return {std::cos(rad), std::sin(rad)};
+}
+
+/**
+ * @brief 将向量旋转指定角度
+ * @param v 原始向量
+ * @param degrees 旋转角度（度数），正值为逆时针旋转
+ * @return 旋转后的向量
+ */
+inline Vec2 rotateVector(const Vec2 &v, float degrees) {
+  float rad = degrees * DEG_TO_RAD;
+  float cosA = std::cos(rad);
+  float sinA = std::sin(rad);
+  return {v.x * cosA - v.y * sinA, v.x * sinA + v.y * cosA};
+}
+
+// ---------------------------------------------------------------------------
+// 坐标系转换工具
+// ---------------------------------------------------------------------------
+
+/**
+ * @brief Y轴向上坐标转Y轴向下坐标
+ * @param pos Y轴向上坐标系中的位置
+ * @param height 画布/屏幕高度
+ * @return Y轴向下坐标系中的位置
+ */
+inline Vec2 flipY(const Vec2 &pos, float height) {
+  return {pos.x, height - pos.y};
+}
+
+/**
+ * @brief Y轴向下坐标转Y轴向上坐标
+ * @param pos Y轴向下坐标系中的位置
+ * @param height 画布/屏幕高度
+ * @return Y轴向上坐标系中的位置
+ */
+inline Vec2 unflipY(const Vec2 &pos, float height) {
+  return {pos.x, height - pos.y};
+}
+
+// ---------------------------------------------------------------------------
+// 矩阵工具函数
+// ---------------------------------------------------------------------------
+
+/**
+ * @brief 从变换矩阵提取位置
+ * @param matrix 4x4变换矩阵
+ * @return 提取的位置向量
+ */
+inline Vec2 extractPosition(const glm::mat4 &matrix) {
+  return {matrix[3][0], matrix[3][1]};
+}
+
+/**
+ * @brief 从变换矩阵提取缩放
+ * @param matrix 4x4变换矩阵
+ * @return 提取的缩放向量
+ */
+inline Vec2 extractScale(const glm::mat4 &matrix) {
+  float scaleX = std::sqrt(matrix[0][0] * matrix[0][0] + matrix[0][1] * matrix[0][1]);
+  float scaleY = std::sqrt(matrix[1][0] * matrix[1][0] + matrix[1][1] * matrix[1][1]);
+  return {scaleX, scaleY};
+}
+
+/**
+ * @brief 从变换矩阵提取旋转角度
+ * @param matrix 4x4变换矩阵
+ * @return 提取的旋转角度（度数）
+ */
+inline float extractRotation(const glm::mat4 &matrix) {
+  return std::atan2(matrix[0][1], matrix[0][0]) * RAD_TO_DEG;
+}
+
+// ---------------------------------------------------------------------------
+// 碰撞检测工具
+// ---------------------------------------------------------------------------
+
+/**
+ * @brief 判断点是否在矩形内
+ * @param point 要检测的点
+ * @param rect 矩形区域
+ * @return 如果点在矩形内返回 true，否则返回 false
+ */
+inline bool pointInRect(const Vec2 &point, const Rect &rect) {
+  return point.x >= rect.left() && point.x <= rect.right() &&
+         point.y >= rect.top() && point.y <= rect.bottom();
+}
+
+/**
+ * @brief 判断点是否在圆内
+ * @param point 要检测的点
+ * @param center 圆心
+ * @param radius 圆的半径
+ * @return 如果点在圆内返回 true，否则返回 false
+ */
+inline bool pointInCircle(const Vec2 &point, const Vec2 &center, float radius) {
+  float dx = point.x - center.x;
+  float dy = point.y - center.y;
+  return (dx * dx + dy * dy) <= (radius * radius);
+}
+
+/**
+ * @brief 判断两个矩形是否相交
+ * @param a 第一个矩形
+ * @param b 第二个矩形
+ * @return 如果矩形相交返回 true，否则返回 false
+ */
+inline bool rectsIntersect(const Rect &a, const Rect &b) {
+  return a.intersects(b);
+}
+
+/**
+ * @brief 判断两个圆是否相交
+ * @param center1 第一个圆的圆心
+ * @param radius1 第一个圆的半径
+ * @param center2 第二个圆的圆心
+ * @param radius2 第二个圆的半径
+ * @return 如果圆相交返回 true，否则返回 false
+ */
+inline bool circlesIntersect(const Vec2 &center1, float radius1,
+                             const Vec2 &center2, float radius2) {
+  float dx = center2.x - center1.x;
+  float dy = center2.y - center1.y;
+  float distSq = dx * dx + dy * dy;
+  float radiusSum = radius1 + radius2;
+  return distSq <= (radiusSum * radiusSum);
+}
+
 } // namespace math
 
 } // namespace extra2d

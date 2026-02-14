@@ -2,7 +2,6 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
-#include <extra2d/core/string.h>
 #include <extra2d/graphics/gpu_context.h>
 #include <extra2d/graphics/opengl/gl_font_atlas.h>
 #include <extra2d/graphics/opengl/gl_renderer.h>
@@ -448,7 +447,8 @@ void GLRenderer::drawText(const FontAtlas &font, const std::string &text,
   std::vector<GLSpriteBatch::SpriteData> sprites;
   sprites.reserve(text.size());  // 预分配空间
 
-  for (char32_t codepoint : utf8ToUtf32(text)) {
+  for (char c : text) {
+    char32_t codepoint = static_cast<char32_t>(static_cast<unsigned char>(c));
     if (codepoint == '\n') {
       cursorX = x;
       cursorY += font.getLineHeight();

@@ -1,4 +1,5 @@
 #include <extra2d/event/input_codes.h>
+#include <extra2d/graphics/viewport_adapter.h>
 #include <extra2d/platform/input.h>
 #include <extra2d/utils/logger.h>
 
@@ -9,7 +10,8 @@ Input::Input()
       leftStickX_(0.0f), leftStickY_(0.0f),
       rightStickX_(0.0f), rightStickY_(0.0f),
       mouseScroll_(0.0f), prevMouseScroll_(0.0f),
-      touching_(false), prevTouching_(false), touchCount_(0) {
+      touching_(false), prevTouching_(false), touchCount_(0),
+      viewportAdapter_(nullptr) {
   
   // 初始化所有状态数组
   keysDown_.fill(false);
@@ -444,6 +446,41 @@ bool Input::isAnyMouseDown() const {
   }
   return false;
 #endif
+}
+
+// ============================================================================
+// 视口适配器
+// ============================================================================
+
+void Input::setViewportAdapter(ViewportAdapter* adapter) {
+  viewportAdapter_ = adapter;
+}
+
+Vec2 Input::getMousePositionLogic() const {
+  Vec2 screenPos = getMousePosition();
+  if (viewportAdapter_) {
+    return viewportAdapter_->screenToLogic(screenPos);
+  }
+  return screenPos;
+}
+
+Vec2 Input::getTouchPositionLogic() const {
+  Vec2 screenPos = getTouchPosition();
+  if (viewportAdapter_) {
+    return viewportAdapter_->screenToLogic(screenPos);
+  }
+  return screenPos;
+}
+
+Vec2 Input::getMouseDeltaLogic() const {
+  Vec2 delta = getMouseDelta();
+  if (viewportAdapter_) {
+    float scale = viewportAdapter_->getUniformScale();
+    if (scale > 0.0f) {
+      return delta / scale;
+    }
+  }
+  return delta;
 }
 
 } // namespace extra2d

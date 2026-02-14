@@ -7,6 +7,8 @@
 
 namespace extra2d {
 
+class ViewportAdapter;
+
 // ============================================================================
 // 2D 正交相机
 // ============================================================================
@@ -66,6 +68,20 @@ public:
   void clampToBounds();
 
   // ------------------------------------------------------------------------
+  // 视口适配器
+  // ------------------------------------------------------------------------
+  /**
+   * @brief 设置视口适配器
+   * @param adapter 视口适配器指针
+   */
+  void setViewportAdapter(ViewportAdapter* adapter);
+
+  /**
+   * @brief 根据视口适配器自动设置视口
+   */
+  void applyViewportAdapter();
+
+  // ------------------------------------------------------------------------
   // 快捷方法：看向某点
   // ------------------------------------------------------------------------
   void lookAt(const Vec2 &target);
@@ -82,6 +98,8 @@ private:
 
   Rect bounds_;
   bool hasBounds_ = false;
+
+  ViewportAdapter* viewportAdapter_ = nullptr;
 
   mutable glm::mat4 viewMatrix_;
   mutable glm::mat4 projMatrix_;

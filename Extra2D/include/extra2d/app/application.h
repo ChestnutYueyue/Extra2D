@@ -15,6 +15,7 @@ class TimerManager;
 class EventQueue;
 class EventDispatcher;
 class Camera;
+class ViewportAdapter;
 
 // ============================================================================
 // Application 配置
@@ -80,6 +81,12 @@ public:
   EventDispatcher &eventDispatcher();
   Camera &camera();
 
+  /**
+   * @brief 获取视口适配器
+   * @return 视口适配器引用
+   */
+  ViewportAdapter &viewportAdapter();
+
   // ------------------------------------------------------------------------
   // 便捷方法
   // ------------------------------------------------------------------------
@@ -115,6 +122,7 @@ private:
   UniquePtr<EventQueue> eventQueue_;
   UniquePtr<EventDispatcher> eventDispatcher_;
   UniquePtr<Camera> camera_;
+  UniquePtr<ViewportAdapter> viewportAdapter_;
 
   // 状态
   bool initialized_ = false;

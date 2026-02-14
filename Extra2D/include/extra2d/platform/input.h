@@ -9,6 +9,8 @@
 
 namespace extra2d {
 
+class ViewportAdapter;
+
 // ============================================================================
 // 鼠标按钮枚举
 // ============================================================================
@@ -82,6 +84,33 @@ public:
   int getTouchCount() const { return touchCount_; }
 
   // ------------------------------------------------------------------------
+  // 视口适配器
+  // ------------------------------------------------------------------------
+  /**
+   * @brief 设置视口适配器
+   * @param adapter 视口适配器指针
+   */
+  void setViewportAdapter(ViewportAdapter* adapter);
+
+  /**
+   * @brief 获取逻辑坐标下的鼠标位置
+   * @return 逻辑坐标
+   */
+  Vec2 getMousePositionLogic() const;
+
+  /**
+   * @brief 获取逻辑坐标下的触摸位置
+   * @return 逻辑坐标
+   */
+  Vec2 getTouchPositionLogic() const;
+
+  /**
+   * @brief 获取逻辑坐标下的鼠标增量
+   * @return 逻辑坐标增量
+   */
+  Vec2 getMouseDeltaLogic() const;
+
+  // ------------------------------------------------------------------------
   // 便捷方法
   // ------------------------------------------------------------------------
   bool isAnyKeyDown() const;
@@ -121,6 +150,9 @@ private:
   Vec2 touchPosition_;
   Vec2 prevTouchPosition_;
   int touchCount_;
+
+  // 视口适配器
+  ViewportAdapter* viewportAdapter_;
 
   // 映射键盘 keyCode 到 SDL GameController 按钮 (Switch 兼容模式)
   SDL_GameControllerButton mapKeyToButton(int keyCode) const;
