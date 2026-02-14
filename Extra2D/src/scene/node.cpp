@@ -82,14 +82,11 @@ void Node::removeChild(Ptr<Node> child) {
 
   auto it = std::find(children_.begin(), children_.end(), child);
   if (it != children_.end()) {
-    // 始终从空间索引中移除（无论 running_ 状态）
-    // 这确保节点被正确清理
     (*it)->onDetachFromScene();
 
     if (running_) {
       (*it)->onExit();
     }
-    // 从索引中移除
     if (!(*it)->getName().empty()) {
       nameIndex_.erase((*it)->getName());
     }
@@ -158,7 +155,6 @@ Ptr<Node> Node::getChildByTag(int tag) const {
 void Node::setPosition(const Vec2 &pos) {
   position_ = pos;
   markTransformDirty();
-  updateSpatialIndex();
 }
 
 void Node::setPosition(float x, float y) { setPosition(Vec2(x, y)); }
@@ -166,13 +162,11 @@ void Node::setPosition(float x, float y) { setPosition(Vec2(x, y)); }
 void Node::setRotation(float degrees) {
   rotation_ = degrees;
   markTransformDirty();
-  updateSpatialIndex();
 }
 
 void Node::setScale(const Vec2 &scale) {
   scale_ = scale;
   markTransformDirty();
-  updateSpatialIndex();
 }
 
 void Node::setScale(float scale) { setScale(Vec2(scale, scale)); }
@@ -356,26 +350,12 @@ void Node::onRender(RenderBackend &renderer) {
 void Node::onAttachToScene(Scene *scene) {
   scene_ = scene;
 
-  // 添加到场景的空间索引
-  if (spatialIndexed_ && scene_) {
-    lastSpatialBounds_ = Rect();
-    updateSpatialIndex();
-  }
-
   for (auto &child : children_) {
     child->onAttachToScene(scene);
   }
 }
 
 void Node::onDetachFromScene() {
-  // 从场景的空间索引移除
-  // 注意：即使 lastSpatialBounds_ 为空也要尝试移除，
-  // 因为节点可能通过其他方式被插入到空间索引中
-  if (spatialIndexed_ && scene_) {
-    scene_->removeNodeFromSpatialIndex(this);
-    lastSpatialBounds_ = Rect();
-  }
-
   scene_ = nullptr;
   for (auto &child : children_) {
     child->onDetachFromScene();
@@ -383,20 +363,7 @@ void Node::onDetachFromScene() {
 }
 
 Rect Node::getBoundingBox() const {
-  // 默认返回一个以位置为中心的点矩形
   return Rect(position_.x, position_.y, 0, 0);
-}
-
-void Node::updateSpatialIndex() {
-  if (!spatialIndexed_ || !scene_) {
-    return;
-  }
-
-  Rect newBounds = getBoundingBox();
-  if (newBounds != lastSpatialBounds_) {
-    scene_->updateNodeInSpatialIndex(this, lastSpatialBounds_, newBounds);
-    lastSpatialBounds_ = newBounds;
-  }
 }
 
 void Node::update(float dt) { onUpdate(dt); }

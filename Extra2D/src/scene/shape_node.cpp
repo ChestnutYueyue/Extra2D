@@ -111,17 +111,14 @@ Ptr<ShapeNode> ShapeNode::createFilledPolygon(const std::vector<Vec2> &points,
 
 void ShapeNode::setPoints(const std::vector<Vec2> &points) {
   points_ = points;
-  updateSpatialIndex();
 }
 
 void ShapeNode::addPoint(const Vec2 &point) {
   points_.push_back(point);
-  updateSpatialIndex();
 }
 
 void ShapeNode::clearPoints() {
   points_.clear();
-  updateSpatialIndex();
 }
 
 Rect ShapeNode::getBoundingBox() const {

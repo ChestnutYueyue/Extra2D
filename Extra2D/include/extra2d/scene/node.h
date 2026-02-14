@@ -143,16 +143,9 @@ public:
   virtual void onDetachFromScene();
 
   // ------------------------------------------------------------------------
-  // 边界框（用于空间索引）
+  // 边界框
   // ------------------------------------------------------------------------
   virtual Rect getBoundingBox() const;
-
-  // 是否需要参与空间索引（默认 true）
-  void setSpatialIndexed(bool indexed) { spatialIndexed_ = indexed; }
-  bool isSpatialIndexed() const { return spatialIndexed_; }
-
-  // 更新空间索引（手动调用，通常在边界框变化后）
-  void updateSpatialIndex();
 
   // ------------------------------------------------------------------------
   // 事件系统
@@ -218,10 +211,7 @@ private:
   Vec2 anchor_ = Vec2(0.5f, 0.5f);     // 8 bytes
   Vec2 skew_ = Vec2::Zero();           // 8 bytes
 
-  // 8. 边界框（用于空间索引）
-  Rect lastSpatialBounds_;             // 16 bytes
-
-  // 9. 浮点属性
+  // 8. 浮点属性
   float rotation_ = 0.0f;              // 4 bytes
   float opacity_ = 1.0f;               // 4 bytes
 
@@ -236,17 +226,15 @@ private:
   bool flipX_ = false;                 // 1 byte
   bool flipY_ = false;                 // 1 byte
 
-  // 11. 场景指针
+  // 13. 场景指针
   Scene *scene_ = nullptr;             // 8 bytes
 
-  // 12. 布尔标志（打包在一起）
+  // 14. 布尔标志（打包在一起）
   mutable bool transformDirty_ = true;         // 1 byte
   mutable bool worldTransformDirty_ = true;    // 1 byte
   bool childrenOrderDirty_ = false;            // 1 byte
   bool visible_ = true;                        // 1 byte
   bool running_ = false;                       // 1 byte
-  bool spatialIndexed_ = true;                 // 1 byte
-  // 填充 2 bytes 到 8 字节对齐
 };
 
 } // namespace extra2d

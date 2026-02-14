@@ -57,64 +57,10 @@ void Scene::updateScene(float dt) {
 
 void Scene::onEnter() {
   Node::onEnter();
-
-  // 初始化空间索引世界边界
-  if (spatialIndexingEnabled_) {
-    spatialManager_.setWorldBounds(
-        Rect(0, 0, viewportSize_.width, viewportSize_.height));
-  }
 }
 
 void Scene::onExit() {
-  // 清理空间索引
-  spatialManager_.clear();
   Node::onExit();
-}
-
-void Scene::updateNodeInSpatialIndex(Node *node, const Rect &oldBounds,
-                                     const Rect &newBounds) {
-  if (!spatialIndexingEnabled_ || !node || !node->isSpatialIndexed()) {
-    return;
-  }
-
-  // 如果旧边界有效，先移除
-  if (!oldBounds.empty()) {
-    spatialManager_.remove(node);
-  }
-
-  // 如果新边界有效，插入
-  if (!newBounds.empty()) {
-    spatialManager_.insert(node, newBounds);
-  }
-}
-
-void Scene::removeNodeFromSpatialIndex(Node *node) {
-  if (!spatialIndexingEnabled_ || !node) {
-    return;
-  }
-
-  spatialManager_.remove(node);
-}
-
-std::vector<Node *> Scene::queryNodesInArea(const Rect &area) const {
-  if (!spatialIndexingEnabled_) {
-    return {};
-  }
-  return spatialManager_.query(area);
-}
-
-std::vector<Node *> Scene::queryNodesAtPoint(const Vec2 &point) const {
-  if (!spatialIndexingEnabled_) {
-    return {};
-  }
-  return spatialManager_.query(point);
-}
-
-std::vector<std::pair<Node *, Node *>> Scene::queryCollisions() const {
-  if (!spatialIndexingEnabled_) {
-    return {};
-  }
-  return spatialManager_.queryCollisions();
 }
 
 void Scene::collectRenderCommands(std::vector<RenderCommand> &commands,

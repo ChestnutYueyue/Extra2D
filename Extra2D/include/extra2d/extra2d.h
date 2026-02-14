@@ -36,16 +36,6 @@
 #include <extra2d/scene/transition_flip_scene.h>
 #include <extra2d/scene/transition_box_scene.h>
 
-// UI
-#include <extra2d/ui/widget.h>
-#include <extra2d/ui/button.h>
-#include <extra2d/ui/text.h>
-#include <extra2d/ui/label.h>
-#include <extra2d/ui/progress_bar.h>
-#include <extra2d/ui/check_box.h>
-#include <extra2d/ui/radio_button.h>
-#include <extra2d/ui/slider.h>
-
 // Event
 #include <extra2d/event/event.h>
 #include <extra2d/event/event_queue.h>
@@ -64,12 +54,6 @@
 #include <extra2d/utils/timer.h>
 #include <extra2d/utils/data.h>
 #include <extra2d/utils/random.h>
-
-// Spatial
-#include <extra2d/spatial/spatial_index.h>
-#include <extra2d/spatial/quadtree.h>
-#include <extra2d/spatial/spatial_hash.h>
-#include <extra2d/spatial/spatial_manager.h>
 
 // Application
 #include <extra2d/app/application.h>

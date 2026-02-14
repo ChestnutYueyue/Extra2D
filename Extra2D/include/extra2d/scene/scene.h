@@ -3,7 +3,6 @@
 #include <extra2d/core/color.h>
 #include <extra2d/graphics/camera.h>
 #include <extra2d/scene/node.h>
-#include <extra2d/spatial/spatial_manager.h>
 #include <vector>
 
 namespace extra2d {
@@ -62,28 +61,6 @@ public:
                             int parentZOrder = 0) override;
 
   // ------------------------------------------------------------------------
-  // 空间索引系统
-  // ------------------------------------------------------------------------
-  SpatialManager &getSpatialManager() { return spatialManager_; }
-  const SpatialManager &getSpatialManager() const { return spatialManager_; }
-
-  // 启用/禁用空间索引
-  void setSpatialIndexingEnabled(bool enabled) {
-    spatialIndexingEnabled_ = enabled;
-  }
-  bool isSpatialIndexingEnabled() const { return spatialIndexingEnabled_; }
-
-  // 节点空间索引管理（内部使用）
-  void updateNodeInSpatialIndex(Node *node, const Rect &oldBounds,
-                                const Rect &newBounds);
-  void removeNodeFromSpatialIndex(Node *node);
-
-  // 碰撞检测查询
-  std::vector<Node *> queryNodesInArea(const Rect &area) const;
-  std::vector<Node *> queryNodesAtPoint(const Vec2 &point) const;
-  std::vector<std::pair<Node *, Node *>> queryCollisions() const;
-
-  // ------------------------------------------------------------------------
   // 静态创建方法
   // ------------------------------------------------------------------------
   static Ptr<Scene> create();
@@ -107,10 +84,6 @@ private:
   Ptr<Camera> defaultCamera_;
 
   bool paused_ = false;
-
-  // 空间索引系统
-  SpatialManager spatialManager_;
-  bool spatialIndexingEnabled_ = true;
 };
 
 } // namespace extra2d

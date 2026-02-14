@@ -17,12 +17,10 @@ void Sprite::setTexture(Ptr<Texture> texture) {
     textureRect_ = Rect(0, 0, static_cast<float>(texture_->getWidth()),
                         static_cast<float>(texture_->getHeight()));
   }
-  updateSpatialIndex();
 }
 
 void Sprite::setTextureRect(const Rect &rect) {
   textureRect_ = rect;
-  updateSpatialIndex();
 }
 
 void Sprite::setColor(const Color &color) { color_ = color; }
