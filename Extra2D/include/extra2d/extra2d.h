@@ -8,6 +8,16 @@
 #include <extra2d/core/math_types.h>
 #include <extra2d/core/types.h>
 
+// Config
+#include <extra2d/config/app_config.h>
+#include <extra2d/config/config_loader.h>
+#include <extra2d/config/config_manager.h>
+#include <extra2d/config/module_config.h>
+#include <extra2d/config/module_initializer.h>
+#include <extra2d/config/module_registry.h>
+#include <extra2d/config/platform_config.h>
+#include <extra2d/config/platform_detector.h>
+
 // Platform
 #include <extra2d/platform/iinput.h>
 #include <extra2d/platform/iwindow.h>

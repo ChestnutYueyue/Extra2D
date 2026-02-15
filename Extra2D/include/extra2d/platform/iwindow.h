@@ -2,29 +2,13 @@
 
 #include <extra2d/core/types.h>
 #include <extra2d/core/math_types.h>
+#include <extra2d/config/app_config.h>
 #include <functional>
 #include <string>
 
 namespace extra2d {
 
 class IInput;
-
-/**
- * @brief 窗口配置数据
- */
-struct WindowConfig {
-    std::string title = "Extra2D Application";
-    int width = 1280;
-    int height = 720;
-    bool fullscreen = false;
-    bool fullscreenDesktop = true;
-    bool resizable = true;
-    bool vsync = true;
-    int msaaSamples = 0;
-    bool centerWindow = true;
-    bool visible = true;
-    bool decorated = true;
-};
 
 /**
  * @brief 光标形状
@@ -52,7 +36,7 @@ public:
      * @param cfg 窗口配置
      * @return 创建是否成功
      */
-    virtual bool create(const WindowConfig& cfg) = 0;
+    virtual bool create(const WindowConfigData& cfg) = 0;
 
     /**
      * @brief 销毁窗口

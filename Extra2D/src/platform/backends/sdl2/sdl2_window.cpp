@@ -14,14 +14,16 @@ SDL2Window::~SDL2Window() {
     destroy();
 }
 
-bool SDL2Window::create(const WindowConfig& cfg) {
+bool SDL2Window::create(const WindowConfigData& cfg) {
     if (!initSDL()) {
         return false;
     }
 
     Uint32 flags = SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN;
-    if (cfg.fullscreen) {
-        flags |= cfg.fullscreenDesktop ? SDL_WINDOW_FULLSCREEN_DESKTOP : SDL_WINDOW_FULLSCREEN;
+    if (cfg.isFullscreen()) {
+        flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+    } else if (cfg.isBorderless()) {
+        flags |= SDL_WINDOW_BORDERLESS;
     }
     if (cfg.resizable) {
         flags |= SDL_WINDOW_RESIZABLE;
@@ -37,14 +39,14 @@ bool SDL2Window::create(const WindowConfig& cfg) {
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
     SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
 
-    if (cfg.msaaSamples > 0) {
+    if (cfg.multisamples > 0) {
         SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
-        SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, cfg.msaaSamples);
+        SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, cfg.multisamples);
     }
 
     int x = SDL_WINDOWPOS_CENTERED;
     int y = SDL_WINDOWPOS_CENTERED;
-    if (!cfg.centerWindow) {
+    if (!cfg.centered) {
         x = SDL_WINDOWPOS_UNDEFINED;
         y = SDL_WINDOWPOS_UNDEFINED;
     }
@@ -74,7 +76,7 @@ bool SDL2Window::create(const WindowConfig& cfg) {
     SDL_GL_SetSwapInterval(cfg.vsync ? 1 : 0);
 
     SDL_GetWindowSize(sdlWindow_, &width_, &height_);
-    fullscreen_ = cfg.fullscreen;
+    fullscreen_ = cfg.isFullscreen();
     vsync_ = cfg.vsync;
 
     initCursors();

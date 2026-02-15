@@ -15,7 +15,7 @@ public:
     SDL2Window();
     ~SDL2Window() override;
 
-    bool create(const WindowConfig& cfg) override;
+    bool create(const WindowConfigData& cfg) override;
     void destroy() override;
 
     void poll() override;

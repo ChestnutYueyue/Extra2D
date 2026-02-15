@@ -155,17 +155,4 @@ inline constexpr Color Coral{1.0f, 0.498f, 0.314f, 1.0f};
 inline constexpr Color Transparent{0.0f, 0.0f, 0.0f, 0.0f};
 } // namespace Colors
 
-// 为了向后兼容，在 Color 结构体内提供静态引用
-struct ColorConstants {
-  static const Color &White;
-  static const Color &Black;
-  static const Color &Red;
-  static const Color &Green;
-  static const Color &Blue;
-  static const Color &Yellow;
-  static const Color &Cyan;
-  static const Color &Magenta;
-  static const Color &Transparent;
-};
-
 } // namespace extra2d

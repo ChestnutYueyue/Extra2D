@@ -16,7 +16,6 @@ struct RenderTargetConfig {
   int height = 600;                             // 高度
   PixelFormat colorFormat = PixelFormat::RGBA8; // 颜色格式
   bool hasDepth = true;                         // 是否包含深度缓冲
-  bool hasDepthBuffer = true;                   // 兼容旧API的别名 (同hasDepth)
   bool hasStencil = false;                      // 是否包含模板缓冲
   int samples = 1;                              // 多重采样数 (1 = 无MSAA)
   bool autoResize = true;                       // 是否自动调整大小
@@ -48,11 +47,6 @@ public:
   bool create(const RenderTargetConfig &config);
 
   /**
-   * @brief 初始化渲染目标（create的别名，兼容旧API）
-   */
-  bool init(const RenderTargetConfig &config) { return create(config); }
-
-  /**
    * @brief 从现有纹理创建渲染目标
    */
   bool createFromTexture(Ptr<Texture> texture, bool hasDepth = false);
@@ -61,11 +55,6 @@ public:
    * @brief 销毁渲染目标
    */
   void destroy();
-
-  /**
-   * @brief 关闭渲染目标（destroy的别名，兼容旧API）
-   */
-  void shutdown() { destroy(); }
 
   /**
    * @brief 检查是否有效
@@ -143,14 +132,6 @@ public:
    * @brief 复制到另一个渲染目标
    */
   void copyTo(RenderTarget &target);
-
-  /**
-   * @brief 复制到另一个渲染目标（blitTo的别名，兼容旧API）
-   * @param target 目标渲染目标
-   * @param color 是否复制颜色缓冲
-   * @param depth 是否复制深度缓冲
-   */
-  void blitTo(RenderTarget &target, bool color = true, bool depth = false);
 
   /**
    * @brief 复制到屏幕

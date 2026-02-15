@@ -312,39 +312,6 @@ void RenderTarget::copyTo(RenderTarget &target) {
 }
 
 /**
- * @brief 将内容传输到另一个渲染目标
- * @param target 目标渲染目标
- * @param color 是否复制颜色缓冲
- * @param depth 是否复制深度缓冲
- *
- * 使用glBlitFramebuffer进行选择性复制
- */
-void RenderTarget::blitTo(RenderTarget &target, bool color, bool depth) {
-  if (!isValid() || !target.isValid()) {
-    return;
-  }
-
-  // 使用glBlitFramebuffer复制
-  glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo_);
-  glBindFramebuffer(GL_DRAW_FRAMEBUFFER, target.getFBO());
-
-  GLbitfield mask = 0;
-  if (color) {
-    mask |= GL_COLOR_BUFFER_BIT;
-  }
-  if (depth && hasDepth_ && target.hasDepth_) {
-    mask |= GL_DEPTH_BUFFER_BIT;
-  }
-
-  if (mask != 0) {
-    glBlitFramebuffer(0, 0, width_, height_, 0, 0, target.getWidth(),
-                      target.getHeight(), mask, GL_LINEAR);
-  }
-
-  glBindFramebuffer(GL_FRAMEBUFFER, 0);
-}
-
-/**
  * @brief 复制到屏幕
  * @param screenWidth 屏幕宽度
  * @param screenHeight 屏幕高度

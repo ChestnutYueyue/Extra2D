@@ -1,4 +1,6 @@
 #include <extra2d/app/application.h>
+#include <extra2d/config/config_manager.h>
+#include <extra2d/config/module_registry.h>
 #include <extra2d/event/event_dispatcher.h>
 #include <extra2d/event/event_queue.h>
 #include <extra2d/graphics/camera.h>
@@ -20,6 +22,10 @@
 
 namespace extra2d {
 
+/**
+ * @brief 获取当前时间（秒）
+ * @return 当前时间戳（秒）
+ */
 static double getTimeSeconds() {
 #ifdef __SWITCH__
     struct timespec ts;
@@ -39,7 +45,9 @@ Application& Application::get() {
     return instance;
 }
 
-Application::~Application() { shutdown(); }
+Application::~Application() { 
+    shutdown(); 
+}
 
 bool Application::init() {
     AppConfig cfg;
@@ -52,41 +60,73 @@ bool Application::init(const AppConfig& config) {
         return true;
     }
 
-    config_ = config;
+    E2D_LOG_INFO("Initializing application with config...");
+
+    if (!ConfigManager::instance().initialize()) {
+        E2D_LOG_ERROR("Failed to initialize ConfigManager");
+        return false;
+    }
+
+    ConfigManager::instance().setAppConfig(config);
+
     return initImpl();
 }
 
-bool Application::init(const std::string& path) {
+bool Application::init(const std::string& configPath) {
     if (initialized_) {
         E2D_LOG_WARN("Application already initialized");
         return true;
     }
 
-    E2D_LOG_INFO("Loading config from: {}", path);
-    
-    AppConfig cfg;
-    
-    if (path.find(".json") != std::string::npos) {
-        // TODO: 使用 nlohmann_json 加载配置
-        E2D_LOG_WARN("JSON config loading not yet implemented, using defaults");
-    } else if (path.find(".ini") != std::string::npos) {
-        // TODO: 实现 INI 配置加载
-        E2D_LOG_WARN("INI config loading not yet implemented, using defaults");
+    E2D_LOG_INFO("Initializing application from config file: {}", configPath);
+
+    if (!ConfigManager::instance().initialize(configPath)) {
+        E2D_LOG_WARN("Failed to load config from file, using defaults");
+        if (!ConfigManager::instance().initialize()) {
+            E2D_LOG_ERROR("Failed to initialize ConfigManager");
+            return false;
+        }
     }
-    
-    config_ = cfg;
+
     return initImpl();
 }
 
 bool Application::initImpl() {
-    PlatformType platform = config_.platform;
+    auto& configMgr = ConfigManager::instance();
+    AppConfig& appConfig = configMgr.appConfig();
+
+    PlatformType platform = appConfig.targetPlatform;
     if (platform == PlatformType::Auto) {
 #ifdef __SWITCH__
         platform = PlatformType::Switch;
 #else
-        platform = PlatformType::PC;
+#ifdef _WIN32
+        platform = PlatformType::Windows;
+#elif defined(__linux__)
+        platform = PlatformType::Linux;
+#elif defined(__APPLE__)
+        platform = PlatformType::macOS;
+#else
+        platform = PlatformType::Windows;
+#endif
 #endif
     }
+
+    E2D_LOG_INFO("Target platform: {} ({})", getPlatformTypeName(platform), 
+                 static_cast<int>(platform));
+
+    UniquePtr<PlatformConfig> platformConfig = createPlatformConfig(platform);
+    if (!platformConfig) {
+        E2D_LOG_ERROR("Failed to create platform config");
+        return false;
+    }
+
+    appConfig.applyPlatformConstraints(*platformConfig);
+
+    const auto& capabilities = platformConfig->capabilities();
+    E2D_LOG_INFO("Platform capabilities: windowed={}, fullscreen={}, cursor={}, DPI={}",
+                 capabilities.supportsWindowed, capabilities.supportsFullscreen,
+                 capabilities.supportsCursor, capabilities.supportsDPIAwareness);
 
     if (platform == PlatformType::Switch) {
 #ifdef __SWITCH__
@@ -105,7 +145,36 @@ bool Application::initImpl() {
 #endif
     }
 
-    std::string backend = config_.backend;
+    auto initOrder = ModuleRegistry::instance().getInitializationOrder();
+    E2D_LOG_INFO("Initializing {} registered modules...", initOrder.size());
+
+    for (ModuleId moduleId : initOrder) {
+        auto initializer = ModuleRegistry::instance().createInitializer(moduleId);
+        if (!initializer) {
+            continue;
+        }
+
+        auto* moduleConfig = ModuleRegistry::instance().getModuleConfig(moduleId);
+        if (!moduleConfig) {
+            E2D_LOG_WARN("Module {} has no config, skipping", moduleId);
+            continue;
+        }
+
+        auto info = moduleConfig->getModuleInfo();
+        if (!info.enabled) {
+            E2D_LOG_INFO("Module '{}' is disabled, skipping", info.name);
+            continue;
+        }
+
+        E2D_LOG_INFO("Initializing module '{}' (priority: {})", 
+                     info.name, static_cast<int>(info.priority));
+
+        if (!initializer->initialize(moduleConfig)) {
+            E2D_LOG_ERROR("Failed to initialize module '{}'", info.name);
+        }
+    }
+
+    std::string backend = "sdl2";
 #ifdef __SWITCH__
     backend = "switch";
 #endif
@@ -127,27 +196,19 @@ bool Application::initImpl() {
         return false;
     }
 
-    WindowConfig winConfig;
-    winConfig.title = config_.title;
-    winConfig.width = config_.width;
-    winConfig.height = config_.height;
+    WindowConfigData winConfig = appConfig.window;
+    
     if (platform == PlatformType::Switch) {
-        winConfig.fullscreen = true;
-        winConfig.fullscreenDesktop = false;
+        winConfig.mode = WindowMode::Fullscreen;
         winConfig.resizable = false;
-    } else {
-        winConfig.fullscreen = config_.fullscreen;
-        winConfig.resizable = config_.resizable;
     }
-    winConfig.vsync = config_.vsync;
-    winConfig.msaaSamples = config_.msaaSamples;
 
     if (!window_->create(winConfig)) {
         E2D_LOG_ERROR("Failed to create window");
         return false;
     }
 
-    renderer_ = RenderBackend::create(config_.renderBackend);
+    renderer_ = RenderBackend::create(appConfig.render.backend);
     if (!renderer_ || !renderer_->init(window_.get())) {
         E2D_LOG_ERROR("Failed to initialize renderer");
         window_->destroy();
@@ -163,8 +224,8 @@ bool Application::initImpl() {
 
     viewportAdapter_ = makeUnique<ViewportAdapter>();
     ViewportConfig vpConfig;
-    vpConfig.logicWidth = static_cast<float>(config_.width);
-    vpConfig.logicHeight = static_cast<float>(config_.height);
+    vpConfig.logicWidth = static_cast<float>(appConfig.window.width);
+    vpConfig.logicHeight = static_cast<float>(appConfig.window.height);
     vpConfig.mode = ViewportMode::AspectRatio;
     viewportAdapter_->setConfig(vpConfig);
 
@@ -193,7 +254,12 @@ bool Application::initImpl() {
     initialized_ = true;
     running_ = true;
 
-    E2D_LOG_INFO("Application initialized (backend: {})", backend);
+    E2D_LOG_INFO("Application initialized successfully");
+    E2D_LOG_INFO("  Window: {}x{}", window_->width(), window_->height());
+    E2D_LOG_INFO("  Backend: {}", backend);
+    E2D_LOG_INFO("  VSync: {}", appConfig.render.vsync);
+    E2D_LOG_INFO("  Target FPS: {}", appConfig.render.targetFPS);
+
     return true;
 }
 
@@ -227,20 +293,39 @@ void Application::shutdown() {
         window_.reset();
     }
 
-    PlatformType platform = config_.platform;
+    auto modules = ModuleRegistry::instance().getAllModules();
+    auto initOrder = ModuleRegistry::instance().getInitializationOrder();
+    
+    for (auto it = initOrder.rbegin(); it != initOrder.rend(); ++it) {
+        ModuleId moduleId = *it;
+        auto initializer = ModuleRegistry::instance().createInitializer(moduleId);
+        if (initializer && initializer->isInitialized()) {
+            auto* moduleConfig = ModuleRegistry::instance().getModuleConfig(moduleId);
+            if (moduleConfig) {
+                auto info = moduleConfig->getModuleInfo();
+                E2D_LOG_INFO("Shutting down module '{}'", info.name);
+            }
+            initializer->shutdown();
+        }
+    }
+
+    PlatformType platform = ConfigManager::instance().appConfig().targetPlatform;
     if (platform == PlatformType::Auto) {
 #ifdef __SWITCH__
         platform = PlatformType::Switch;
 #else
-        platform = PlatformType::PC;
+        platform = PlatformType::Windows;
 #endif
     }
+    
     if (platform == PlatformType::Switch) {
 #ifdef __SWITCH__
         romfsExit();
         socketExit();
 #endif
     }
+
+    ConfigManager::instance().shutdown();
 
     initialized_ = false;
     running_ = false;
@@ -308,15 +393,18 @@ void Application::mainLoop() {
 
     render();
 
-    if (!config_.vsync && config_.fpsLimit > 0) {
+    const auto& appConfig = ConfigManager::instance().appConfig();
+    if (!appConfig.render.vsync && appConfig.render.isFPSCapped()) {
         double frameEndTime = getTimeSeconds();
         double frameTime = frameEndTime - currentTime;
-        double target = 1.0 / static_cast<double>(config_.fpsLimit);
+        double target = 1.0 / static_cast<double>(appConfig.render.targetFPS);
         if (frameTime < target) {
             auto sleepSeconds = target - frameTime;
             std::this_thread::sleep_for(std::chrono::duration<double>(sleepSeconds));
         }
     }
+
+    ConfigManager::instance().update(deltaTime_);
 }
 
 void Application::update() {
@@ -353,19 +441,33 @@ void Application::render() {
     window_->swap();
 }
 
-IInput& Application::input() { return *window_->input(); }
+IInput& Application::input() { 
+    return *window_->input(); 
+}
 
-SceneManager& Application::scenes() { return *sceneManager_; }
+SceneManager& Application::scenes() { 
+    return *sceneManager_; 
+}
 
-TimerManager& Application::timers() { return *timerManager_; }
+TimerManager& Application::timers() { 
+    return *timerManager_; 
+}
 
-EventQueue& Application::eventQueue() { return *eventQueue_; }
+EventQueue& Application::eventQueue() { 
+    return *eventQueue_; 
+}
 
-EventDispatcher& Application::eventDispatcher() { return *eventDispatcher_; }
+EventDispatcher& Application::eventDispatcher() { 
+    return *eventDispatcher_; 
+}
 
-Camera& Application::camera() { return *camera_; }
+Camera& Application::camera() { 
+    return *camera_; 
+}
 
-ViewportAdapter& Application::viewportAdapter() { return *viewportAdapter_; }
+ViewportAdapter& Application::viewportAdapter() { 
+    return *viewportAdapter_; 
+}
 
 void Application::enterScene(Ptr<Scene> scene) {
     if (sceneManager_ && scene) {
@@ -373,6 +475,14 @@ void Application::enterScene(Ptr<Scene> scene) {
                                static_cast<float>(window_->height()));
         sceneManager_->enterScene(scene);
     }
+}
+
+ConfigManager& Application::config() {
+    return ConfigManager::instance();
+}
+
+const AppConfig& Application::getConfig() const {
+    return ConfigManager::instance().appConfig();
 }
 
 } // namespace extra2d
