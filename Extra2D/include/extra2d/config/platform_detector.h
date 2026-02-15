@@ -142,6 +142,42 @@ public:
     static std::string getLogPath(const std::string& appName);
 
     /**
+     * @brief 获取平台特定的资源路径（Shader、纹理等）
+     * Switch平台使用romfs，其他平台使用相对路径
+     * @param appName 应用名称
+     * @return 资源目录路径
+     */
+    static std::string getResourcePath(const std::string& appName = "");
+
+    /**
+     * @brief 获取平台特定的Shader路径
+     * @param appName 应用名称
+     * @return Shader目录路径
+     */
+    static std::string getShaderPath(const std::string& appName = "");
+
+    /**
+     * @brief 获取平台特定的Shader缓存路径
+     * Switch平台使用sdmc，其他平台使用系统缓存目录
+     * @param appName 应用名称
+     * @return Shader缓存目录路径
+     */
+    static std::string getShaderCachePath(const std::string& appName = "");
+
+    /**
+     * @brief 检查平台是否使用romfs（只读文件系统）
+     * @return 使用romfs返回true
+     */
+    static bool usesRomfs();
+
+    /**
+     * @brief 检查平台是否支持热重载
+     * Switch平台不支持热重载（romfs只读）
+     * @return 支持热重载返回true
+     */
+    static bool supportsHotReload();
+
+    /**
      * @brief 检查平台是否为小端字节序
      * @return 如果是小端字节序返回 true
      */

@@ -1,8 +1,8 @@
 #pragma once
 
-#include <extra2d/graphics/opengl/gl_shader.h>
 #include <extra2d/graphics/opengl/gl_sprite_batch.h>
 #include <extra2d/graphics/render_backend.h>
+#include <extra2d/graphics/shader_interface.h>
 
 #include <array>
 #include <glad/glad.h>
@@ -90,7 +90,7 @@ private:
 
   IWindow* window_;
   GLSpriteBatch spriteBatch_;
-  GLShader shapeShader_;
+  Ptr<IShader> shapeShader_;
 
   GLuint shapeVao_;
   GLuint shapeVbo_;

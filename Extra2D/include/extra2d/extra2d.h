@@ -28,7 +28,7 @@
 #include <extra2d/graphics/camera.h>
 #include <extra2d/graphics/font.h>
 #include <extra2d/graphics/render_backend.h>
-#include <extra2d/graphics/shader_system.h>
+#include <extra2d/graphics/shader_manager.h>
 #include <extra2d/graphics/texture.h>
 
 #include <extra2d/graphics/render_target.h>

@@ -433,6 +433,77 @@ std::string PlatformDetector::getLogPath(const std::string& appName) {
 }
 
 /**
+ * @brief 获取平台特定的资源路径（Shader、纹理等）
+ * Switch平台使用romfs，其他平台使用相对路径
+ * @param appName 应用名称
+ * @return 资源目录路径
+ */
+std::string PlatformDetector::getResourcePath(const std::string& appName) {
+#ifdef __SWITCH__
+    (void)appName;
+    return "romfs:/";
+#else
+    (void)appName;
+    return "./resources/";
+#endif
+}
+
+/**
+ * @brief 获取平台特定的Shader路径
+ * @param appName 应用名称
+ * @return Shader目录路径
+ */
+std::string PlatformDetector::getShaderPath(const std::string& appName) {
+#ifdef __SWITCH__
+    (void)appName;
+    return "romfs:/shaders/";
+#else
+    (void)appName;
+    return "./shaders/";
+#endif
+}
+
+/**
+ * @brief 获取平台特定的Shader缓存路径
+ * Switch平台使用sdmc，其他平台使用系统缓存目录
+ * @param appName 应用名称
+ * @return Shader缓存目录路径
+ */
+std::string PlatformDetector::getShaderCachePath(const std::string& appName) {
+#ifdef __SWITCH__
+    std::string name = appName.empty() ? "extra2d" : appName;
+    return "sdmc:/cache/" + name + "/shaders/";
+#else
+    return getCachePath(appName.empty() ? "extra2d" : appName) + "/shaders/";
+#endif
+}
+
+/**
+ * @brief 检查平台是否使用romfs（只读文件系统）
+ * @return 使用romfs返回true
+ */
+bool PlatformDetector::usesRomfs() {
+#ifdef __SWITCH__
+    return true;
+#else
+    return false;
+#endif
+}
+
+/**
+ * @brief 检查平台是否支持热重载
+ * Switch平台不支持热重载（romfs只读）
+ * @return 支持热重载返回true
+ */
+bool PlatformDetector::supportsHotReload() {
+#ifdef __SWITCH__
+    return false;
+#else
+    return true;
+#endif
+}
+
+/**
  * @brief 检查平台是否为小端字节序
  * @return 如果是小端字节序返回 true
  */

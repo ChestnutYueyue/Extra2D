@@ -6,36 +6,13 @@
 #include <extra2d/graphics/opengl/gl_font_atlas.h>
 #include <extra2d/graphics/opengl/gl_renderer.h>
 #include <extra2d/graphics/opengl/gl_texture.h>
+#include <extra2d/graphics/shader_manager.h>
 #include <extra2d/graphics/vram_manager.h>
 #include <extra2d/platform/iwindow.h>
 #include <extra2d/utils/logger.h>
 #include <vector>
 
 namespace extra2d {
-
-// 形状渲染着色器 - 支持顶点颜色批处理 (GLES 3.2)
-static const char *SHAPE_VERTEX_SHADER = R"(
-#version 300 es
-precision highp float;
-layout(location = 0) in vec2 aPosition;
-layout(location = 1) in vec4 aColor;
-uniform mat4 uViewProjection;
-out vec4 vColor;
-void main() {
-    gl_Position = uViewProjection * vec4(aPosition, 0.0, 1.0);
-    vColor = aColor;
-}
-)";
-
-static const char *SHAPE_FRAGMENT_SHADER = R"(
-#version 300 es
-precision highp float;
-in vec4 vColor;
-out vec4 fragColor;
-void main() {
-    fragColor = vColor;
-}
-)";
 
 // VBO 初始大小（用于 VRAM 跟踪）
 static constexpr size_t SHAPE_VBO_SIZE = 1024 * sizeof(float);
@@ -85,7 +62,7 @@ GLRenderer::~GLRenderer() { shutdown(); }
  * @param window 窗口指针
  * @return 初始化成功返回true，失败返回false
  */
-bool GLRenderer::init(IWindow* window) {
+bool GLRenderer::init(IWindow *window) {
   window_ = window;
 
   // Switch: GL 上下文已通过 SDL2 + EGL 初始化，无需 glewInit()
@@ -125,8 +102,7 @@ void GLRenderer::shutdown() {
 
   if (lineVbo_ != 0) {
     glDeleteBuffers(1, &lineVbo_);
-    VRAMMgr::get().freeBuffer(MAX_LINE_VERTICES *
-                                          sizeof(ShapeVertex));
+    VRAMMgr::get().freeBuffer(MAX_LINE_VERTICES * sizeof(ShapeVertex));
     lineVbo_ = 0;
   }
   if (lineVao_ != 0) {
@@ -135,8 +111,7 @@ void GLRenderer::shutdown() {
   }
   if (shapeVbo_ != 0) {
     glDeleteBuffers(1, &shapeVbo_);
-    VRAMMgr::get().freeBuffer(MAX_SHAPE_VERTICES *
-                                          sizeof(ShapeVertex));
+    VRAMMgr::get().freeBuffer(MAX_SHAPE_VERTICES * sizeof(ShapeVertex));
     shapeVbo_ = 0;
   }
   if (shapeVao_ != 0) {
@@ -605,7 +580,7 @@ void GLRenderer::drawText(const FontAtlas &font, const std::string &text,
 
   // 收集所有字符数据用于批处理
   std::vector<GLSpriteBatch::SpriteData> sprites;
-  sprites.reserve(text.size());  // 预分配空间
+  sprites.reserve(text.size()); // 预分配空间
 
   for (char c : text) {
     char32_t codepoint = static_cast<char32_t>(static_cast<unsigned char>(c));
@@ -637,7 +612,7 @@ void GLRenderer::drawText(const FontAtlas &font, const std::string &text,
       data.rotation = 0.0f;
       data.anchor = glm::vec2(0.0f, 0.0f);
       data.isSDF = font.isSDF();
-      
+
       sprites.push_back(data);
     }
   }
@@ -657,8 +632,14 @@ void GLRenderer::resetStats() { stats_ = Stats{}; }
  * @brief 初始化形状渲染所需的OpenGL资源（VAO、VBO、着色器）
  */
 void GLRenderer::initShapeRendering() {
-  // 编译形状着色器
-  shapeShader_.compileFromSource(SHAPE_VERTEX_SHADER, SHAPE_FRAGMENT_SHADER);
+  // 从ShaderManager获取形状着色器
+  shapeShader_ = ShaderManager::getInstance().getBuiltin("builtin_shape");
+  if (!shapeShader_) {
+    E2D_LOG_WARN("Failed to get builtin shape shader, loading from manager");
+    if (!ShaderManager::getInstance().isInitialized()) {
+      E2D_LOG_ERROR("ShaderManager not initialized, shape rendering may fail");
+    }
+  }
 
   // 创建形状 VAO 和 VBO
   glGenVertexArrays(1, &shapeVao_);
@@ -703,10 +684,8 @@ void GLRenderer::initShapeRendering() {
   glBindVertexArray(0);
 
   // VRAM 跟踪
-  VRAMMgr::get().allocBuffer(MAX_SHAPE_VERTICES *
-                                         sizeof(ShapeVertex));
-  VRAMMgr::get().allocBuffer(MAX_LINE_VERTICES *
-                                         sizeof(ShapeVertex));
+  VRAMMgr::get().allocBuffer(MAX_SHAPE_VERTICES * sizeof(ShapeVertex));
+  VRAMMgr::get().allocBuffer(MAX_LINE_VERTICES * sizeof(ShapeVertex));
 }
 
 /**
@@ -769,8 +748,10 @@ void GLRenderer::flushShapeBatch() {
   if (shapeVertexCount_ == 0)
     return;
 
-  shapeShader_.bind();
-  shapeShader_.setMat4("uViewProjection", viewProjection_);
+  if (shapeShader_) {
+    shapeShader_->bind();
+    shapeShader_->setMat4("u_viewProjection", viewProjection_);
+  }
 
   glBindBuffer(GL_ARRAY_BUFFER, shapeVbo_);
   glBufferSubData(GL_ARRAY_BUFFER, 0, shapeVertexCount_ * sizeof(ShapeVertex),
@@ -796,8 +777,10 @@ void GLRenderer::flushLineBatch() {
   flushShapeBatch();
 
   glLineWidth(currentLineWidth_);
-  shapeShader_.bind();
-  shapeShader_.setMat4("uViewProjection", viewProjection_);
+  if (shapeShader_) {
+    shapeShader_->bind();
+    shapeShader_->setMat4("u_viewProjection", viewProjection_);
+  }
 
   glBindBuffer(GL_ARRAY_BUFFER, lineVbo_);
   glBufferSubData(GL_ARRAY_BUFFER, 0, lineVertexCount_ * sizeof(ShapeVertex),
