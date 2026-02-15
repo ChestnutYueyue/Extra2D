@@ -761,10 +761,214 @@ for (const auto& service : services) {
 
 ---
 
+## 场景图系统
+
+### 概述
+
+Extra2D 使用场景图（Scene Graph）管理游戏对象。场景图是一个树形结构，每个节点可以包含子节点，形成层级关系。
+
+### Node 基类
+
+所有场景对象的基类，提供变换、层级管理和渲染功能：
+
+```cpp
+class Node : public std::enable_shared_from_this<Node> {
+public:
+    // 层级管理
+    void addChild(Ptr<Node> child);
+    void removeChild(Ptr<Node> child);
+    void detach();
+    void clearChildren();
+    
+    Ptr<Node> getParent() const;
+    const std::vector<Ptr<Node>>& getChildren() const;
+    Ptr<Node> findChild(const std::string& name) const;
+    
+    // 变换属性
+    void setPos(const Vec2& pos);
+    void setRotation(float degrees);
+    void setScale(const Vec2& scale);
+    void setAnchor(const Vec2& anchor);
+    void setOpacity(float opacity);
+    void setVisible(bool visible);
+    void setZOrder(int zOrder);
+    
+    // 世界变换
+    Vec2 toWorld(const Vec2& localPos) const;
+    Vec2 toLocal(const Vec2& worldPos) const;
+    glm::mat4 getLocalTransform() const;
+    glm::mat4 getWorldTransform() const;
+    
+    // 生命周期回调
+    virtual void onEnter();
+    virtual void onExit();
+    virtual void onUpdate(float dt);
+    virtual void onRender(RenderBackend& renderer);
+};
+```
+
+### Scene 类
+
+场景是场景图的根节点，管理相机和视口：
+
+```cpp
+class Scene : public Node {
+public:
+    // 场景属性
+    void setBackgroundColor(const Color& color);
+    
+    // 摄像机
+    void setCamera(Ptr<Camera> camera);
+    Camera* getActiveCamera() const;
+    
+    // 视口
+    void setViewportSize(float width, float height);
+    
+    // 渲染和更新
+    void renderScene(RenderBackend& renderer);
+    void updateScene(float dt);
+    
+    // 静态创建
+    static Ptr<Scene> create();
+};
+```
+
+### ShapeNode 形状节点
+
+用于绘制几何形状：
+
+```cpp
+// 创建形状节点
+auto rect = ShapeNode::createFilledRect(Rect(0, 0, 100, 100), Color(1.0f, 0.4f, 0.4f, 1.0f));
+auto circle = ShapeNode::createFilledCircle(Vec2(0, 0), 50, Color(0.4f, 0.4f, 1.0f, 1.0f));
+auto triangle = ShapeNode::createFilledTriangle(
+    Vec2(0, -40), Vec2(-35, 30), Vec2(35, 30),
+    Color(0.4f, 1.0f, 0.4f, 1.0f)
+);
+auto line = ShapeNode::createLine(Vec2(0, 0), Vec2(100, 100), Color(1.0f, 1.0f, 1.0f, 1.0f), 2.0f);
+auto polygon = ShapeNode::createFilledPolygon(
+    {Vec2(0, -50), Vec2(50, 0), Vec2(0, 50), Vec2(-50, 0)},
+    Color(1.0f, 0.4f, 1.0f, 1.0f)
+);
+```
+
+### 变换继承
+
+子节点继承父节点的变换：
+
+```cpp
+auto parent = makeShared<Node>();
+parent->setPos(100, 100);
+parent->setRotation(45);  // 旋转 45 度
+
+auto child = makeShared<Node>();
+child->setPos(50, 0);     // 相对于父节点的位置
+parent->addChild(child);
+
+// child 的世界位置 = parent 的变换 * child 的本地位置
+// child 会随 parent 一起旋转
+```
+
+### 渲染流程
+
+```
+Application::render()
+  └── CameraService::getViewProjectionMatrix()  // 设置视图投影矩阵
+  └── SceneService::render()
+        └── Scene::renderContent()
+              └── Node::render() (递归)
+                    └── pushTransform(localTransform)  // 压入本地变换
+                    └── onDraw()                        // 绘制形状
+                    └── children::onRender()            // 递归渲染子节点
+                    └── popTransform()                  // 弹出变换
+```
+
+---
+
+## 视口适配系统
+
+### 概述
+
+视口适配系统确保游戏内容在不同分辨率和宽高比的屏幕上正确显示。
+
+### ViewportAdapter
+
+视口适配器，计算视口位置和缩放：
+
+```cpp
+// 视口适配模式
+enum class ViewportMode {
+    AspectRatio,  // 保持宽高比，可能有黑边
+    Stretch,      // 拉伸填满整个窗口
+    Center,       // 居中显示，不缩放
+    Custom        // 自定义缩放和偏移
+};
+
+// 视口配置
+struct ViewportConfig {
+    float logicWidth = 1920.0f;
+    float logicHeight = 1080.0f;
+    ViewportMode mode = ViewportMode::AspectRatio;
+    Color letterboxColor = Colors::Black;  // 黑边颜色
+    float customScale = 1.0f;
+    Vec2 customOffset = Vec2::Zero();
+};
+```
+
+### 使用 CameraService 配置视口
+
+```cpp
+auto cameraService = app.camera();
+if (cameraService) {
+    ViewportConfig vpConfig;
+    vpConfig.logicWidth = 1280.0f;   // 逻辑分辨率宽度
+    vpConfig.logicHeight = 720.0f;   // 逻辑分辨率高度
+    vpConfig.mode = ViewportMode::AspectRatio;  // 保持宽高比
+    vpConfig.letterboxColor = Color(0.0f, 0.0f, 0.0f, 1.0f);  // 黑边颜色
+    
+    cameraService->setViewportConfig(vpConfig);
+    cameraService->updateViewport(windowWidth, windowHeight);
+    cameraService->applyViewportAdapter();
+}
+```
+
+### 窗口大小变化处理
+
+当窗口大小变化时，Application 会自动更新视口：
+
+```cpp
+// Application 内部处理
+window_->onResize([this, cameraService](int width, int height) {
+    cameraService->updateViewport(width, height);
+    cameraService->applyViewportAdapter();
+    
+    auto sceneService = ServiceLocator::instance().getService<ISceneService>();
+    if (sceneService) {
+        auto currentScene = sceneService->getCurrentScene();
+        if (currentScene) {
+            currentScene->setViewportSize(width, height);
+        }
+    }
+});
+```
+
+### 适配模式对比
+
+| 模式 | 描述 | 适用场景 |
+|-----|------|---------|
+| `AspectRatio` | 保持宽高比，可能有黑边 | 大多数游戏 |
+| `Stretch` | 拉伸填满整个窗口 | 不在乎变形的简单游戏 |
+| `Center` | 居中显示，不缩放 | 固定分辨率的像素游戏 |
+| `Custom` | 自定义缩放和偏移 | 特殊需求 |
+
+---
+
 ## 示例
 
 完整示例请参考：
-- [examples/basic/main.cpp](../../examples/basic/main.cpp) - 基础示例
+- [examples/basic/main.cpp](../../examples/basic/main.cpp) - 基础示例（场景图、输入事件、视口适配）
 - [Extra2D/src/platform/window_module.cpp](../../Extra2D/src/platform/window_module.cpp) - Window 模块实现
 - [Extra2D/src/platform/input_module.cpp](../../Extra2D/src/platform/input_module.cpp) - Input 模块实现
 - [Extra2D/src/graphics/render_module.cpp](../../Extra2D/src/graphics/render_module.cpp) - Render 模块实现
+- [Extra2D/src/scene/node.cpp](../../Extra2D/src/scene/node.cpp) - Node 实现
+- [Extra2D/src/scene/shape_node.cpp](../../Extra2D/src/scene/shape_node.cpp) - ShapeNode 实现
