@@ -62,19 +62,14 @@ void Scene::renderScene(RenderBackend &renderer) {
  * @brief 渲染场景内容
  * @param renderer 渲染后端引用
  *
- * 批量更新节点变换，设置活动相机的视图投影矩阵，开始精灵批处理并渲染
+ * 批量更新节点变换，开始精灵批处理并渲染
+ * 注意：视图投影矩阵由 Application 通过 CameraService 设置
  */
 void Scene::renderContent(RenderBackend &renderer) {
   if (!isVisible())
     return;
 
-  // 在渲染前批量更新所有节点的世界变换
   batchTransforms();
-
-  Camera *activeCam = getActiveCamera();
-  if (activeCam) {
-    renderer.setViewProjection(activeCam->getViewProjectionMatrix());
-  }
 
   renderer.beginSpriteBatch();
   render(renderer);

@@ -334,6 +334,8 @@ void Application::render() {
         renderer->setViewport(
             static_cast<int>(vp.origin.x), static_cast<int>(vp.origin.y),
             static_cast<int>(vp.size.width), static_cast<int>(vp.size.height));
+        
+        renderer->setViewProjection(cameraService->getViewProjectionMatrix());
     } else {
         renderer->setViewport(0, 0, window_->width(), window_->height());
     }

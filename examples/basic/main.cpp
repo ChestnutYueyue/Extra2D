@@ -144,6 +144,17 @@ int main(int argc, char *argv[]) {
   scene->setViewportSize(static_cast<float>(app.window().width()),
                          static_cast<float>(app.window().height()));
 
+  auto cameraService = app.camera();
+  if (cameraService) {
+    ViewportConfig vpConfig;
+    vpConfig.logicWidth = static_cast<float>(app.window().width());
+    vpConfig.logicHeight = static_cast<float>(app.window().height());
+    vpConfig.mode = ViewportMode::AspectRatio;
+    cameraService->setViewportConfig(vpConfig);
+    cameraService->updateViewport(app.window().width(), app.window().height());
+    cameraService->applyViewportAdapter();
+  }
+
   createSceneGraph(scene.get());
 
   app.enterScene(scene);
