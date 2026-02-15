@@ -85,8 +85,20 @@ end
 if target_plat ~= "switch" then
     add_requires("glm")
     add_requires("nlohmann_json")
-    add_requires("libsdl2")
+    local sdl2_configs = {
+        configs = {
+            wayland = false
+        }
+    }
+    if target_plat == "linux" then
+        local is_wayland = os.getenv("XDG_SESSION_TYPE") == "wayland"
+        if is_wayland then
+            sdl2_configs.configs.wayland = true
+        end
+    end
+    add_requires("libsdl2", sdl2_configs)
 end
+
 
 -- ==============================================
 -- 加载构建目标
