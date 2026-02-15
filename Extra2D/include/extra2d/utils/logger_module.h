@@ -2,21 +2,22 @@
 
 #include <extra2d/config/module_config.h>
 #include <extra2d/config/module_initializer.h>
-#include <extra2d/config/app_config.h>
-#include <extra2d/platform/iwindow.h>
+#include <extra2d/utils/logger.h>
 #include <string>
 
 namespace extra2d {
 
-class WindowModuleConfig : public IModuleConfig {
+class LoggerModuleConfig : public IModuleConfig {
 public:
-    std::string backend = "sdl2";
-    WindowConfigData windowConfig;
+    LogLevel logLevel = LogLevel::Info;
+    bool consoleOutput = true;
+    bool fileOutput = false;
+    std::string logFilePath;
 
     ModuleInfo getModuleInfo() const override {
         ModuleInfo info;
         info.id = 0;
-        info.name = "Window";
+        info.name = "Logger";
         info.version = "1.0.0";
         info.priority = ModulePriority::Core;
         info.enabled = true;
@@ -24,26 +25,28 @@ public:
     }
 
     std::string getConfigSectionName() const override {
-        return "window";
+        return "logger";
     }
 
     bool validate() const override {
-        return windowConfig.width > 0 && windowConfig.height > 0;
+        return true;
     }
 
     void resetToDefaults() override {
-        backend = "sdl2";
-        windowConfig = WindowConfigData{};
+        logLevel = LogLevel::Info;
+        consoleOutput = true;
+        fileOutput = false;
+        logFilePath.clear();
     }
 
     bool loadFromJson(const void* jsonData) override;
     bool saveToJson(void* jsonData) const override;
 };
 
-class WindowModuleInitializer : public IModuleInitializer {
+class LoggerModuleInitializer : public IModuleInitializer {
 public:
-    WindowModuleInitializer();
-    ~WindowModuleInitializer() override;
+    LoggerModuleInitializer();
+    ~LoggerModuleInitializer() override;
 
     ModuleId getModuleId() const override { return moduleId_; }
     ModulePriority getPriority() const override { return ModulePriority::Core; }
@@ -54,24 +57,10 @@ public:
     bool isInitialized() const override { return initialized_; }
 
     void setModuleId(ModuleId id) { moduleId_ = id; }
-    void setWindowConfig(const WindowConfigData& config) { windowConfig_ = config; }
-
-    IWindow* getWindow() const { return window_.get(); }
 
 private:
-    bool initBackend();
-    bool createWindow(const std::string& backend, const WindowConfigData& config);
-    void shutdownBackend();
-
     ModuleId moduleId_ = INVALID_MODULE_ID;
     bool initialized_ = false;
-    bool backendInitialized_ = false;
-    std::string backend_;
-    WindowConfigData windowConfig_;
-    UniquePtr<IWindow> window_;
 };
-
-ModuleId get_window_module_id();
-void register_window_module();
 
 } // namespace extra2d

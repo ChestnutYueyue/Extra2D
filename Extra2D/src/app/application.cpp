@@ -1,39 +1,23 @@
 #include <extra2d/app/application.h>
-#include <extra2d/config/config_manager.h>
+#include <extra2d/config/config_module.h>
 #include <extra2d/config/module_registry.h>
 #include <extra2d/event/event_dispatcher.h>
 #include <extra2d/event/event_queue.h>
 #include <extra2d/graphics/camera.h>
-#include <extra2d/graphics/render_backend.h>
+#include <extra2d/graphics/render_module.h>
 #include <extra2d/graphics/viewport_adapter.h>
 #include <extra2d/graphics/vram_manager.h>
 #include <extra2d/platform/iinput.h>
-#include <extra2d/platform/platform_module.h>
+#include <extra2d/platform/platform_init_module.h>
+#include <extra2d/platform/window_module.h>
 #include <extra2d/scene/scene_manager.h>
-#include <extra2d/utils/logger.h>
 #include <extra2d/utils/timer.h>
 
 #include <chrono>
 #include <thread>
 
-#include <SDL.h>
-
-#ifdef __SWITCH__
-#include <switch.h>
-#endif
-
-#ifdef E2D_BACKEND_SDL2
-namespace extra2d {
-void initSDL2Backend();
-}
-#endif
-
 namespace extra2d {
 
-/**
- * @brief 获取当前时间（秒）
- * @return 当前时间戳（秒）
- */
 static double getTimeSeconds() {
 #ifdef __SWITCH__
     struct timespec ts;
@@ -67,170 +51,97 @@ bool Application::init(const AppConfig& config) {
         return true;
     }
 
-    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_TIMER) != 0) {
-        E2D_LOG_ERROR("Failed to initialize SDL: {}", SDL_GetError());
-        return false;
+    register_config_module();
+    register_platform_module();
+    register_window_module();
+    register_render_module();
+
+    auto* configInit = ModuleRegistry::instance().getInitializer(get_config_module_id());
+    if (configInit) {
+        auto* cfgInit = dynamic_cast<ConfigModuleInitializer*>(configInit);
+        if (cfgInit) {
+            cfgInit->setAppConfig(config);
+        }
     }
 
-    Logger::init();
-
-    E2D_LOG_INFO("Initializing application with config...");
-
-    if (!ConfigManager::instance().initialize()) {
-        E2D_LOG_ERROR("Failed to initialize ConfigManager");
-        return false;
-    }
-
-    ConfigManager::instance().setAppConfig(config);
-
-    return initImpl();
+    return initModules();
 }
 
 bool Application::init(const std::string& configPath) {
     if (initialized_) {
-        E2D_LOG_WARN("Application already initialized");
         return true;
     }
 
-    E2D_LOG_INFO("Initializing application from config file: {}", configPath);
+    register_config_module();
+    register_platform_module();
+    register_window_module();
+    register_render_module();
 
-    if (!ConfigManager::instance().initialize(configPath)) {
-        E2D_LOG_WARN("Failed to load config from file, using defaults");
-        if (!ConfigManager::instance().initialize()) {
-            E2D_LOG_ERROR("Failed to initialize ConfigManager");
-            return false;
+    auto* configInit = ModuleRegistry::instance().getInitializer(get_config_module_id());
+    if (configInit) {
+        auto* cfgInit = dynamic_cast<ConfigModuleInitializer*>(configInit);
+        if (cfgInit) {
+            cfgInit->setConfigPath(configPath);
         }
     }
 
-    return initImpl();
+    return initModules();
 }
 
-bool Application::initImpl() {
-#ifdef E2D_BACKEND_SDL2
-    initSDL2Backend();
-#endif
-
-    auto& configMgr = ConfigManager::instance();
-    AppConfig& appConfig = configMgr.appConfig();
-
-    PlatformType platform = appConfig.targetPlatform;
-    if (platform == PlatformType::Auto) {
-#ifdef __SWITCH__
-        platform = PlatformType::Switch;
-#else
-#ifdef _WIN32
-        platform = PlatformType::Windows;
-#elif defined(__linux__)
-        platform = PlatformType::Linux;
-#elif defined(__APPLE__)
-        platform = PlatformType::macOS;
-#else
-        platform = PlatformType::Windows;
-#endif
-#endif
-    }
-
-    E2D_LOG_INFO("Target platform: {} ({})", getPlatformTypeName(platform), 
-                 static_cast<int>(platform));
-
-    UniquePtr<PlatformConfig> platformConfig = createPlatformConfig(platform);
-    if (!platformConfig) {
-        E2D_LOG_ERROR("Failed to create platform config");
-        return false;
-    }
-
-    appConfig.applyPlatformConstraints(*platformConfig);
-
-    const auto& capabilities = platformConfig->capabilities();
-    E2D_LOG_INFO("Platform capabilities: windowed={}, fullscreen={}, cursor={}, DPI={}",
-                 capabilities.supportsWindowed, capabilities.supportsFullscreen,
-                 capabilities.supportsCursor, capabilities.supportsDPIAwareness);
-
-    if (platform == PlatformType::Switch) {
-#ifdef __SWITCH__
-        Result rc;
-        rc = romfsInit();
-        if (R_SUCCEEDED(rc)) {
-            E2D_LOG_INFO("RomFS initialized successfully");
-        } else {
-            E2D_LOG_WARN("romfsInit failed: {:#08X}, will use regular filesystem", rc);
-        }
-
-        rc = socketInitializeDefault();
-        if (R_FAILED(rc)) {
-            E2D_LOG_WARN("socketInitializeDefault failed, nxlink will not be available");
-        }
-#endif
-    }
-
+bool Application::initModules() {
     auto initOrder = ModuleRegistry::instance().getInitializationOrder();
-    E2D_LOG_INFO("Initializing {} registered modules...", initOrder.size());
-
+    
     for (ModuleId moduleId : initOrder) {
-        auto initializer = ModuleRegistry::instance().createInitializer(moduleId);
+        auto* initializer = ModuleRegistry::instance().getInitializer(moduleId);
         if (!initializer) {
             continue;
         }
 
         auto* moduleConfig = ModuleRegistry::instance().getModuleConfig(moduleId);
         if (!moduleConfig) {
-            E2D_LOG_WARN("Module {} has no config, skipping", moduleId);
             continue;
         }
 
         auto info = moduleConfig->getModuleInfo();
         if (!info.enabled) {
-            E2D_LOG_INFO("Module '{}' is disabled, skipping", info.name);
             continue;
         }
 
-        E2D_LOG_INFO("Initializing module '{}' (priority: {})", 
-                     info.name, static_cast<int>(info.priority));
+        if (info.name == "Render") {
+            continue;
+        }
 
         if (!initializer->initialize(moduleConfig)) {
-            E2D_LOG_ERROR("Failed to initialize module '{}'", info.name);
-        }
-    }
-
-    std::string backend = "sdl2";
-#ifdef __SWITCH__
-    backend = "switch";
-#endif
-
-    if (!BackendFactory::has(backend)) {
-        E2D_LOG_ERROR("Backend '{}' not available", backend);
-        auto backends = BackendFactory::backends();
-        if (backends.empty()) {
-            E2D_LOG_ERROR("No backends registered!");
             return false;
         }
-        backend = backends[0];
-        E2D_LOG_WARN("Using fallback backend: {}", backend);
     }
 
-    window_ = BackendFactory::createWindow(backend);
+    auto* windowInit = ModuleRegistry::instance().getInitializer(get_window_module_id());
+    if (!windowInit || !windowInit->isInitialized()) {
+        return false;
+    }
+
+    auto* windowModule = dynamic_cast<WindowModuleInitializer*>(windowInit);
+    if (!windowModule) {
+        return false;
+    }
+
+    window_ = windowModule->getWindow();
     if (!window_) {
-        E2D_LOG_ERROR("Failed to create window for backend: {}", backend);
         return false;
     }
 
-    WindowConfigData winConfig = appConfig.window;
-    
-    if (platform == PlatformType::Switch) {
-        winConfig.mode = WindowMode::Fullscreen;
-        winConfig.resizable = false;
-    }
-
-    if (!window_->create(winConfig)) {
-        E2D_LOG_ERROR("Failed to create window");
-        return false;
-    }
-
-    renderer_ = RenderBackend::create(appConfig.render.backend);
-    if (!renderer_ || !renderer_->init(window_.get())) {
-        E2D_LOG_ERROR("Failed to initialize renderer");
-        window_->destroy();
-        return false;
+    auto* renderInit = ModuleRegistry::instance().getInitializer(get_render_module_id());
+    if (renderInit) {
+        auto* renderModule = dynamic_cast<RenderModuleInitializer*>(renderInit);
+        if (renderModule) {
+            renderModule->setWindow(window_);
+            
+            auto* renderConfig = ModuleRegistry::instance().getModuleConfig(get_render_module_id());
+            if (renderConfig && !renderInit->initialize(renderConfig)) {
+                return false;
+            }
+        }
     }
 
     sceneManager_ = makeUnique<SceneManager>();
@@ -242,13 +153,12 @@ bool Application::initImpl() {
 
     viewportAdapter_ = makeUnique<ViewportAdapter>();
     ViewportConfig vpConfig;
-    vpConfig.logicWidth = static_cast<float>(appConfig.window.width);
-    vpConfig.logicHeight = static_cast<float>(appConfig.window.height);
+    vpConfig.logicWidth = static_cast<float>(window_->width());
+    vpConfig.logicHeight = static_cast<float>(window_->height());
     vpConfig.mode = ViewportMode::AspectRatio;
     viewportAdapter_->setConfig(vpConfig);
 
     camera_->setViewportAdapter(viewportAdapter_.get());
-
     viewportAdapter_->update(window_->width(), window_->height());
 
     window_->onResize([this](int width, int height) {
@@ -272,20 +182,12 @@ bool Application::initImpl() {
     initialized_ = true;
     running_ = true;
 
-    E2D_LOG_INFO("Application initialized successfully");
-    E2D_LOG_INFO("  Window: {}x{}", window_->width(), window_->height());
-    E2D_LOG_INFO("  Backend: {}", backend);
-    E2D_LOG_INFO("  VSync: {}", appConfig.render.vsync);
-    E2D_LOG_INFO("  Target FPS: {}", appConfig.render.targetFPS);
-
     return true;
 }
 
 void Application::shutdown() {
     if (!initialized_)
         return;
-
-    E2D_LOG_INFO("Shutting down application...");
 
     VRAMMgr::get().printStats();
 
@@ -301,59 +203,24 @@ void Application::shutdown() {
     eventQueue_.reset();
     eventDispatcher_.reset();
 
-    if (renderer_) {
-        renderer_->shutdown();
-        renderer_.reset();
-    }
+    window_ = nullptr;
 
-    if (window_) {
-        window_->destroy();
-        window_.reset();
-    }
-
-    auto modules = ModuleRegistry::instance().getAllModules();
     auto initOrder = ModuleRegistry::instance().getInitializationOrder();
     
     for (auto it = initOrder.rbegin(); it != initOrder.rend(); ++it) {
         ModuleId moduleId = *it;
-        auto initializer = ModuleRegistry::instance().createInitializer(moduleId);
+        auto* initializer = ModuleRegistry::instance().getInitializer(moduleId);
         if (initializer && initializer->isInitialized()) {
-            auto* moduleConfig = ModuleRegistry::instance().getModuleConfig(moduleId);
-            if (moduleConfig) {
-                auto info = moduleConfig->getModuleInfo();
-                E2D_LOG_INFO("Shutting down module '{}'", info.name);
-            }
             initializer->shutdown();
         }
     }
 
-    PlatformType platform = ConfigManager::instance().appConfig().targetPlatform;
-    if (platform == PlatformType::Auto) {
-#ifdef __SWITCH__
-        platform = PlatformType::Switch;
-#else
-        platform = PlatformType::Windows;
-#endif
-    }
-    
-    if (platform == PlatformType::Switch) {
-#ifdef __SWITCH__
-        romfsExit();
-        socketExit();
-#endif
-    }
-
-    ConfigManager::instance().shutdown();
-
     initialized_ = false;
     running_ = false;
-
-    E2D_LOG_INFO("Application shutdown complete");
 }
 
 void Application::run() {
     if (!initialized_) {
-        E2D_LOG_ERROR("Application not initialized");
         return;
     }
 
@@ -372,7 +239,6 @@ void Application::quit() {
 void Application::pause() {
     if (!paused_) {
         paused_ = true;
-        E2D_LOG_INFO("Application paused");
     }
 }
 
@@ -380,7 +246,6 @@ void Application::resume() {
     if (paused_) {
         paused_ = false;
         lastFrameTime_ = getTimeSeconds();
-        E2D_LOG_INFO("Application resumed");
     }
 }
 
@@ -436,24 +301,30 @@ void Application::update() {
 }
 
 void Application::render() {
-    if (!renderer_) {
-        E2D_LOG_ERROR("Render failed: renderer is null");
+    auto* renderInit = ModuleRegistry::instance().getInitializer(get_render_module_id());
+    RenderBackend* renderer = nullptr;
+    if (renderInit) {
+        auto* renderModule = dynamic_cast<RenderModuleInitializer*>(renderInit);
+        if (renderModule) {
+            renderer = renderModule->getRenderer();
+        }
+    }
+
+    if (!renderer) {
         return;
     }
 
     if (viewportAdapter_) {
         const auto& vp = viewportAdapter_->getViewport();
-        renderer_->setViewport(
+        renderer->setViewport(
             static_cast<int>(vp.origin.x), static_cast<int>(vp.origin.y),
             static_cast<int>(vp.size.width), static_cast<int>(vp.size.height));
     } else {
-        renderer_->setViewport(0, 0, window_->width(), window_->height());
+        renderer->setViewport(0, 0, window_->width(), window_->height());
     }
 
     if (sceneManager_) {
-        sceneManager_->render(*renderer_);
-    } else {
-        E2D_LOG_WARN("Render: sceneManager is null");
+        sceneManager_->render(*renderer);
     }
 
     window_->swap();
@@ -461,6 +332,21 @@ void Application::render() {
 
 IInput& Application::input() { 
     return *window_->input(); 
+}
+
+RenderBackend& Application::renderer() {
+    auto* renderInit = ModuleRegistry::instance().getInitializer(get_render_module_id());
+    if (renderInit) {
+        auto* renderModule = dynamic_cast<RenderModuleInitializer*>(renderInit);
+        if (renderModule && renderModule->getRenderer()) {
+            return *renderModule->getRenderer();
+        }
+    }
+    static RenderBackend* dummy = nullptr;
+    if (!dummy) {
+        dummy = RenderBackend::create(BackendType::OpenGL).release();
+    }
+    return *dummy;
 }
 
 SceneManager& Application::scenes() { 

@@ -10,12 +10,13 @@ namespace extra2d {
 
 /**
  * @brief 模块注册表条目结构体
- * 存储模块的配置和初始化器工厂
+ * 存储模块的配置和初始化器
  */
 struct ModuleEntry {
     ModuleId id;                                ///< 模块标识符
     UniquePtr<IModuleConfig> config;            ///< 模块配置
     ModuleInitializerFactory initializerFactory;///< 初始化器工厂函数
+    UniquePtr<IModuleInitializer> initializer;  ///< 初始化器实例
     bool initialized = false;                   ///< 是否已初始化
 };
 
@@ -74,11 +75,11 @@ public:
     IModuleConfig* getModuleConfigByName(const std::string& name) const;
     
     /**
-     * @brief 创建模块初始化器
+     * @brief 获取或创建模块初始化器
      * @param id 模块标识符
-     * @return 初始化器实例，不存在返回 nullptr
+     * @return 初始化器指针，不存在返回 nullptr
      */
-    UniquePtr<IModuleInitializer> createInitializer(ModuleId id) const;
+    IModuleInitializer* getInitializer(ModuleId id);
     
     /**
      * @brief 获取所有已注册模块标识符

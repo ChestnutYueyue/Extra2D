@@ -1,6 +1,6 @@
 #include <extra2d/config/module_registry.h>
-#include <extra2d/utils/logger.h>
 #include <algorithm>
+#include <cstdio>
 
 namespace extra2d {
 
@@ -26,7 +26,7 @@ ModuleId ModuleRegistry::registerModule(
     ModuleInitializerFactory initializerFactory
 ) {
     if (!config) {
-        E2D_LOG_ERROR("Cannot register null module config");
+        std::fprintf(stderr, "[ERROR] Cannot register null module config\n");
         return INVALID_MODULE_ID;
     }
 
@@ -35,7 +35,7 @@ ModuleId ModuleRegistry::registerModule(
     ModuleInfo info = config->getModuleInfo();
     
     if (nameToId_.find(info.name) != nameToId_.end()) {
-        E2D_LOG_ERROR("Module '{}' already registered", info.name);
+        std::fprintf(stderr, "[ERROR] Module '%s' already registered\n", info.name.c_str());
         return INVALID_MODULE_ID;
     }
 
@@ -50,7 +50,6 @@ ModuleId ModuleRegistry::registerModule(
     modules_[id] = std::move(entry);
     nameToId_[info.name] = id;
 
-    E2D_LOG_INFO("Registered module '{}' with id {}", info.name, id);
     return id;
 }
 
@@ -65,7 +64,6 @@ bool ModuleRegistry::unregisterModule(ModuleId id) {
 
     auto it = modules_.find(id);
     if (it == modules_.end()) {
-        E2D_LOG_WARN("Module with id {} not found for unregistration", id);
         return false;
     }
 
@@ -73,7 +71,6 @@ bool ModuleRegistry::unregisterModule(ModuleId id) {
     nameToId_.erase(info.name);
     modules_.erase(it);
 
-    E2D_LOG_INFO("Unregistered module '{}' (id: {})", info.name, id);
     return true;
 }
 
@@ -113,11 +110,11 @@ IModuleConfig* ModuleRegistry::getModuleConfigByName(const std::string& name) co
 }
 
 /**
- * @brief 创建模块初始化器
+ * @brief 获取或创建模块初始化器
  * @param id 模块标识符
- * @return 初始化器实例，不存在返回 nullptr
+ * @return 初始化器指针，不存在返回 nullptr
  */
-UniquePtr<IModuleInitializer> ModuleRegistry::createInitializer(ModuleId id) const {
+IModuleInitializer* ModuleRegistry::getInitializer(ModuleId id) {
     std::lock_guard<std::mutex> lock(mutex_);
 
     auto it = modules_.find(id);
@@ -125,7 +122,11 @@ UniquePtr<IModuleInitializer> ModuleRegistry::createInitializer(ModuleId id) con
         return nullptr;
     }
 
-    return it->second.initializerFactory();
+    if (!it->second.initializer) {
+        it->second.initializer = it->second.initializerFactory();
+    }
+
+    return it->second.initializer.get();
 }
 
 /**
@@ -197,8 +198,6 @@ void ModuleRegistry::clear() {
     modules_.clear();
     nameToId_.clear();
     nextId_ = 1;
-
-    E2D_LOG_INFO("Module registry cleared");
 }
 
 /**

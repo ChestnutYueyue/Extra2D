@@ -2,21 +2,18 @@
 
 #include <extra2d/config/module_config.h>
 #include <extra2d/config/module_initializer.h>
-#include <extra2d/config/app_config.h>
-#include <extra2d/platform/iwindow.h>
-#include <string>
+#include <extra2d/config/platform_config.h>
 
 namespace extra2d {
 
-class WindowModuleConfig : public IModuleConfig {
+class PlatformModuleConfig : public IModuleConfig {
 public:
-    std::string backend = "sdl2";
-    WindowConfigData windowConfig;
+    PlatformType targetPlatform = PlatformType::Auto;
 
     ModuleInfo getModuleInfo() const override {
         ModuleInfo info;
         info.id = 0;
-        info.name = "Window";
+        info.name = "Platform";
         info.version = "1.0.0";
         info.priority = ModulePriority::Core;
         info.enabled = true;
@@ -24,26 +21,25 @@ public:
     }
 
     std::string getConfigSectionName() const override {
-        return "window";
+        return "platform";
     }
 
     bool validate() const override {
-        return windowConfig.width > 0 && windowConfig.height > 0;
+        return true;
     }
 
     void resetToDefaults() override {
-        backend = "sdl2";
-        windowConfig = WindowConfigData{};
+        targetPlatform = PlatformType::Auto;
     }
 
     bool loadFromJson(const void* jsonData) override;
     bool saveToJson(void* jsonData) const override;
 };
 
-class WindowModuleInitializer : public IModuleInitializer {
+class PlatformModuleInitializer : public IModuleInitializer {
 public:
-    WindowModuleInitializer();
-    ~WindowModuleInitializer() override;
+    PlatformModuleInitializer();
+    ~PlatformModuleInitializer() override;
 
     ModuleId getModuleId() const override { return moduleId_; }
     ModulePriority getPriority() const override { return ModulePriority::Core; }
@@ -54,24 +50,23 @@ public:
     bool isInitialized() const override { return initialized_; }
 
     void setModuleId(ModuleId id) { moduleId_ = id; }
-    void setWindowConfig(const WindowConfigData& config) { windowConfig_ = config; }
+    void setPlatform(PlatformType platform) { targetPlatform_ = platform; }
 
-    IWindow* getWindow() const { return window_.get(); }
+    PlatformType getPlatform() const { return resolvedPlatform_; }
+    PlatformConfig* getPlatformConfig() const { return platformConfig_.get(); }
 
 private:
-    bool initBackend();
-    bool createWindow(const std::string& backend, const WindowConfigData& config);
-    void shutdownBackend();
+    bool initSwitch();
+    void shutdownSwitch();
 
     ModuleId moduleId_ = INVALID_MODULE_ID;
     bool initialized_ = false;
-    bool backendInitialized_ = false;
-    std::string backend_;
-    WindowConfigData windowConfig_;
-    UniquePtr<IWindow> window_;
+    PlatformType targetPlatform_ = PlatformType::Auto;
+    PlatformType resolvedPlatform_ = PlatformType::Windows;
+    UniquePtr<PlatformConfig> platformConfig_;
 };
 
-ModuleId get_window_module_id();
-void register_window_module();
+ModuleId get_platform_module_id();
+void register_platform_module();
 
 } // namespace extra2d
