@@ -10,9 +10,17 @@
 
 namespace extra2d {
 
-// ============================================================================
-// 配置变更事件
-// ============================================================================
+/**
+ * @file config_manager.h
+ * @brief 配置管理器
+ * 
+ * 配置管理器只管理应用级别的配置（AppConfig）。
+ * 模块配置通过 ModuleRegistry 管理，各模块实现 IModuleConfig 接口。
+ */
+
+/**
+ * @brief 配置变更事件
+ */
 struct ConfigChangeEvent {
   std::string section;
   std::string field;
@@ -20,18 +28,16 @@ struct ConfigChangeEvent {
   std::string newValue;
 };
 
-// ============================================================================
-// 配置变更回调类型
-// ============================================================================
+/**
+ * @brief 配置变更回调类型
+ */
 using ConfigChangeCallback = Function<void(const ConfigChangeEvent &)>;
 
-// ============================================================================
-// 配置管理器（单例）
-// ============================================================================
+/**
+ * @brief 配置管理器（单例）
+ */
 class ConfigManager {
 public:
-  using ModuleConfigPtr = Ptr<void>;
-
   /**
    * @brief 获取单例实例
    * @return 配置管理器实例引用
@@ -69,6 +75,20 @@ public:
    * @return 保存结果
    */
   ConfigSaveResult saveConfig(const std::string &filepath = "");
+
+  /**
+   * @brief 加载完整配置（包括模块配置）
+   * @param filepath 配置文件路径
+   * @return 加载结果
+   */
+  ConfigLoadResult loadConfigWithModules(const std::string &filepath = "");
+
+  /**
+   * @brief 保存完整配置（包括模块配置）
+   * @param filepath 配置文件路径
+   * @return 保存结果
+   */
+  ConfigSaveResult saveConfigWithModules(const std::string &filepath = "");
 
   /**
    * @brief 重新加载配置
@@ -123,40 +143,6 @@ public:
    * @brief 清除所有变更回调
    */
   void clearChangeCallbacks();
-
-  /**
-   * @brief 注册模块配置
-   * @param moduleName 模块名称
-   * @param config 模块配置指针
-   */
-  void registerModuleConfig(const std::string &moduleName, Ptr<void> config);
-
-  /**
-   * @brief 获取模块配置
-   * @param moduleName 模块名称
-   * @return 模块配置指针
-   */
-  template <typename T>
-  Ptr<T> getModuleConfig(const std::string &moduleName) const {
-    auto it = m_moduleConfigs.find(moduleName);
-    if (it != m_moduleConfigs.end()) {
-      return std::static_pointer_cast<T>(it->second);
-    }
-    return nullptr;
-  }
-
-  /**
-   * @brief 移除模块配置
-   * @param moduleName 模块名称
-   */
-  void removeModuleConfig(const std::string &moduleName);
-
-  /**
-   * @brief 检查模块配置是否存在
-   * @param moduleName 模块名称
-   * @return 如果存在返回 true
-   */
-  bool hasModuleConfig(const std::string &moduleName) const;
 
   /**
    * @brief 设置配置值（字符串）
@@ -285,8 +271,6 @@ private:
   ConfigManager &operator=(const ConfigManager &) = delete;
 
   void notifyChangeCallbacks(const ConfigChangeEvent &event);
-  void applyConfigToInternal(const AppConfig &config);
-  void extractConfigFromInternal(AppConfig &config) const;
 
   AppConfig m_appConfig;
   UniquePtr<PlatformConfig> m_platformConfig;
@@ -299,16 +283,13 @@ private:
   std::unordered_map<int, ConfigChangeCallback> m_changeCallbacks;
   int m_nextCallbackId = 1;
 
-  std::unordered_map<std::string, ModuleConfigPtr> m_moduleConfigs;
+  std::unordered_map<std::string, std::string> m_rawValues;
 
   bool m_autoSaveEnabled = false;
   float m_autoSaveInterval = 30.0f;
   float m_autoSaveTimer = 0.0f;
 };
 
-// ============================================================================
-// 便捷宏定义
-// ============================================================================
 #define CONFIG_MANAGER ConfigManager::instance()
 
-} // namespace extra2d
+} 

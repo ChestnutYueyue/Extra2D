@@ -5,9 +5,17 @@
 
 namespace extra2d {
 
-// ============================================================================
-// 平台类型枚举
-// ============================================================================
+/**
+ * @file platform_config.h
+ * @brief 平台配置接口
+ * 
+ * 平台配置只提供平台能力信息，不再直接修改应用配置。
+ * 各模块通过 IModuleConfig::applyPlatformConstraints() 处理平台约束。
+ */
+
+/**
+ * @brief 平台类型枚举
+ */
 enum class PlatformType {
     Auto,       
     Windows,    
@@ -16,9 +24,9 @@ enum class PlatformType {
     macOS       
 };
 
-// ============================================================================
-// 平台能力结构
-// ============================================================================
+/**
+ * @brief 平台能力结构
+ */
 struct PlatformCapabilities {
     bool supportsWindowed = true;       
     bool supportsFullscreen = true;     
@@ -46,9 +54,9 @@ struct PlatformCapabilities {
     bool isConsole() const { return !supportsWindowed && supportsGamepad; }
 };
 
-// ============================================================================
-// 平台配置抽象接口
-// ============================================================================
+/**
+ * @brief 平台配置抽象接口
+ */
 class PlatformConfig {
 public:
     virtual ~PlatformConfig() = default;
@@ -56,20 +64,24 @@ public:
     virtual PlatformType platformType() const = 0;
     virtual const char* platformName() const = 0;
     virtual const PlatformCapabilities& capabilities() const = 0;
-    virtual void applyConstraints(struct AppConfig& config) const = 0;
-    virtual void applyDefaults(struct AppConfig& config) const = 0;
-    virtual bool validateConfig(struct AppConfig& config) const = 0;
     
     virtual int getRecommendedWidth() const = 0;
     virtual int getRecommendedHeight() const = 0;
     virtual bool isResolutionSupported(int width, int height) const = 0;
 };
 
-// ============================================================================
-// 平台配置工厂函数声明
-// ============================================================================
+/**
+ * @brief 创建平台配置实例
+ * @param type 平台类型，默认为 Auto（自动检测）
+ * @return 平台配置的智能指针
+ */
 UniquePtr<PlatformConfig> createPlatformConfig(PlatformType type = PlatformType::Auto);
 
+/**
+ * @brief 获取平台类型名称
+ * @param type 平台类型枚举值
+ * @return 平台名称字符串
+ */
 const char* getPlatformTypeName(PlatformType type);
 
 } 

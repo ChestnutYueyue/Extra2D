@@ -93,9 +93,6 @@ bool PlatformModuleInitializer::initialize(const IModuleConfig* config) {
         return false;
     }
     
-    auto& appConfig = ConfigManager::instance().appConfig();
-    appConfig.applyPlatformConstraints(*platformConfig_);
-    
     if (resolvedPlatform_ == PlatformType::Switch) {
         if (!initSwitch()) {
             return false;

@@ -1,17 +1,9 @@
 #include <extra2d/platform/window_module.h>
 #include <extra2d/config/module_registry.h>
-#include <extra2d/config/config_manager.h>
 #include <extra2d/platform/platform_module.h>
 #include <extra2d/utils/logger.h>
 #include <nlohmann/json.hpp>
-
-#ifdef E2D_BACKEND_SDL2
 #include <SDL.h>
-#endif
-
-#ifdef E2D_BACKEND_GLFW
-#include <GLFW/glfw3.h>
-#endif
 
 #ifdef __SWITCH__
 #include <switch.h>
@@ -27,15 +19,24 @@ ModuleId get_window_module_id() {
     return s_windowModuleId;
 }
 
+void WindowModuleConfig::applyPlatformConstraints(PlatformType platform) {
+#ifdef __SWITCH__
+    (void)platform;
+    windowConfig.mode = WindowMode::Fullscreen;
+    windowConfig.resizable = false;
+    windowConfig.highDPI = false;
+    windowConfig.width = 1920;
+    windowConfig.height = 1080;
+#else
+    (void)platform;
+#endif
+}
+
 bool WindowModuleConfig::loadFromJson(const void* jsonData) {
     if (!jsonData) return false;
     
     try {
         const json& j = *static_cast<const json*>(jsonData);
-        
-        if (j.contains("backend")) {
-            backend = j["backend"].get<std::string>();
-        }
         
         if (j.contains("title")) {
             windowConfig.title = j["title"].get<std::string>();
@@ -46,14 +47,36 @@ bool WindowModuleConfig::loadFromJson(const void* jsonData) {
         if (j.contains("height")) {
             windowConfig.height = j["height"].get<int>();
         }
+        if (j.contains("minWidth")) {
+            windowConfig.minWidth = j["minWidth"].get<int>();
+        }
+        if (j.contains("minHeight")) {
+            windowConfig.minHeight = j["minHeight"].get<int>();
+        }
         if (j.contains("fullscreen")) {
             windowConfig.mode = j["fullscreen"].get<bool>() ? WindowMode::Fullscreen : WindowMode::Windowed;
+        }
+        if (j.contains("mode")) {
+            std::string modeStr = j["mode"].get<std::string>();
+            if (modeStr == "fullscreen") {
+                windowConfig.mode = WindowMode::Fullscreen;
+            } else if (modeStr == "borderless") {
+                windowConfig.mode = WindowMode::Borderless;
+            } else {
+                windowConfig.mode = WindowMode::Windowed;
+            }
         }
         if (j.contains("vsync")) {
             windowConfig.vsync = j["vsync"].get<bool>();
         }
         if (j.contains("resizable")) {
             windowConfig.resizable = j["resizable"].get<bool>();
+        }
+        if (j.contains("highDPI")) {
+            windowConfig.highDPI = j["highDPI"].get<bool>();
+        }
+        if (j.contains("multisamples")) {
+            windowConfig.multisamples = j["multisamples"].get<int>();
         }
         
         return true;
@@ -67,13 +90,28 @@ bool WindowModuleConfig::saveToJson(void* jsonData) const {
     
     try {
         json& j = *static_cast<json*>(jsonData);
-        j["backend"] = backend;
         j["title"] = windowConfig.title;
         j["width"] = windowConfig.width;
         j["height"] = windowConfig.height;
-        j["fullscreen"] = (windowConfig.mode == WindowMode::Fullscreen);
+        j["minWidth"] = windowConfig.minWidth;
+        j["minHeight"] = windowConfig.minHeight;
+        
+        switch (windowConfig.mode) {
+            case WindowMode::Fullscreen:
+                j["mode"] = "fullscreen";
+                break;
+            case WindowMode::Borderless:
+                j["mode"] = "borderless";
+                break;
+            default:
+                j["mode"] = "windowed";
+                break;
+        }
+        
         j["vsync"] = windowConfig.vsync;
         j["resizable"] = windowConfig.resizable;
+        j["highDPI"] = windowConfig.highDPI;
+        j["multisamples"] = windowConfig.multisamples;
         return true;
     } catch (...) {
         return false;
@@ -83,7 +121,7 @@ bool WindowModuleConfig::saveToJson(void* jsonData) const {
 WindowModuleInitializer::WindowModuleInitializer()
     : moduleId_(INVALID_MODULE_ID)
     , initialized_(false)
-    , backendInitialized_(false) {
+    , sdl2Initialized_(false) {
 }
 
 WindowModuleInitializer::~WindowModuleInitializer() {
@@ -92,51 +130,29 @@ WindowModuleInitializer::~WindowModuleInitializer() {
     }
 }
 
-bool WindowModuleInitializer::initBackend() {
-#ifdef E2D_BACKEND_SDL2
-    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_TIMER) != 0) {
+bool WindowModuleInitializer::initSDL2() {
+    Uint32 initFlags = SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_TIMER;
+    
+#ifdef __SWITCH__
+    initFlags |= SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER;
+#endif
+
+    if (SDL_Init(initFlags) != 0) {
         E2D_LOG_ERROR("Failed to initialize SDL2: {}", SDL_GetError());
         return false;
     }
-    E2D_LOG_INFO("SDL2 backend initialized");
-    backendInitialized_ = true;
+    
+    sdl2Initialized_ = true;
+    E2D_LOG_INFO("SDL2 initialized successfully");
     return true;
-#endif
-
-#ifdef E2D_BACKEND_GLFW
-    if (!glfwInit()) {
-        E2D_LOG_ERROR("Failed to initialize GLFW");
-        return false;
-    }
-    E2D_LOG_INFO("GLFW backend initialized");
-    backendInitialized_ = true;
-    return true;
-#endif
-
-#ifdef E2D_BACKEND_SWITCH
-    E2D_LOG_INFO("Switch backend (no init required)");
-    backendInitialized_ = true;
-    return true;
-#endif
-
-    E2D_LOG_ERROR("No backend available");
-    return false;
 }
 
-void WindowModuleInitializer::shutdownBackend() {
-    if (!backendInitialized_) return;
+void WindowModuleInitializer::shutdownSDL2() {
+    if (!sdl2Initialized_) return;
     
-#ifdef E2D_BACKEND_SDL2
     SDL_Quit();
-    E2D_LOG_INFO("SDL2 backend shutdown");
-#endif
-
-#ifdef E2D_BACKEND_GLFW
-    glfwTerminate();
-    E2D_LOG_INFO("GLFW backend shutdown");
-#endif
-
-    backendInitialized_ = false;
+    sdl2Initialized_ = false;
+    E2D_LOG_INFO("SDL2 shutdown");
 }
 
 bool WindowModuleInitializer::initialize(const IModuleConfig* config) {
@@ -148,60 +164,53 @@ bool WindowModuleInitializer::initialize(const IModuleConfig* config) {
         return false;
     }
 
-    backend_ = windowConfig->backend;
     windowConfig_ = windowConfig->windowConfig;
-    
+
 #ifdef __SWITCH__
-    backend_ = "switch";
     windowConfig_.mode = WindowMode::Fullscreen;
     windowConfig_.resizable = false;
+    windowConfig_.highDPI = false;
+    E2D_LOG_INFO("Switch platform: forcing fullscreen mode");
 #endif
 
-    if (!initBackend()) {
+    if (!initSDL2()) {
         return false;
     }
 
-#ifdef E2D_BACKEND_SDL2
     extern void initSDL2Backend();
     initSDL2Backend();
-#endif
 
-    if (!BackendFactory::has(backend_)) {
-        E2D_LOG_ERROR("Backend '{}' not available", backend_);
-        auto backends = BackendFactory::backends();
-        if (backends.empty()) {
-            E2D_LOG_ERROR("No backends registered!");
-            shutdownBackend();
-            return false;
-        }
-        backend_ = backends[0];
-        E2D_LOG_WARN("Using fallback backend: {}", backend_);
+    if (!BackendFactory::has("sdl2")) {
+        E2D_LOG_ERROR("SDL2 backend not registered!");
+        shutdownSDL2();
+        return false;
     }
 
-    if (!createWindow(backend_, windowConfig_)) {
+    if (!createWindow(windowConfig_)) {
         E2D_LOG_ERROR("Failed to create window");
-        shutdownBackend();
+        shutdownSDL2();
         return false;
     }
 
     initialized_ = true;
     E2D_LOG_INFO("Window module initialized");
     E2D_LOG_INFO("  Window: {}x{}", window_->width(), window_->height());
-    E2D_LOG_INFO("  Backend: {}", backend_);
+    E2D_LOG_INFO("  Backend: SDL2");
     E2D_LOG_INFO("  VSync: {}", windowConfig_.vsync);
+    E2D_LOG_INFO("  Fullscreen: {}", windowConfig_.isFullscreen());
     
     return true;
 }
 
-bool WindowModuleInitializer::createWindow(const std::string& backend, const WindowConfigData& config) {
-    window_ = BackendFactory::createWindow(backend);
+bool WindowModuleInitializer::createWindow(const WindowConfigData& config) {
+    window_ = BackendFactory::createWindow("sdl2");
     if (!window_) {
-        E2D_LOG_ERROR("Failed to create window for backend: {}", backend);
+        E2D_LOG_ERROR("Failed to create SDL2 window");
         return false;
     }
 
     if (!window_->create(config)) {
-        E2D_LOG_ERROR("Failed to create window");
+        E2D_LOG_ERROR("Failed to create window with specified config");
         return false;
     }
 
@@ -218,7 +227,7 @@ void WindowModuleInitializer::shutdown() {
         window_.reset();
     }
     
-    shutdownBackend();
+    shutdownSDL2();
     
     initialized_ = false;
 }
@@ -246,4 +255,4 @@ namespace {
     static WindowModuleAutoRegister s_autoRegister;
 }
 
-} // namespace extra2d
+} 

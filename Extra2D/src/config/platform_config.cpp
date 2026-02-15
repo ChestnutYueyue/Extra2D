@@ -42,32 +42,6 @@ public:
   const char *platformName() const override { return "Windows"; }
   const PlatformCapabilities &capabilities() const override { return caps_; }
 
-  void applyConstraints(AppConfig &config) const override {
-    if (config.window.width < 320)
-      config.window.width = 320;
-    if (config.window.height < 240)
-      config.window.height = 240;
-    if (config.window.width > caps_.maxTextureSize)
-      config.window.width = caps_.maxTextureSize;
-    if (config.window.height > caps_.maxTextureSize)
-      config.window.height = caps_.maxTextureSize;
-  }
-
-  void applyDefaults(AppConfig &config) const override {
-    config.window.highDPI = true;
-    config.window.resizable = true;
-    config.render.vsync = true;
-    config.render.targetFPS = 60;
-  }
-
-  bool validateConfig(AppConfig &config) const override {
-    if (config.window.width <= 0 || config.window.height <= 0) {
-      E2D_LOG_ERROR("Windows: Invalid window dimensions");
-      return false;
-    }
-    return true;
-  }
-
   int getRecommendedWidth() const override { return 1920; }
   int getRecommendedHeight() const override { return 1080; }
   bool isResolutionSupported(int width, int height) const override {
@@ -107,26 +81,6 @@ public:
   const char *platformName() const override { return "Linux"; }
   const PlatformCapabilities &capabilities() const override { return caps_; }
 
-  void applyConstraints(AppConfig &config) const override {
-    if (config.window.width < 320)
-      config.window.width = 320;
-    if (config.window.height < 240)
-      config.window.height = 240;
-  }
-
-  void applyDefaults(AppConfig &config) const override {
-    config.window.resizable = true;
-    config.render.vsync = true;
-  }
-
-  bool validateConfig(AppConfig &config) const override {
-    if (config.window.width <= 0 || config.window.height <= 0) {
-      E2D_LOG_ERROR("Linux: Invalid window dimensions");
-      return false;
-    }
-    return true;
-  }
-
   int getRecommendedWidth() const override { return 1920; }
   int getRecommendedHeight() const override { return 1080; }
   bool isResolutionSupported(int width, int height) const override {
@@ -165,27 +119,6 @@ public:
   const char *platformName() const override { return "macOS"; }
   const PlatformCapabilities &capabilities() const override { return caps_; }
 
-  void applyConstraints(AppConfig &config) const override {
-    if (config.window.width < 320)
-      config.window.width = 320;
-    if (config.window.height < 240)
-      config.window.height = 240;
-  }
-
-  void applyDefaults(AppConfig &config) const override {
-    config.window.highDPI = true;
-    config.window.resizable = true;
-    config.render.vsync = true;
-  }
-
-  bool validateConfig(AppConfig &config) const override {
-    if (config.window.width <= 0 || config.window.height <= 0) {
-      E2D_LOG_ERROR("macOS: Invalid window dimensions");
-      return false;
-    }
-    return true;
-  }
-
   int getRecommendedWidth() const override { return 1920; }
   int getRecommendedHeight() const override { return 1080; }
   bool isResolutionSupported(int width, int height) const override {
@@ -196,7 +129,6 @@ private:
   PlatformCapabilities caps_;
 };
 
-#ifdef __SWITCH__
 class SwitchPlatformConfig : public PlatformConfig {
 public:
   SwitchPlatformConfig() {
@@ -225,37 +157,6 @@ public:
   const char *platformName() const override { return "Nintendo Switch"; }
   const PlatformCapabilities &capabilities() const override { return caps_; }
 
-  void applyConstraints(AppConfig &config) const override {
-    config.window.width = 1920;
-    config.window.height = 1080;
-    config.window.mode = WindowMode::Fullscreen;
-    config.window.resizable = false;
-    config.window.borderless = false;
-    config.window.highDPI = false;
-    config.render.vsync = true;
-    config.render.targetFPS = 60;
-    config.input.enableVibration = true;
-    config.input.maxGamepads = 2;
-  }
-
-  void applyDefaults(AppConfig &config) const override {
-    config.window.width = 1920;
-    config.window.height = 1080;
-    config.window.mode = WindowMode::Fullscreen;
-    config.window.resizable = false;
-    config.render.vsync = true;
-    config.render.targetFPS = 60;
-    config.input.enableVibration = true;
-  }
-
-  bool validateConfig(AppConfig &config) const override {
-    if (config.window.mode != WindowMode::Fullscreen) {
-      E2D_LOG_WARN("Switch: Only fullscreen mode is supported");
-      config.window.mode = WindowMode::Fullscreen;
-    }
-    return true;
-  }
-
   int getRecommendedWidth() const override { return 1920; }
   int getRecommendedHeight() const override { return 1080; }
   bool isResolutionSupported(int width, int height) const override {
@@ -266,85 +167,9 @@ public:
 private:
   PlatformCapabilities caps_;
 };
-#else
-class SwitchPlatformConfig : public PlatformConfig {
-public:
-  SwitchPlatformConfig() {
-    caps_.supportsWindowed = false;
-    caps_.supportsFullscreen = true;
-    caps_.supportsBorderless = false;
-    caps_.supportsCursor = false;
-    caps_.supportsCursorHide = false;
-    caps_.supportsDPIAwareness = false;
-    caps_.supportsVSync = true;
-    caps_.supportsMultiMonitor = false;
-    caps_.supportsClipboard = false;
-    caps_.supportsGamepad = true;
-    caps_.supportsTouch = true;
-    caps_.supportsKeyboard = false;
-    caps_.supportsMouse = false;
-    caps_.supportsResize = false;
-    caps_.supportsHighDPI = false;
-    caps_.maxTextureSize = 8192;
-    caps_.preferredScreenWidth = 1920;
-    caps_.preferredScreenHeight = 1080;
-    caps_.defaultDPI = 96.0f;
-  }
 
-  PlatformType platformType() const override { return PlatformType::Switch; }
-  const char *platformName() const override { return "Nintendo Switch"; }
-  const PlatformCapabilities &capabilities() const override { return caps_; }
+} 
 
-  void applyConstraints(AppConfig &config) const override {
-    config.window.width = 1920;
-    config.window.height = 1080;
-    config.window.mode = WindowMode::Fullscreen;
-    config.window.resizable = false;
-    config.window.borderless = false;
-    config.window.highDPI = false;
-    config.render.vsync = true;
-    config.render.targetFPS = 60;
-    config.input.enableVibration = true;
-    config.input.maxGamepads = 2;
-  }
-
-  void applyDefaults(AppConfig &config) const override {
-    config.window.width = 1920;
-    config.window.height = 1080;
-    config.window.mode = WindowMode::Fullscreen;
-    config.window.resizable = false;
-    config.render.vsync = true;
-    config.render.targetFPS = 60;
-    config.input.enableVibration = true;
-  }
-
-  bool validateConfig(AppConfig &config) const override {
-    if (config.window.mode != WindowMode::Fullscreen) {
-      E2D_LOG_WARN("Switch: Only fullscreen mode is supported");
-    }
-    return true;
-  }
-
-  int getRecommendedWidth() const override { return 1920; }
-  int getRecommendedHeight() const override { return 1080; }
-  bool isResolutionSupported(int width, int height) const override {
-    return (width == 1920 && height == 1080) ||
-           (width == 1280 && height == 720);
-  }
-
-private:
-  PlatformCapabilities caps_;
-};
-#endif
-
-} // namespace
-
-/**
- * @brief 创建平台配置实例
- * 根据 PlatformType 创建对应的平台配置对象
- * @param type 平台类型，默认为 Auto（自动检测）
- * @return 平台配置的智能指针
- */
 UniquePtr<PlatformConfig> createPlatformConfig(PlatformType type) {
   if (type == PlatformType::Auto) {
 #ifdef _WIN32
@@ -379,12 +204,6 @@ UniquePtr<PlatformConfig> createPlatformConfig(PlatformType type) {
   }
 }
 
-/**
- * @brief 获取平台类型名称
- * 将 PlatformType 枚举转换为可读的字符串
- * @param type 平台类型枚举值
- * @return 平台名称字符串
- */
 const char *getPlatformTypeName(PlatformType type) {
   switch (type) {
   case PlatformType::Auto:
@@ -402,4 +221,4 @@ const char *getPlatformTypeName(PlatformType type) {
   }
 }
 
-} // namespace extra2d
+} 

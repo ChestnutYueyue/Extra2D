@@ -657,39 +657,21 @@ PlatformCapabilities PlatformDetector::getSwitchCapabilities() {
 
 AppConfig PlatformDetector::getWindowsDefaults() {
     AppConfig config = AppConfig::createDefault();
-    config.window.highDPI = true;
-    config.window.resizable = true;
-    config.render.vsync = true;
-    config.render.targetFPS = 60;
     return config;
 }
 
 AppConfig PlatformDetector::getLinuxDefaults() {
     AppConfig config = AppConfig::createDefault();
-    config.window.resizable = true;
-    config.render.vsync = true;
     return config;
 }
 
 AppConfig PlatformDetector::getMacOSDefaults() {
     AppConfig config = AppConfig::createDefault();
-    config.window.highDPI = true;
-    config.window.resizable = true;
-    config.render.vsync = true;
     return config;
 }
 
 AppConfig PlatformDetector::getSwitchDefaults() {
     AppConfig config = AppConfig::createDefault();
-    config.window.width = 1920;
-    config.window.height = 1080;
-    config.window.mode = WindowMode::Fullscreen;
-    config.window.resizable = false;
-    config.window.highDPI = false;
-    config.render.vsync = true;
-    config.render.targetFPS = 60;
-    config.input.enableVibration = true;
-    config.input.maxGamepads = 2;
     return config;
 }
 

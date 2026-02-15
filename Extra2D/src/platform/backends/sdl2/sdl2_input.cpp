@@ -18,55 +18,227 @@ SDL2Input::~SDL2Input() {
 }
 
 void SDL2Input::init() {
-    SDL_GameControllerEventState(SDL_ENABLE);
+    E2D_LOG_INFO("SDL2Input initialized");
+    
+    if (SDL_Init(SDL_INIT_GAMECONTROLLER) != 0) {
+        E2D_LOG_WARN("Failed to init gamecontroller subsystem: {}", SDL_GetError());
+    }
+    
     openGamepad();
-    E2D_LOG_DEBUG("SDL2 input initialized");
 }
 
 void SDL2Input::shutdown() {
     closeGamepad();
+    E2D_LOG_INFO("SDL2Input shutdown");
 }
 
 void SDL2Input::update() {
     keyPrevious_ = keyCurrent_;
     mousePrevious_ = mouseCurrent_;
     gamepadPrevious_ = gamepadCurrent_;
+    
     scrollDelta_ = 0.0f;
-    mouseDelta_ = Vec2::Zero();
-
-    updateKeyboard();
-    updateMouse();
+    mouseDelta_ = Vec2{0.0f, 0.0f};
+    
     updateGamepad();
+}
+
+void SDL2Input::setEventCallback(EventCallback callback) {
+    eventCallback_ = std::move(callback);
+}
+
+void SDL2Input::handleSDLEvent(const SDL_Event& event) {
+    switch (event.type) {
+        case SDL_KEYDOWN: {
+            int key = event.key.keysym.scancode;
+            if (key >= 0 && key < static_cast<int>(Key::Count)) {
+                if (!keyCurrent_[key]) {
+                    keyCurrent_[key] = true;
+                    
+                    Event e = Event::createKeyPress(
+                        event.key.keysym.sym,
+                        event.key.keysym.scancode,
+                        event.key.keysym.mod
+                    );
+                    dispatchEvent(e);
+                }
+            }
+            break;
+        }
+        
+        case SDL_KEYUP: {
+            int key = event.key.keysym.scancode;
+            if (key >= 0 && key < static_cast<int>(Key::Count)) {
+                keyCurrent_[key] = false;
+                
+                Event e = Event::createKeyRelease(
+                    event.key.keysym.sym,
+                    event.key.keysym.scancode,
+                    event.key.keysym.mod
+                );
+                dispatchEvent(e);
+            }
+            break;
+        }
+        
+        case SDL_MOUSEBUTTONDOWN: {
+            int btn = event.button.button - 1;
+            if (btn >= 0 && btn < static_cast<int>(Mouse::Count)) {
+                mouseCurrent_[btn] = true;
+                
+                Vec2 pos{static_cast<float>(event.button.x), 
+                        static_cast<float>(event.button.y)};
+                Event e = Event::createMouseButtonPress(btn, 0, pos);
+                dispatchEvent(e);
+            }
+            break;
+        }
+        
+        case SDL_MOUSEBUTTONUP: {
+            int btn = event.button.button - 1;
+            if (btn >= 0 && btn < static_cast<int>(Mouse::Count)) {
+                mouseCurrent_[btn] = false;
+                
+                Vec2 pos{static_cast<float>(event.button.x), 
+                        static_cast<float>(event.button.y)};
+                Event e = Event::createMouseButtonRelease(btn, 0, pos);
+                dispatchEvent(e);
+            }
+            break;
+        }
+        
+        case SDL_MOUSEMOTION: {
+            Vec2 newPos{static_cast<float>(event.motion.x), 
+                       static_cast<float>(event.motion.y)};
+            Vec2 delta{static_cast<float>(event.motion.xrel), 
+                      static_cast<float>(event.motion.yrel)};
+            
+            mouseDelta_ = mouseDelta_ + delta;
+            mousePos_ = newPos;
+            
+            Event e = Event::createMouseMove(newPos, delta);
+            dispatchEvent(e);
+            break;
+        }
+        
+        case SDL_MOUSEWHEEL: {
+            Vec2 offset{static_cast<float>(event.wheel.x), 
+                       static_cast<float>(event.wheel.y)};
+            Vec2 pos = mousePos_;
+            
+            scroll_ += event.wheel.y;
+            scrollDelta_ += event.wheel.y;
+            
+            Event e = Event::createMouseScroll(offset, pos);
+            dispatchEvent(e);
+            break;
+        }
+        
+        case SDL_CONTROLLERDEVICEADDED:
+            E2D_LOG_INFO("Gamepad connected: index {}", event.cdevice.which);
+            openGamepad();
+            break;
+            
+        case SDL_CONTROLLERDEVICEREMOVED:
+            if (gamepad_ && event.cdevice.which == SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(gamepad_))) {
+                E2D_LOG_INFO("Gamepad disconnected");
+                closeGamepad();
+            }
+            break;
+            
+        case SDL_CONTROLLERBUTTONDOWN:
+            if (gamepad_) {
+                int btn = event.cbutton.button;
+                if (btn >= 0 && btn < static_cast<int>(Gamepad::Count)) {
+                    gamepadCurrent_[btn] = true;
+                    
+                    GamepadButtonEvent btnEvent;
+                    btnEvent.gamepadId = gamepadIndex_;
+                    btnEvent.button = btn;
+                    
+                    Event e;
+                    e.type = EventType::GamepadButtonPressed;
+                    e.data = btnEvent;
+                    dispatchEvent(e);
+                }
+            }
+            break;
+            
+        case SDL_CONTROLLERBUTTONUP:
+            if (gamepad_) {
+                int btn = event.cbutton.button;
+                if (btn >= 0 && btn < static_cast<int>(Gamepad::Count)) {
+                    gamepadCurrent_[btn] = false;
+                    
+                    GamepadButtonEvent btnEvent;
+                    btnEvent.gamepadId = gamepadIndex_;
+                    btnEvent.button = btn;
+                    
+                    Event e;
+                    e.type = EventType::GamepadButtonReleased;
+                    e.data = btnEvent;
+                    dispatchEvent(e);
+                }
+            }
+            break;
+            
+        default:
+            break;
+    }
+}
+
+void SDL2Input::dispatchEvent(const Event& event) {
+    if (eventCallback_) {
+        eventCallback_(event);
+    }
 }
 
 bool SDL2Input::down(Key key) const {
     size_t idx = static_cast<size_t>(key);
-    return idx < keyCurrent_.size() ? keyCurrent_[idx] : false;
+    if (idx < keyCurrent_.size()) {
+        return keyCurrent_[idx];
+    }
+    return false;
 }
 
 bool SDL2Input::pressed(Key key) const {
     size_t idx = static_cast<size_t>(key);
-    return idx < keyCurrent_.size() ? (keyCurrent_[idx] && !keyPrevious_[idx]) : false;
+    if (idx < keyCurrent_.size()) {
+        return keyCurrent_[idx] && !keyPrevious_[idx];
+    }
+    return false;
 }
 
 bool SDL2Input::released(Key key) const {
     size_t idx = static_cast<size_t>(key);
-    return idx < keyCurrent_.size() ? (!keyCurrent_[idx] && keyPrevious_[idx]) : false;
+    if (idx < keyCurrent_.size()) {
+        return !keyCurrent_[idx] && keyPrevious_[idx];
+    }
+    return false;
 }
 
 bool SDL2Input::down(Mouse btn) const {
     size_t idx = static_cast<size_t>(btn);
-    return idx < mouseCurrent_.size() ? mouseCurrent_[idx] : false;
+    if (idx < mouseCurrent_.size()) {
+        return mouseCurrent_[idx];
+    }
+    return false;
 }
 
 bool SDL2Input::pressed(Mouse btn) const {
     size_t idx = static_cast<size_t>(btn);
-    return idx < mouseCurrent_.size() ? (mouseCurrent_[idx] && !mousePrevious_[idx]) : false;
+    if (idx < mouseCurrent_.size()) {
+        return mouseCurrent_[idx] && !mousePrevious_[idx];
+    }
+    return false;
 }
 
 bool SDL2Input::released(Mouse btn) const {
     size_t idx = static_cast<size_t>(btn);
-    return idx < mouseCurrent_.size() ? (!mouseCurrent_[idx] && mousePrevious_[idx]) : false;
+    if (idx < mouseCurrent_.size()) {
+        return !mouseCurrent_[idx] && mousePrevious_[idx];
+    }
+    return false;
 }
 
 Vec2 SDL2Input::mouse() const {
@@ -95,17 +267,26 @@ bool SDL2Input::gamepad() const {
 
 bool SDL2Input::down(Gamepad btn) const {
     size_t idx = static_cast<size_t>(btn);
-    return idx < gamepadCurrent_.size() ? gamepadCurrent_[idx] : false;
+    if (idx < gamepadCurrent_.size()) {
+        return gamepadCurrent_[idx];
+    }
+    return false;
 }
 
 bool SDL2Input::pressed(Gamepad btn) const {
     size_t idx = static_cast<size_t>(btn);
-    return idx < gamepadCurrent_.size() ? (gamepadCurrent_[idx] && !gamepadPrevious_[idx]) : false;
+    if (idx < gamepadCurrent_.size()) {
+        return gamepadCurrent_[idx] && !gamepadPrevious_[idx];
+    }
+    return false;
 }
 
 bool SDL2Input::released(Gamepad btn) const {
     size_t idx = static_cast<size_t>(btn);
-    return idx < gamepadCurrent_.size() ? (!gamepadCurrent_[idx] && gamepadPrevious_[idx]) : false;
+    if (idx < gamepadCurrent_.size()) {
+        return !gamepadCurrent_[idx] && gamepadPrevious_[idx];
+    }
+    return false;
 }
 
 Vec2 SDL2Input::leftStick() const {
@@ -126,9 +307,9 @@ float SDL2Input::rightTrigger() const {
 
 void SDL2Input::vibrate(float left, float right) {
     if (gamepad_) {
-        Uint16 lowFreq = static_cast<Uint16>(std::clamp(left, 0.0f, 1.0f) * 65535);
-        Uint16 highFreq = static_cast<Uint16>(std::clamp(right, 0.0f, 1.0f) * 65535);
-        SDL_GameControllerRumble(gamepad_, lowFreq, highFreq, 0);
+        Uint16 lowFreq = static_cast<Uint16>(left * 65535.0f);
+        Uint16 highFreq = static_cast<Uint16>(right * 65535.0f);
+        SDL_GameControllerRumble(gamepad_, lowFreq, highFreq, 500);
     }
 }
 
@@ -142,7 +323,7 @@ int SDL2Input::touchCount() const {
 
 Vec2 SDL2Input::touch(int index) const {
     (void)index;
-    return Vec2::Zero();
+    return Vec2{0.0f, 0.0f};
 }
 
 TouchPoint SDL2Input::touchPoint(int index) const {
@@ -151,160 +332,53 @@ TouchPoint SDL2Input::touchPoint(int index) const {
 }
 
 void SDL2Input::updateKeyboard() {
-    int numKeys = 0;
-    const Uint8* state = SDL_GetKeyboardState(&numKeys);
-
-    auto updateKey = [&](Key key, int sdlScancode) {
-        size_t idx = static_cast<size_t>(key);
-        if (idx < keyCurrent_.size() && sdlScancode < numKeys) {
-            keyCurrent_[idx] = state[sdlScancode] != 0;
-        }
-    };
-
-    updateKey(Key::A, SDL_SCANCODE_A);
-    updateKey(Key::B, SDL_SCANCODE_B);
-    updateKey(Key::C, SDL_SCANCODE_C);
-    updateKey(Key::D, SDL_SCANCODE_D);
-    updateKey(Key::E, SDL_SCANCODE_E);
-    updateKey(Key::F, SDL_SCANCODE_F);
-    updateKey(Key::G, SDL_SCANCODE_G);
-    updateKey(Key::H, SDL_SCANCODE_H);
-    updateKey(Key::I, SDL_SCANCODE_I);
-    updateKey(Key::J, SDL_SCANCODE_J);
-    updateKey(Key::K, SDL_SCANCODE_K);
-    updateKey(Key::L, SDL_SCANCODE_L);
-    updateKey(Key::M, SDL_SCANCODE_M);
-    updateKey(Key::N, SDL_SCANCODE_N);
-    updateKey(Key::O, SDL_SCANCODE_O);
-    updateKey(Key::P, SDL_SCANCODE_P);
-    updateKey(Key::Q, SDL_SCANCODE_Q);
-    updateKey(Key::R, SDL_SCANCODE_R);
-    updateKey(Key::S, SDL_SCANCODE_S);
-    updateKey(Key::T, SDL_SCANCODE_T);
-    updateKey(Key::U, SDL_SCANCODE_U);
-    updateKey(Key::V, SDL_SCANCODE_V);
-    updateKey(Key::W, SDL_SCANCODE_W);
-    updateKey(Key::X, SDL_SCANCODE_X);
-    updateKey(Key::Y, SDL_SCANCODE_Y);
-    updateKey(Key::Z, SDL_SCANCODE_Z);
-    updateKey(Key::Num0, SDL_SCANCODE_0);
-    updateKey(Key::Num1, SDL_SCANCODE_1);
-    updateKey(Key::Num2, SDL_SCANCODE_2);
-    updateKey(Key::Num3, SDL_SCANCODE_3);
-    updateKey(Key::Num4, SDL_SCANCODE_4);
-    updateKey(Key::Num5, SDL_SCANCODE_5);
-    updateKey(Key::Num6, SDL_SCANCODE_6);
-    updateKey(Key::Num7, SDL_SCANCODE_7);
-    updateKey(Key::Num8, SDL_SCANCODE_8);
-    updateKey(Key::Num9, SDL_SCANCODE_9);
-    updateKey(Key::F1, SDL_SCANCODE_F1);
-    updateKey(Key::F2, SDL_SCANCODE_F2);
-    updateKey(Key::F3, SDL_SCANCODE_F3);
-    updateKey(Key::F4, SDL_SCANCODE_F4);
-    updateKey(Key::F5, SDL_SCANCODE_F5);
-    updateKey(Key::F6, SDL_SCANCODE_F6);
-    updateKey(Key::F7, SDL_SCANCODE_F7);
-    updateKey(Key::F8, SDL_SCANCODE_F8);
-    updateKey(Key::F9, SDL_SCANCODE_F9);
-    updateKey(Key::F10, SDL_SCANCODE_F10);
-    updateKey(Key::F11, SDL_SCANCODE_F11);
-    updateKey(Key::F12, SDL_SCANCODE_F12);
-    updateKey(Key::Space, SDL_SCANCODE_SPACE);
-    updateKey(Key::Enter, SDL_SCANCODE_RETURN);
-    updateKey(Key::Escape, SDL_SCANCODE_ESCAPE);
-    updateKey(Key::Tab, SDL_SCANCODE_TAB);
-    updateKey(Key::Backspace, SDL_SCANCODE_BACKSPACE);
-    updateKey(Key::Insert, SDL_SCANCODE_INSERT);
-    updateKey(Key::Delete, SDL_SCANCODE_DELETE);
-    updateKey(Key::Home, SDL_SCANCODE_HOME);
-    updateKey(Key::End, SDL_SCANCODE_END);
-    updateKey(Key::PageUp, SDL_SCANCODE_PAGEUP);
-    updateKey(Key::PageDown, SDL_SCANCODE_PAGEDOWN);
-    updateKey(Key::Up, SDL_SCANCODE_UP);
-    updateKey(Key::Down, SDL_SCANCODE_DOWN);
-    updateKey(Key::Left, SDL_SCANCODE_LEFT);
-    updateKey(Key::Right, SDL_SCANCODE_RIGHT);
-    updateKey(Key::LShift, SDL_SCANCODE_LSHIFT);
-    updateKey(Key::RShift, SDL_SCANCODE_RSHIFT);
-    updateKey(Key::LCtrl, SDL_SCANCODE_LCTRL);
-    updateKey(Key::RCtrl, SDL_SCANCODE_RCTRL);
-    updateKey(Key::LAlt, SDL_SCANCODE_LALT);
-    updateKey(Key::RAlt, SDL_SCANCODE_RALT);
-    updateKey(Key::CapsLock, SDL_SCANCODE_CAPSLOCK);
-    updateKey(Key::NumLock, SDL_SCANCODE_NUMLOCKCLEAR);
-    updateKey(Key::ScrollLock, SDL_SCANCODE_SCROLLLOCK);
 }
 
 void SDL2Input::updateMouse() {
-    int x, y;
-    Uint32 state = SDL_GetMouseState(&x, &y);
-
-    Vec2 newPos(static_cast<float>(x), static_cast<float>(y));
-    mouseDelta_ = newPos - mousePos_;
-    mousePos_ = newPos;
-
-    mouseCurrent_[static_cast<size_t>(Mouse::Left)] = (state & SDL_BUTTON_LMASK) != 0;
-    mouseCurrent_[static_cast<size_t>(Mouse::Right)] = (state & SDL_BUTTON_RMASK) != 0;
-    mouseCurrent_[static_cast<size_t>(Mouse::Middle)] = (state & SDL_BUTTON_MMASK) != 0;
-    mouseCurrent_[static_cast<size_t>(Mouse::X1)] = (state & SDL_BUTTON_X1MASK) != 0;
-    mouseCurrent_[static_cast<size_t>(Mouse::X2)] = (state & SDL_BUTTON_X2MASK) != 0;
+    int x = 0, y = 0;
+    SDL_GetMouseState(&x, &y);
+    mousePos_ = Vec2{static_cast<float>(x), static_cast<float>(y)};
 }
 
 void SDL2Input::updateGamepad() {
     if (!gamepad_) {
-        openGamepad();
-        if (!gamepad_) return;
+        return;
     }
-
+    
     auto applyDeadzone = [this](float value) -> float {
-        if (std::abs(value) < deadzone_) return 0.0f;
-        float sign = value >= 0 ? 1.0f : -1.0f;
+        if (std::abs(value) < deadzone_) {
+            return 0.0f;
+        }
+        float sign = value >= 0.0f ? 1.0f : -1.0f;
         return sign * (std::abs(value) - deadzone_) / (1.0f - deadzone_);
     };
-
-    auto getAxis = [this](SDL_GameControllerAxis axis) -> float {
-        if (!gamepad_) return 0.0f;
-        Sint16 value = SDL_GameControllerGetAxis(gamepad_, axis);
-        return static_cast<float>(value) / 32767.0f;
-    };
-
-    auto getButton = [this](SDL_GameControllerButton btn) -> bool {
-        return gamepad_ ? SDL_GameControllerGetButton(gamepad_, btn) != 0 : false;
-    };
-
-    leftStick_.x = applyDeadzone(getAxis(SDL_CONTROLLER_AXIS_LEFTX));
-    leftStick_.y = applyDeadzone(getAxis(SDL_CONTROLLER_AXIS_LEFTY));
-    rightStick_.x = applyDeadzone(getAxis(SDL_CONTROLLER_AXIS_RIGHTX));
-    rightStick_.y = applyDeadzone(getAxis(SDL_CONTROLLER_AXIS_RIGHTY));
-
-    leftTrigger_ = getAxis(SDL_CONTROLLER_AXIS_TRIGGERLEFT);
-    rightTrigger_ = getAxis(SDL_CONTROLLER_AXIS_TRIGGERRIGHT);
-
-    gamepadCurrent_[static_cast<size_t>(Gamepad::A)] = getButton(SDL_CONTROLLER_BUTTON_A);
-    gamepadCurrent_[static_cast<size_t>(Gamepad::B)] = getButton(SDL_CONTROLLER_BUTTON_B);
-    gamepadCurrent_[static_cast<size_t>(Gamepad::X)] = getButton(SDL_CONTROLLER_BUTTON_X);
-    gamepadCurrent_[static_cast<size_t>(Gamepad::Y)] = getButton(SDL_CONTROLLER_BUTTON_Y);
-    gamepadCurrent_[static_cast<size_t>(Gamepad::LB)] = getButton(SDL_CONTROLLER_BUTTON_LEFTSHOULDER);
-    gamepadCurrent_[static_cast<size_t>(Gamepad::RB)] = getButton(SDL_CONTROLLER_BUTTON_RIGHTSHOULDER);
-    gamepadCurrent_[static_cast<size_t>(Gamepad::Back)] = getButton(SDL_CONTROLLER_BUTTON_BACK);
-    gamepadCurrent_[static_cast<size_t>(Gamepad::Start)] = getButton(SDL_CONTROLLER_BUTTON_START);
-    gamepadCurrent_[static_cast<size_t>(Gamepad::Guide)] = getButton(SDL_CONTROLLER_BUTTON_GUIDE);
-    gamepadCurrent_[static_cast<size_t>(Gamepad::LStick)] = getButton(SDL_CONTROLLER_BUTTON_LEFTSTICK);
-    gamepadCurrent_[static_cast<size_t>(Gamepad::RStick)] = getButton(SDL_CONTROLLER_BUTTON_RIGHTSTICK);
-    gamepadCurrent_[static_cast<size_t>(Gamepad::DUp)] = getButton(SDL_CONTROLLER_BUTTON_DPAD_UP);
-    gamepadCurrent_[static_cast<size_t>(Gamepad::DDown)] = getButton(SDL_CONTROLLER_BUTTON_DPAD_DOWN);
-    gamepadCurrent_[static_cast<size_t>(Gamepad::DLeft)] = getButton(SDL_CONTROLLER_BUTTON_DPAD_LEFT);
-    gamepadCurrent_[static_cast<size_t>(Gamepad::DRight)] = getButton(SDL_CONTROLLER_BUTTON_DPAD_RIGHT);
+    
+    int lx = SDL_GameControllerGetAxis(gamepad_, SDL_CONTROLLER_AXIS_LEFTX);
+    int ly = SDL_GameControllerGetAxis(gamepad_, SDL_CONTROLLER_AXIS_LEFTY);
+    int rx = SDL_GameControllerGetAxis(gamepad_, SDL_CONTROLLER_AXIS_RIGHTX);
+    int ry = SDL_GameControllerGetAxis(gamepad_, SDL_CONTROLLER_AXIS_RIGHTY);
+    
+    leftStick_.x = applyDeadzone(lx / 32767.0f);
+    leftStick_.y = applyDeadzone(ly / 32767.0f);
+    rightStick_.x = applyDeadzone(rx / 32767.0f);
+    rightStick_.y = applyDeadzone(ry / 32767.0f);
+    
+    int lt = SDL_GameControllerGetAxis(gamepad_, SDL_CONTROLLER_AXIS_TRIGGERLEFT);
+    int rt = SDL_GameControllerGetAxis(gamepad_, SDL_CONTROLLER_AXIS_TRIGGERRIGHT);
+    
+    leftTrigger_ = lt / 32767.0f;
+    rightTrigger_ = rt / 32767.0f;
 }
 
 void SDL2Input::openGamepad() {
-    for (int i = 0; i < SDL_NumJoysticks(); ++i) {
+    int numJoysticks = SDL_NumJoysticks();
+    for (int i = 0; i < numJoysticks; ++i) {
         if (SDL_IsGameController(i)) {
             gamepad_ = SDL_GameControllerOpen(i);
             if (gamepad_) {
                 gamepadIndex_ = i;
-                E2D_LOG_INFO("Gamepad connected: {}", SDL_GameControllerName(gamepad_));
-                break;
+                E2D_LOG_INFO("Gamepad opened: {}", SDL_GameControllerName(gamepad_));
+                return;
             }
         }
     }
@@ -315,47 +389,20 @@ void SDL2Input::closeGamepad() {
         SDL_GameControllerClose(gamepad_);
         gamepad_ = nullptr;
         gamepadIndex_ = -1;
-        E2D_LOG_INFO("Gamepad disconnected");
+        gamepadCurrent_.fill(false);
+        gamepadPrevious_.fill(false);
     }
 }
 
 int SDL2Input::keyToSDL(Key key) {
-    switch (key) {
-        case Key::A: return SDL_SCANCODE_A;
-        case Key::B: return SDL_SCANCODE_B;
-        case Key::C: return SDL_SCANCODE_C;
-        case Key::D: return SDL_SCANCODE_D;
-        case Key::E: return SDL_SCANCODE_E;
-        case Key::F: return SDL_SCANCODE_F;
-        case Key::G: return SDL_SCANCODE_G;
-        case Key::H: return SDL_SCANCODE_H;
-        case Key::I: return SDL_SCANCODE_I;
-        case Key::J: return SDL_SCANCODE_J;
-        case Key::K: return SDL_SCANCODE_K;
-        case Key::L: return SDL_SCANCODE_L;
-        case Key::M: return SDL_SCANCODE_M;
-        case Key::N: return SDL_SCANCODE_N;
-        case Key::O: return SDL_SCANCODE_O;
-        case Key::P: return SDL_SCANCODE_P;
-        case Key::Q: return SDL_SCANCODE_Q;
-        case Key::R: return SDL_SCANCODE_R;
-        case Key::S: return SDL_SCANCODE_S;
-        case Key::T: return SDL_SCANCODE_T;
-        case Key::U: return SDL_SCANCODE_U;
-        case Key::V: return SDL_SCANCODE_V;
-        case Key::W: return SDL_SCANCODE_W;
-        case Key::X: return SDL_SCANCODE_X;
-        case Key::Y: return SDL_SCANCODE_Y;
-        case Key::Z: return SDL_SCANCODE_Z;
-        default: return SDL_SCANCODE_UNKNOWN;
-    }
+    return static_cast<int>(key);
 }
 
 int SDL2Input::mouseToSDL(Mouse btn) {
     switch (btn) {
         case Mouse::Left: return SDL_BUTTON_LEFT;
-        case Mouse::Right: return SDL_BUTTON_RIGHT;
         case Mouse::Middle: return SDL_BUTTON_MIDDLE;
+        case Mouse::Right: return SDL_BUTTON_RIGHT;
         case Mouse::X1: return SDL_BUTTON_X1;
         case Mouse::X2: return SDL_BUTTON_X2;
         default: return 0;
@@ -368,19 +415,37 @@ int SDL2Input::gamepadToSDL(Gamepad btn) {
         case Gamepad::B: return SDL_CONTROLLER_BUTTON_B;
         case Gamepad::X: return SDL_CONTROLLER_BUTTON_X;
         case Gamepad::Y: return SDL_CONTROLLER_BUTTON_Y;
-        case Gamepad::LB: return SDL_CONTROLLER_BUTTON_LEFTSHOULDER;
-        case Gamepad::RB: return SDL_CONTROLLER_BUTTON_RIGHTSHOULDER;
         case Gamepad::Back: return SDL_CONTROLLER_BUTTON_BACK;
         case Gamepad::Start: return SDL_CONTROLLER_BUTTON_START;
-        case Gamepad::Guide: return SDL_CONTROLLER_BUTTON_GUIDE;
         case Gamepad::LStick: return SDL_CONTROLLER_BUTTON_LEFTSTICK;
         case Gamepad::RStick: return SDL_CONTROLLER_BUTTON_RIGHTSTICK;
+        case Gamepad::LB: return SDL_CONTROLLER_BUTTON_LEFTSHOULDER;
+        case Gamepad::RB: return SDL_CONTROLLER_BUTTON_RIGHTSHOULDER;
         case Gamepad::DUp: return SDL_CONTROLLER_BUTTON_DPAD_UP;
         case Gamepad::DDown: return SDL_CONTROLLER_BUTTON_DPAD_DOWN;
         case Gamepad::DLeft: return SDL_CONTROLLER_BUTTON_DPAD_LEFT;
         case Gamepad::DRight: return SDL_CONTROLLER_BUTTON_DPAD_RIGHT;
-        default: return SDL_CONTROLLER_BUTTON_INVALID;
+        case Gamepad::Guide: return SDL_CONTROLLER_BUTTON_GUIDE;
+        default: return 0;
     }
 }
 
-} // namespace extra2d
+Key SDL2Input::sdlToKey(int sdlKey) {
+    if (sdlKey >= 0 && sdlKey < static_cast<int>(Key::Count)) {
+        return static_cast<Key>(sdlKey);
+    }
+    return Key::None;
+}
+
+Mouse SDL2Input::sdlToMouse(int sdlButton) {
+    switch (sdlButton) {
+        case SDL_BUTTON_LEFT: return Mouse::Left;
+        case SDL_BUTTON_MIDDLE: return Mouse::Middle;
+        case SDL_BUTTON_RIGHT: return Mouse::Right;
+        case SDL_BUTTON_X1: return Mouse::X1;
+        case SDL_BUTTON_X2: return Mouse::X2;
+        default: return Mouse::Count;
+    }
+}
+
+} 

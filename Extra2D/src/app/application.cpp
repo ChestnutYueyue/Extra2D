@@ -2,6 +2,7 @@
 #include <extra2d/config/config_module.h>
 #include <extra2d/config/module_registry.h>
 #include <extra2d/graphics/render_module.h>
+#include <extra2d/graphics/render_config.h>
 #include <extra2d/graphics/vram_manager.h>
 #include <extra2d/platform/iinput.h>
 #include <extra2d/platform/platform_init_module.h>
@@ -287,10 +288,14 @@ void Application::mainLoop() {
     render();
 
     const auto& appConfig = ConfigManager::instance().appConfig();
-    if (!appConfig.render.vsync && appConfig.render.isFPSCapped()) {
+    
+    auto* renderConfig = ModuleRegistry::instance().getModuleConfig(get_render_module_id());
+    auto* renderModuleConfig = dynamic_cast<const RenderModuleConfig*>(renderConfig);
+    
+    if (renderModuleConfig && !renderModuleConfig->vsync && renderModuleConfig->targetFPS > 0) {
         double frameEndTime = getTimeSeconds();
         double frameTime = frameEndTime - currentTime;
-        double target = 1.0 / static_cast<double>(appConfig.render.targetFPS);
+        double target = 1.0 / static_cast<double>(renderModuleConfig->targetFPS);
         if (frameTime < target) {
             auto sleepSeconds = target - frameTime;
             std::this_thread::sleep_for(std::chrono::duration<double>(sleepSeconds));

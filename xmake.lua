@@ -1,7 +1,14 @@
 -- ==============================================
 -- Extra2D - 2D Game Engine
 -- Build System: Xmake
--- Platforms: MinGW (Windows), Nintendo Switch
+-- 
+-- 支持平台:
+-- - Windows (MinGW)
+-- - Linux
+-- - macOS
+-- - Nintendo Switch
+-- 
+-- 窗口后端: SDL2 (统一)
 -- ==============================================
 
 -- 项目元信息
@@ -26,34 +33,37 @@ option("debug_logs")
     set_description("Enable debug logging")
 option_end()
 
-option("backend")
-    set_default("sdl2")
-    set_showmenu(true)
-    set_values("sdl2", "glfw")
-    set_description("Platform backend (sdl2, glfw)")
-option_end()
-
 -- ==============================================
 -- 平台检测与配置
 -- ==============================================
 
 local host_plat = os.host()
 local target_plat = get_config("plat") or host_plat
-local supported_plats = {mingw = true, switch = true}
+local supported_plats = {mingw = true, windows = true, linux = true, macosx = true, switch = true}
 
+-- 自动选择平台
 if not supported_plats[target_plat] then
     if host_plat == "windows" then
         target_plat = "mingw"
+    elseif host_plat == "linux" then
+        target_plat = "linux"
+    elseif host_plat == "macosx" then
+        target_plat = "macosx"
     else
-        error("Unsupported platform: " .. target_plat .. ". Supported platforms: mingw, switch")
+        error("Unsupported platform: " .. target_plat .. ". Supported platforms: mingw, windows, linux, macosx, switch")
     end
 end
 
 set_plat(target_plat)
 
+-- 设置架构
 if target_plat == "switch" then
     set_arch("arm64")
-elseif target_plat == "mingw" then
+elseif target_plat == "mingw" or target_plat == "windows" then
+    set_arch("x86_64")
+elseif target_plat == "linux" then
+    set_arch("x86_64")
+elseif target_plat == "macosx" then
     set_arch("x86_64")
 end
 
@@ -69,20 +79,13 @@ elseif target_plat == "mingw" then
 end
 
 -- ==============================================
--- 添加依赖包 (MinGW)
+-- 添加依赖包
 -- ==============================================
 
-if target_plat == "mingw" then
-    local backend = get_config("backend") or "sdl2"
-    
+if target_plat ~= "switch" then
     add_requires("glm")
     add_requires("nlohmann_json")
-    
-    if backend == "sdl2" then
-        add_requires("libsdl2")
-    elseif backend == "glfw" then
-        add_requires("glfw")
-    end
+    add_requires("libsdl2")
 end
 
 -- ==============================================
@@ -134,10 +137,16 @@ target("demo_basic")
     add_files("examples/basic/main.cpp")
     
     -- 平台配置
-    local target_plat = get_config("plat") or os.host()
-    if target_plat == "mingw" then
+    local plat = get_config("plat") or os.host()
+    if plat == "mingw" or plat == "windows" then
         add_packages("glm", "nlohmann_json", "libsdl2")
         add_syslinks("opengl32", "glu32", "winmm", "imm32", "version", "setupapi")
+    elseif plat == "linux" then
+        add_packages("glm", "nlohmann_json", "libsdl2")
+        add_syslinks("GL", "dl", "pthread")
+    elseif plat == "macosx" then
+        add_packages("glm", "nlohmann_json", "libsdl2")
+        add_frameworks("OpenGL", "Cocoa", "IOKit", "CoreVideo")
     end
     
     -- 构建后安装Shader文件

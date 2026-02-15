@@ -2,6 +2,7 @@
 
 #include <extra2d/config/module_config.h>
 #include <extra2d/config/module_initializer.h>
+#include <extra2d/graphics/render_config.h>
 #include <extra2d/graphics/render_backend.h>
 #include <extra2d/core/types.h>
 

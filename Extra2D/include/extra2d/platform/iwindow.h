@@ -2,7 +2,7 @@
 
 #include <extra2d/core/types.h>
 #include <extra2d/core/math_types.h>
-#include <extra2d/config/app_config.h>
+#include <extra2d/platform/window_config.h>
 #include <functional>
 #include <string>
 

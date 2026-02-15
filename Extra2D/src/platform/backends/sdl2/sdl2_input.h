@@ -1,8 +1,10 @@
 #pragma once
 
 #include <extra2d/platform/iinput.h>
+#include <extra2d/event/event.h>
 #include <SDL.h>
 #include <array>
+#include <functional>
 
 namespace extra2d {
 
@@ -11,6 +13,8 @@ namespace extra2d {
  */
 class SDL2Input : public IInput {
 public:
+    using EventCallback = std::function<void(const Event&)>;
+
     SDL2Input();
     ~SDL2Input() override;
 
@@ -46,6 +50,18 @@ public:
     Vec2 touch(int index) const override;
     TouchPoint touchPoint(int index) const override;
 
+    /**
+     * @brief 设置事件回调
+     * @param callback 事件回调函数
+     */
+    void setEventCallback(EventCallback callback);
+
+    /**
+     * @brief 处理 SDL 事件
+     * @param event SDL 事件
+     */
+    void handleSDLEvent(const SDL_Event& event);
+
 private:
     void updateKeyboard();
     void updateMouse();
@@ -56,6 +72,10 @@ private:
     static int keyToSDL(Key key);
     static int mouseToSDL(Mouse btn);
     static int gamepadToSDL(Gamepad btn);
+    static Key sdlToKey(int sdlKey);
+    static Mouse sdlToMouse(int sdlButton);
+
+    void dispatchEvent(const Event& event);
 
     std::array<bool, static_cast<size_t>(Key::Count)> keyCurrent_{};
     std::array<bool, static_cast<size_t>(Key::Count)> keyPrevious_{};
@@ -77,6 +97,8 @@ private:
     float leftTrigger_ = 0.0f;
     float rightTrigger_ = 0.0f;
     float deadzone_ = 0.15f;
+
+    EventCallback eventCallback_;
 };
 
-} // namespace extra2d
+} 

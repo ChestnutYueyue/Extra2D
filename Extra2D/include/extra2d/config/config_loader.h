@@ -6,9 +6,17 @@
 
 namespace extra2d {
 
-// ============================================================================
-// 配置加载结果
-// ============================================================================
+/**
+ * @file config_loader.h
+ * @brief 配置加载器接口
+ * 
+ * 配置加载器只负责加载应用级别的配置（AppConfig）。
+ * 模块配置通过 ModuleRegistry 和各模块的 IModuleConfig 接口加载。
+ */
+
+/**
+ * @brief 配置加载结果
+ */
 struct ConfigLoadResult {
     bool success = false;
     std::string errorMessage;
@@ -24,9 +32,9 @@ struct ConfigLoadResult {
     bool hasError() const { return !success; }
 };
 
-// ============================================================================
-// 配置保存结果
-// ============================================================================
+/**
+ * @brief 配置保存结果
+ */
 struct ConfigSaveResult {
     bool success = false;
     std::string errorMessage;
@@ -40,15 +48,15 @@ struct ConfigSaveResult {
     bool hasError() const { return !success; }
 };
 
-// ============================================================================
-// 配置加载器抽象接口
-// ============================================================================
+/**
+ * @brief 配置加载器抽象接口
+ */
 class ConfigLoader {
 public:
     virtual ~ConfigLoader() = default;
 
     /**
-     * @brief 从文件加载配置
+     * @brief 从文件加载应用配置
      * @param filepath 配置文件路径
      * @param config 输出的配置对象
      * @return 加载结果
@@ -56,7 +64,7 @@ public:
     virtual ConfigLoadResult load(const std::string& filepath, AppConfig& config) = 0;
 
     /**
-     * @brief 保存配置到文件
+     * @brief 保存应用配置到文件
      * @param filepath 配置文件路径
      * @param config 要保存的配置对象
      * @return 保存结果
@@ -79,6 +87,20 @@ public:
     virtual std::string saveToString(const AppConfig& config) = 0;
 
     /**
+     * @brief 从文件加载完整配置（包括模块配置）
+     * @param filepath 配置文件路径
+     * @return 加载结果
+     */
+    virtual ConfigLoadResult loadWithModules(const std::string& filepath) = 0;
+
+    /**
+     * @brief 保存完整配置（包括模块配置）到文件
+     * @param filepath 配置文件路径
+     * @return 保存结果
+     */
+    virtual ConfigSaveResult saveWithModules(const std::string& filepath) = 0;
+
+    /**
      * @brief 获取支持的文件扩展名
      * @return 文件扩展名（不含点号，如 "json"）
      */
@@ -98,9 +120,9 @@ public:
     virtual UniquePtr<ConfigLoader> clone() const = 0;
 };
 
-// ============================================================================
-// JSON 配置加载器
-// ============================================================================
+/**
+ * @brief JSON 配置加载器
+ */
 class JsonConfigLoader : public ConfigLoader {
 public:
     JsonConfigLoader() = default;
@@ -110,29 +132,16 @@ public:
     ConfigSaveResult save(const std::string& filepath, const AppConfig& config) override;
     ConfigLoadResult loadFromString(const std::string& content, AppConfig& config) override;
     std::string saveToString(const AppConfig& config) override;
+    ConfigLoadResult loadWithModules(const std::string& filepath) override;
+    ConfigSaveResult saveWithModules(const std::string& filepath) override;
     const char* extension() const override { return "json"; }
     bool supportsFile(const std::string& filepath) const override;
     UniquePtr<ConfigLoader> clone() const override;
-
-private:
-    ConfigLoadResult parseWindowConfig(const void* jsonValue, WindowConfigData& window);
-    ConfigLoadResult parseRenderConfig(const void* jsonValue, RenderConfigData& render);
-    ConfigLoadResult parseAudioConfig(const void* jsonValue, AudioConfigData& audio);
-    ConfigLoadResult parseDebugConfig(const void* jsonValue, DebugConfigData& debug);
-    ConfigLoadResult parseInputConfig(const void* jsonValue, InputConfigData& input);
-    ConfigLoadResult parseResourceConfig(const void* jsonValue, ResourceConfigData& resource);
-    
-    void serializeWindowConfig(void* jsonValue, const WindowConfigData& window);
-    void serializeRenderConfig(void* jsonValue, const RenderConfigData& render);
-    void serializeAudioConfig(void* jsonValue, const AudioConfigData& audio);
-    void serializeDebugConfig(void* jsonValue, const DebugConfigData& debug);
-    void serializeInputConfig(void* jsonValue, const InputConfigData& input);
-    void serializeResourceConfig(void* jsonValue, const ResourceConfigData& resource);
 };
 
-// ============================================================================
-// INI 配置加载器
-// ============================================================================
+/**
+ * @brief INI 配置加载器
+ */
 class IniConfigLoader : public ConfigLoader {
 public:
     IniConfigLoader() = default;
@@ -142,6 +151,8 @@ public:
     ConfigSaveResult save(const std::string& filepath, const AppConfig& config) override;
     ConfigLoadResult loadFromString(const std::string& content, AppConfig& config) override;
     std::string saveToString(const AppConfig& config) override;
+    ConfigLoadResult loadWithModules(const std::string& filepath) override;
+    ConfigSaveResult saveWithModules(const std::string& filepath) override;
     const char* extension() const override { return "ini"; }
     bool supportsFile(const std::string& filepath) const override;
     UniquePtr<ConfigLoader> clone() const override;
@@ -153,9 +164,9 @@ private:
     ConfigLoadResult parseBool(const std::string& value, bool& result, const std::string& fieldName);
 };
 
-// ============================================================================
-// 配置加载器工厂
-// ============================================================================
+/**
+ * @brief 配置加载器工厂
+ */
 class ConfigLoaderFactory {
 public:
     /**

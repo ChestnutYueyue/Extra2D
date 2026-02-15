@@ -21,6 +21,10 @@ bool SDL2Window::create(const WindowConfigData& cfg) {
     }
 
     Uint32 flags = SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN;
+    
+#ifdef __SWITCH__
+    flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+#else
     if (cfg.isFullscreen()) {
         flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
     } else if (cfg.isBorderless()) {
@@ -32,10 +36,12 @@ bool SDL2Window::create(const WindowConfigData& cfg) {
     if (!cfg.decorated) {
         flags |= SDL_WINDOW_BORDERLESS;
     }
+#endif
 
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
     SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
@@ -75,7 +81,7 @@ bool SDL2Window::create(const WindowConfigData& cfg) {
     }
 
     if (!gladLoadGLES2Loader((GLADloadproc)SDL_GL_GetProcAddress)) {
-        E2D_LOG_ERROR("Failed to initialize GLAD");
+        E2D_LOG_ERROR("Failed to initialize GLAD GLES2");
         SDL_GL_DeleteContext(glContext_);
         glContext_ = nullptr;
         SDL_DestroyWindow(sdlWindow_);
@@ -87,16 +93,19 @@ bool SDL2Window::create(const WindowConfigData& cfg) {
     SDL_GL_SetSwapInterval(cfg.vsync ? 1 : 0);
 
     SDL_GetWindowSize(sdlWindow_, &width_, &height_);
-    fullscreen_ = cfg.isFullscreen();
+    fullscreen_ = (flags & SDL_WINDOW_FULLSCREEN_DESKTOP) != 0;
     vsync_ = cfg.vsync;
 
+#ifndef __SWITCH__
     initCursors();
+#endif
     updateContentScale();
 
     input_ = makeUnique<SDL2Input>();
     input_->init();
 
     E2D_LOG_INFO("SDL2 window created: {}x{}", width_, height_);
+    E2D_LOG_INFO("  Platform: OpenGL ES 3.2");
     return true;
 }
 
@@ -106,7 +115,9 @@ void SDL2Window::destroy() {
         input_.reset();
     }
 
+#ifndef __SWITCH__
     deinitCursors();
+#endif
 
     if (glContext_) {
         SDL_GL_DeleteContext(glContext_);
@@ -163,16 +174,25 @@ void SDL2Window::setSize(int w, int h) {
 }
 
 void SDL2Window::setPos(int x, int y) {
+#ifndef __SWITCH__
     if (sdlWindow_) {
         SDL_SetWindowPosition(sdlWindow_, x, y);
     }
+#else
+    (void)x;
+    (void)y;
+#endif
 }
 
 void SDL2Window::setFullscreen(bool fs) {
+#ifndef __SWITCH__
     if (sdlWindow_) {
         SDL_SetWindowFullscreen(sdlWindow_, fs ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
         fullscreen_ = fs;
     }
+#else
+    (void)fs;
+#endif
 }
 
 void SDL2Window::setVSync(bool vsync) {
@@ -183,6 +203,7 @@ void SDL2Window::setVSync(bool vsync) {
 }
 
 void SDL2Window::setVisible(bool visible) {
+#ifndef __SWITCH__
     if (sdlWindow_) {
         if (visible) {
             SDL_ShowWindow(sdlWindow_);
@@ -190,6 +211,9 @@ void SDL2Window::setVisible(bool visible) {
             SDL_HideWindow(sdlWindow_);
         }
     }
+#else
+    (void)visible;
+#endif
 }
 
 int SDL2Window::width() const {
@@ -205,12 +229,12 @@ Size SDL2Window::size() const {
 }
 
 Vec2 SDL2Window::pos() const {
-    int x, y;
+    int x = 0, y = 0;
+#ifndef __SWITCH__
     if (sdlWindow_) {
         SDL_GetWindowPosition(sdlWindow_, &x, &y);
-    } else {
-        x = y = 0;
     }
+#endif
     return Vec2(static_cast<float>(x), static_cast<float>(y));
 }
 
@@ -239,6 +263,7 @@ float SDL2Window::scaleY() const {
 }
 
 void SDL2Window::setCursor(Cursor cursor) {
+#ifndef __SWITCH__
     if (cursor == Cursor::Hidden) {
         SDL_ShowCursor(SDL_DISABLE);
         return;
@@ -251,18 +276,29 @@ void SDL2Window::setCursor(Cursor cursor) {
         SDL_SetCursor(sdlCursors_[idx]);
         currentCursor_ = idx;
     }
+#else
+    (void)cursor;
+#endif
 }
 
 void SDL2Window::showCursor(bool show) {
+#ifndef __SWITCH__
     SDL_ShowCursor(show ? SDL_ENABLE : SDL_DISABLE);
     cursorVisible_ = show;
+#else
+    (void)show;
+#endif
 }
 
 void SDL2Window::lockCursor(bool lock) {
+#ifndef __SWITCH__
     if (sdlWindow_) {
         SDL_SetRelativeMouseMode(lock ? SDL_TRUE : SDL_FALSE);
         cursorLocked_ = lock;
     }
+#else
+    (void)lock;
+#endif
 }
 
 IInput* SDL2Window::input() const {
@@ -288,7 +324,8 @@ void* SDL2Window::native() const {
 bool SDL2Window::initSDL() {
     static int sdlInitCount = 0;
     if (sdlInitCount == 0) {
-        if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER) != 0) {
+        Uint32 initFlags = SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER;
+        if (SDL_Init(initFlags) != 0) {
             E2D_LOG_ERROR("Failed to initialize SDL: {}", SDL_GetError());
             return false;
         }
@@ -305,6 +342,7 @@ void SDL2Window::deinitSDL() {
     }
 }
 
+#ifndef __SWITCH__
 void SDL2Window::initCursors() {
     sdlCursors_[0] = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW);
     sdlCursors_[1] = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_IBEAM);
@@ -323,6 +361,7 @@ void SDL2Window::deinitCursors() {
         }
     }
 }
+#endif
 
 void SDL2Window::updateContentScale() {
     if (sdlWindow_) {
@@ -335,6 +374,10 @@ void SDL2Window::updateContentScale() {
 }
 
 void SDL2Window::handleEvent(const SDL_Event& event) {
+    if (input_) {
+        input_->handleSDLEvent(event);
+    }
+
     switch (event.type) {
         case SDL_QUIT:
             shouldClose_ = true;
@@ -378,4 +421,4 @@ void SDL2Window::handleEvent(const SDL_Event& event) {
     }
 }
 
-} // namespace extra2d
+} 
