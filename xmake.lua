@@ -96,6 +96,32 @@ includes("xmake/engine.lua")
 define_extra2d_engine()
 
 -- ==============================================
+-- Shader文件安装函数
+-- ==============================================
+
+function install_shaders(target)
+    local plat = get_config("plat") or os.host()
+    local targetdir = target:targetdir()
+    
+    local shader_src = "Extra2D/shaders"
+    
+    if plat == "switch" then
+        local romfs_dir = path.join(targetdir, "romfs")
+        local shader_dest = path.join(romfs_dir, "shaders")
+        
+        os.rm(shader_dest)
+        os.cp(shader_src, shader_dest)
+        print("Shaders installed to romfs: " .. shader_dest)
+    else
+        local shader_dest = path.join(targetdir, "shaders")
+        
+        os.rm(shader_dest)
+        os.cp(shader_src, shader_dest)
+        print("Shaders installed to: " .. shader_dest)
+    end
+end
+
+-- ==============================================
 -- 示例程序
 -- ==============================================
 
@@ -113,5 +139,7 @@ target("demo_basic")
         add_packages("glm", "nlohmann_json", "libsdl2")
         add_syslinks("opengl32", "glu32", "winmm", "imm32", "version", "setupapi")
     end
+    
+    -- 构建后安装Shader文件
+    after_build(install_shaders)
 target_end()
-

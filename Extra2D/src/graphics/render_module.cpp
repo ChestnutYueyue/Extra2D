@@ -1,5 +1,7 @@
 #include <extra2d/graphics/render_module.h>
 #include <extra2d/config/module_registry.h>
+#include <extra2d/graphics/opengl/gl_shader_new.h>
+#include <extra2d/graphics/shader_manager.h>
 #include <extra2d/platform/iwindow.h>
 #include <extra2d/utils/logger.h>
 #include <nlohmann/json.hpp>
@@ -145,6 +147,15 @@ bool RenderModuleInitializer::initialize(const IModuleConfig* config) {
         E2D_LOG_ERROR("Render module requires window to be set");
         return false;
     }
+
+    auto shaderFactory = std::make_shared<GLShaderFactory>();
+    if (!ShaderManager::getInstance().init(shaderFactory, "extra2d")) {
+        E2D_LOG_WARN("Failed to initialize ShaderManager with default paths");
+    }
+
+    if (!ShaderManager::getInstance().loadBuiltinShaders()) {
+        E2D_LOG_WARN("Failed to load some builtin shaders");
+    }
     
     renderer_ = RenderBackend::create(renderConfig->backend);
     if (!renderer_) {
@@ -170,6 +181,8 @@ void RenderModuleInitializer::shutdown() {
         renderer_->shutdown();
         renderer_.reset();
     }
+    
+    ShaderManager::getInstance().shutdown();
     
     initialized_ = false;
     E2D_LOG_INFO("Render module shutdown");
