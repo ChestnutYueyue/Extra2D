@@ -1,17 +1,15 @@
 #include <extra2d/app/application.h>
 #include <extra2d/config/config_module.h>
 #include <extra2d/config/module_registry.h>
-#include <extra2d/event/event_dispatcher.h>
-#include <extra2d/event/event_queue.h>
-#include <extra2d/graphics/camera.h>
 #include <extra2d/graphics/render_module.h>
-#include <extra2d/graphics/viewport_adapter.h>
 #include <extra2d/graphics/vram_manager.h>
 #include <extra2d/platform/iinput.h>
 #include <extra2d/platform/platform_init_module.h>
 #include <extra2d/platform/window_module.h>
-#include <extra2d/scene/scene_manager.h>
-#include <extra2d/utils/timer.h>
+#include <extra2d/services/scene_service.h>
+#include <extra2d/services/timer_service.h>
+#include <extra2d/services/event_service.h>
+#include <extra2d/services/camera_service.h>
 
 #include <chrono>
 #include <thread>
@@ -88,6 +86,37 @@ bool Application::init(const std::string& configPath) {
     return initModules();
 }
 
+void Application::registerCoreServices() {
+    auto& locator = ServiceLocator::instance();
+
+    if (!locator.hasService<IEventService>()) {
+        locator.registerService<ISceneService>(makeShared<SceneService>());
+    }
+
+    if (!locator.hasService<ITimerService>()) {
+        locator.registerService<ITimerService>(makeShared<TimerService>());
+    }
+
+    if (!locator.hasService<IEventService>()) {
+        locator.registerService<IEventService>(makeShared<EventService>());
+    }
+
+    if (!locator.hasService<ICameraService>()) {
+        auto cameraService = makeShared<CameraService>();
+        if (window_) {
+            cameraService->setViewport(0, static_cast<float>(window_->width()),
+                                        static_cast<float>(window_->height()), 0);
+            ViewportConfig vpConfig;
+            vpConfig.logicWidth = static_cast<float>(window_->width());
+            vpConfig.logicHeight = static_cast<float>(window_->height());
+            vpConfig.mode = ViewportMode::AspectRatio;
+            cameraService->setViewportConfig(vpConfig);
+            cameraService->updateViewport(window_->width(), window_->height());
+        }
+        locator.registerService<ICameraService>(cameraService);
+    }
+}
+
 bool Application::initModules() {
     auto initOrder = ModuleRegistry::instance().getInitializationOrder();
     
@@ -144,40 +173,28 @@ bool Application::initModules() {
         }
     }
 
-    sceneManager_ = makeUnique<SceneManager>();
-    timerManager_ = makeUnique<TimerManager>();
-    eventQueue_ = makeUnique<EventQueue>();
-    eventDispatcher_ = makeUnique<EventDispatcher>();
-    camera_ = makeUnique<Camera>(0, static_cast<float>(window_->width()),
-                                  static_cast<float>(window_->height()), 0);
+    registerCoreServices();
 
-    viewportAdapter_ = makeUnique<ViewportAdapter>();
-    ViewportConfig vpConfig;
-    vpConfig.logicWidth = static_cast<float>(window_->width());
-    vpConfig.logicHeight = static_cast<float>(window_->height());
-    vpConfig.mode = ViewportMode::AspectRatio;
-    viewportAdapter_->setConfig(vpConfig);
+    if (!ServiceLocator::instance().initializeAll()) {
+        return false;
+    }
 
-    camera_->setViewportAdapter(viewportAdapter_.get());
-    viewportAdapter_->update(window_->width(), window_->height());
+    auto cameraService = ServiceLocator::instance().getService<ICameraService>();
+    if (cameraService && window_) {
+        window_->onResize([this, cameraService](int width, int height) {
+            cameraService->updateViewport(width, height);
+            cameraService->applyViewportAdapter();
 
-    window_->onResize([this](int width, int height) {
-        if (viewportAdapter_) {
-            viewportAdapter_->update(width, height);
-        }
-
-        if (camera_) {
-            camera_->applyViewportAdapter();
-        }
-
-        if (sceneManager_) {
-            auto currentScene = sceneManager_->getCurrentScene();
-            if (currentScene) {
-                currentScene->setViewportSize(static_cast<float>(width),
-                                              static_cast<float>(height));
+            auto sceneService = ServiceLocator::instance().getService<ISceneService>();
+            if (sceneService) {
+                auto currentScene = sceneService->getCurrentScene();
+                if (currentScene) {
+                    currentScene->setViewportSize(static_cast<float>(width),
+                                                  static_cast<float>(height));
+                }
             }
-        }
-    });
+        });
+    }
 
     initialized_ = true;
     running_ = true;
@@ -191,17 +208,7 @@ void Application::shutdown() {
 
     VRAMMgr::get().printStats();
 
-    if (sceneManager_) {
-        sceneManager_->end();
-    }
-
-    sceneManager_.reset();
-    viewportAdapter_.reset();
-    camera_.reset();
-
-    timerManager_.reset();
-    eventQueue_.reset();
-    eventDispatcher_.reset();
+    ServiceLocator::instance().clear();
 
     window_ = nullptr;
 
@@ -239,12 +246,14 @@ void Application::quit() {
 void Application::pause() {
     if (!paused_) {
         paused_ = true;
+        ServiceLocator::instance().pauseAll();
     }
 }
 
 void Application::resume() {
     if (paused_) {
         paused_ = false;
+        ServiceLocator::instance().resumeAll();
         lastFrameTime_ = getTimeSeconds();
     }
 }
@@ -266,8 +275,9 @@ void Application::mainLoop() {
 
     window_->poll();
 
-    if (eventDispatcher_ && eventQueue_) {
-        eventDispatcher_->processQueue(*eventQueue_);
+    auto eventService = ServiceLocator::instance().getService<IEventService>();
+    if (eventService) {
+        eventService->processQueue();
     }
 
     if (!paused_) {
@@ -291,13 +301,7 @@ void Application::mainLoop() {
 }
 
 void Application::update() {
-    if (timerManager_) {
-        timerManager_->update(deltaTime_);
-    }
-
-    if (sceneManager_) {
-        sceneManager_->update(deltaTime_);
-    }
+    ServiceLocator::instance().updateAll(deltaTime_);
 }
 
 void Application::render() {
@@ -314,8 +318,9 @@ void Application::render() {
         return;
     }
 
-    if (viewportAdapter_) {
-        const auto& vp = viewportAdapter_->getViewport();
+    auto cameraService = ServiceLocator::instance().getService<ICameraService>();
+    if (cameraService) {
+        const auto& vp = cameraService->getViewportResult().viewport;
         renderer->setViewport(
             static_cast<int>(vp.origin.x), static_cast<int>(vp.origin.y),
             static_cast<int>(vp.size.width), static_cast<int>(vp.size.height));
@@ -323,8 +328,9 @@ void Application::render() {
         renderer->setViewport(0, 0, window_->width(), window_->height());
     }
 
-    if (sceneManager_) {
-        sceneManager_->render(*renderer);
+    auto sceneService = ServiceLocator::instance().getService<ISceneService>();
+    if (sceneService) {
+        sceneService->render(*renderer);
     }
 
     window_->swap();
@@ -349,35 +355,28 @@ RenderBackend& Application::renderer() {
     return *dummy;
 }
 
-SceneManager& Application::scenes() { 
-    return *sceneManager_; 
+SharedPtr<ISceneService> Application::scenes() {
+    return ServiceLocator::instance().getService<ISceneService>();
 }
 
-TimerManager& Application::timers() { 
-    return *timerManager_; 
+SharedPtr<ITimerService> Application::timers() {
+    return ServiceLocator::instance().getService<ITimerService>();
 }
 
-EventQueue& Application::eventQueue() { 
-    return *eventQueue_; 
+SharedPtr<IEventService> Application::events() {
+    return ServiceLocator::instance().getService<IEventService>();
 }
 
-EventDispatcher& Application::eventDispatcher() { 
-    return *eventDispatcher_; 
-}
-
-Camera& Application::camera() { 
-    return *camera_; 
-}
-
-ViewportAdapter& Application::viewportAdapter() { 
-    return *viewportAdapter_; 
+SharedPtr<ICameraService> Application::camera() {
+    return ServiceLocator::instance().getService<ICameraService>();
 }
 
 void Application::enterScene(Ptr<Scene> scene) {
-    if (sceneManager_ && scene) {
+    auto sceneService = ServiceLocator::instance().getService<ISceneService>();
+    if (sceneService && scene) {
         scene->setViewportSize(static_cast<float>(window_->width()),
                                static_cast<float>(window_->height()));
-        sceneManager_->enterScene(scene);
+        sceneService->enterScene(scene);
     }
 }
 
@@ -389,4 +388,4 @@ const AppConfig& Application::getConfig() const {
     return ConfigManager::instance().appConfig();
 }
 
-} // namespace extra2d
+} 
