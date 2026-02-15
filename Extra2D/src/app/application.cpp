@@ -16,8 +16,16 @@
 #include <chrono>
 #include <thread>
 
+#include <SDL.h>
+
 #ifdef __SWITCH__
 #include <switch.h>
+#endif
+
+#ifdef E2D_BACKEND_SDL2
+namespace extra2d {
+void initSDL2Backend();
+}
 #endif
 
 namespace extra2d {
@@ -56,9 +64,15 @@ bool Application::init() {
 
 bool Application::init(const AppConfig& config) {
     if (initialized_) {
-        E2D_LOG_WARN("Application already initialized");
         return true;
     }
+
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_TIMER) != 0) {
+        E2D_LOG_ERROR("Failed to initialize SDL: {}", SDL_GetError());
+        return false;
+    }
+
+    Logger::init();
 
     E2D_LOG_INFO("Initializing application with config...");
 
@@ -92,6 +106,10 @@ bool Application::init(const std::string& configPath) {
 }
 
 bool Application::initImpl() {
+#ifdef E2D_BACKEND_SDL2
+    initSDL2Backend();
+#endif
+
     auto& configMgr = ConfigManager::instance();
     AppConfig& appConfig = configMgr.appConfig();
 

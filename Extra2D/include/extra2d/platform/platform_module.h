@@ -79,6 +79,7 @@ private:
  */
 #define E2D_REG_BACKEND(name, WinClass, InClass) \
     namespace { \
+        __attribute__((used)) \
         static struct E2D_BACKEND_REG_##name { \
             E2D_BACKEND_REG_##name() { \
                 ::extra2d::BackendFactory::reg( \

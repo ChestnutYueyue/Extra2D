@@ -95,3 +95,23 @@ includes("xmake/engine.lua")
 -- 定义引擎库
 define_extra2d_engine()
 
+-- ==============================================
+-- 示例程序
+-- ==============================================
+
+-- 基础示例
+target("demo_basic")
+    set_kind("binary")
+    set_default(false)
+    
+    add_deps("extra2d")
+    add_files("examples/basic/main.cpp")
+    
+    -- 平台配置
+    local target_plat = get_config("plat") or os.host()
+    if target_plat == "mingw" then
+        add_packages("glm", "nlohmann_json", "libsdl2")
+        add_syslinks("opengl32", "glu32", "winmm", "imm32", "version", "setupapi")
+    end
+target_end()
+

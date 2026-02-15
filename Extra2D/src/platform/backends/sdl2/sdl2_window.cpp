@@ -1,6 +1,7 @@
 #include "sdl2_window.h"
 #include "sdl2_input.h"
 #include <extra2d/utils/logger.h>
+#include <glad/glad.h>
 
 namespace extra2d {
 
@@ -67,6 +68,16 @@ bool SDL2Window::create(const WindowConfigData& cfg) {
     glContext_ = SDL_GL_CreateContext(sdlWindow_);
     if (!glContext_) {
         E2D_LOG_ERROR("Failed to create OpenGL context: {}", SDL_GetError());
+        SDL_DestroyWindow(sdlWindow_);
+        sdlWindow_ = nullptr;
+        deinitSDL();
+        return false;
+    }
+
+    if (!gladLoadGLES2Loader((GLADloadproc)SDL_GL_GetProcAddress)) {
+        E2D_LOG_ERROR("Failed to initialize GLAD");
+        SDL_GL_DeleteContext(glContext_);
+        glContext_ = nullptr;
         SDL_DestroyWindow(sdlWindow_);
         sdlWindow_ = nullptr;
         deinitSDL();

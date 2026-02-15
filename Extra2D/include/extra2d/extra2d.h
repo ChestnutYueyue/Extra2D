@@ -48,7 +48,6 @@
 #include <extra2d/event/event.h>
 #include <extra2d/event/event_dispatcher.h>
 #include <extra2d/event/event_queue.h>
-#include <extra2d/event/input_codes.h>
 
 // Utils
 #include <extra2d/utils/logger.h>
