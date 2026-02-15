@@ -698,9 +698,15 @@ void GLRenderer::addShapeVertex(float x, float y, const Color &color) {
   if (shapeVertexCount_ >= MAX_SHAPE_VERTICES) {
     flushShapeBatch();
   }
+
+  glm::vec4 pos(x, y, 0.0f, 1.0f);
+  if (!transformStack_.empty()) {
+    pos = transformStack_.back() * pos;
+  }
+
   ShapeVertex &v = shapeVertexCache_[shapeVertexCount_++];
-  v.x = x;
-  v.y = y;
+  v.x = pos.x;
+  v.y = pos.y;
   v.r = color.r;
   v.g = color.g;
   v.b = color.b;
@@ -717,9 +723,15 @@ void GLRenderer::addLineVertex(float x, float y, const Color &color) {
   if (lineVertexCount_ >= MAX_LINE_VERTICES) {
     flushLineBatch();
   }
+
+  glm::vec4 pos(x, y, 0.0f, 1.0f);
+  if (!transformStack_.empty()) {
+    pos = transformStack_.back() * pos;
+  }
+
   ShapeVertex &v = lineVertexCache_[lineVertexCount_++];
-  v.x = x;
-  v.y = y;
+  v.x = pos.x;
+  v.y = pos.y;
   v.r = color.r;
   v.g = color.g;
   v.b = color.b;

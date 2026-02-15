@@ -22,7 +22,9 @@
 #include <extra2d/platform/iinput.h>
 #include <extra2d/platform/iwindow.h>
 #include <extra2d/platform/keys.h>
+#include <extra2d/platform/input_module.h>
 #include <extra2d/platform/platform_module.h>
+#include <extra2d/platform/window_module.h>
 
 // Graphics
 #include <extra2d/graphics/camera.h>
@@ -53,6 +55,12 @@
 #include <extra2d/utils/logger.h>
 #include <extra2d/utils/random.h>
 #include <extra2d/utils/timer.h>
+
+// Services
+#include <extra2d/services/event_service.h>
+#include <extra2d/services/scene_service.h>
+#include <extra2d/services/timer_service.h>
+#include <extra2d/services/camera_service.h>
 
 // Application
 #include <extra2d/app/application.h>

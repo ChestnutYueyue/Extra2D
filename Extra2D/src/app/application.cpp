@@ -5,6 +5,7 @@
 #include <extra2d/graphics/render_config.h>
 #include <extra2d/graphics/vram_manager.h>
 #include <extra2d/platform/iinput.h>
+#include <extra2d/platform/input_module.h>
 #include <extra2d/platform/platform_init_module.h>
 #include <extra2d/platform/window_module.h>
 #include <extra2d/services/scene_service.h>
@@ -53,6 +54,7 @@ bool Application::init(const AppConfig& config) {
     register_config_module();
     register_platform_module();
     register_window_module();
+    register_input_module();
     register_render_module();
 
     auto* configInit = ModuleRegistry::instance().getInitializer(get_config_module_id());
@@ -74,6 +76,7 @@ bool Application::init(const std::string& configPath) {
     register_config_module();
     register_platform_module();
     register_window_module();
+    register_input_module();
     register_render_module();
 
     auto* configInit = ModuleRegistry::instance().getInitializer(get_config_module_id());
@@ -90,16 +93,12 @@ bool Application::init(const std::string& configPath) {
 void Application::registerCoreServices() {
     auto& locator = ServiceLocator::instance();
 
-    if (!locator.hasService<IEventService>()) {
+    if (!locator.hasService<ISceneService>()) {
         locator.registerService<ISceneService>(makeShared<SceneService>());
     }
 
     if (!locator.hasService<ITimerService>()) {
         locator.registerService<ITimerService>(makeShared<TimerService>());
-    }
-
-    if (!locator.hasService<IEventService>()) {
-        locator.registerService<IEventService>(makeShared<EventService>());
     }
 
     if (!locator.hasService<ICameraService>()) {
@@ -119,6 +118,12 @@ void Application::registerCoreServices() {
 }
 
 bool Application::initModules() {
+    auto& locator = ServiceLocator::instance();
+    
+    if (!locator.hasService<IEventService>()) {
+        locator.registerService<IEventService>(makeShared<EventService>());
+    }
+    
     auto initOrder = ModuleRegistry::instance().getInitializationOrder();
     
     for (ModuleId moduleId : initOrder) {

@@ -1,9 +1,12 @@
 #include <extra2d/platform/input_module.h>
 #include <extra2d/config/module_registry.h>
+#include <extra2d/core/service_locator.h>
 #include <extra2d/platform/window_module.h>
 #include <extra2d/services/event_service.h>
 #include <extra2d/utils/logger.h>
 #include <nlohmann/json.hpp>
+
+#include "backends/sdl2/sdl2_input.h"
 
 using json = nlohmann::json;
 
@@ -144,6 +147,20 @@ bool InputModuleInitializer::initialize(const IModuleConfig* config) {
     if (!input_) {
         E2D_LOG_ERROR("Input interface not available from window");
         return false;
+    }
+    
+    SDL2Input* sdl2Input = dynamic_cast<SDL2Input*>(input_);
+    if (sdl2Input) {
+        auto eventService = ServiceLocator::instance().getService<IEventService>();
+        if (eventService) {
+            sdl2Input->setEventCallback([eventService](const Event& event) {
+                Event mutableEvent = event;
+                eventService->dispatch(mutableEvent);
+            });
+            E2D_LOG_INFO("Input events connected to EventService");
+        } else {
+            E2D_LOG_WARN("EventService not available - input events will not be dispatched");
+        }
     }
     
     initialized_ = true;

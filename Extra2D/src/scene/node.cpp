@@ -520,11 +520,15 @@ void Node::onRender(RenderBackend &renderer) {
   if (!visible_)
     return;
 
+  renderer.pushTransform(getLocalTransform());
+  
   onDraw(renderer);
 
   for (auto &child : children_) {
     child->onRender(renderer);
   }
+  
+  renderer.popTransform();
 }
 
 /**

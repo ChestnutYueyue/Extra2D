@@ -268,25 +268,24 @@ Rect ShapeNode::getBounds() const {
  * @param renderer 渲染后端引用
  *
  * 根据形状类型调用相应的渲染方法进行绘制
+ * 注意：变换矩阵已由 Node::onRender 通过 pushTransform 应用，
+ *       此处直接使用本地坐标即可。
  */
 void ShapeNode::onDraw(RenderBackend &renderer) {
   if (points_.empty()) {
     return;
   }
 
-  Vec2 offset = getPosition();
-
   switch (shapeType_) {
   case ShapeType::Point:
     if (!points_.empty()) {
-      renderer.fillCircle(points_[0] + offset, lineWidth_ * 0.5f, color_, 8);
+      renderer.fillCircle(points_[0], lineWidth_ * 0.5f, color_, 8);
     }
     break;
 
   case ShapeType::Line:
     if (points_.size() >= 2) {
-      renderer.drawLine(points_[0] + offset, points_[1] + offset, color_,
-                        lineWidth_);
+      renderer.drawLine(points_[0], points_[1], color_, lineWidth_);
     }
     break;
 
@@ -295,11 +294,11 @@ void ShapeNode::onDraw(RenderBackend &renderer) {
       if (filled_) {
         Rect rect(points_[0].x, points_[0].y, points_[2].x - points_[0].x,
                   points_[2].y - points_[0].y);
-        renderer.fillRect(Rect(rect.origin + offset, rect.size), color_);
+        renderer.fillRect(rect, color_);
       } else {
         for (size_t i = 0; i < points_.size(); ++i) {
-          Vec2 start = points_[i] + offset;
-          Vec2 end = points_[(i + 1) % points_.size()] + offset;
+          Vec2 start = points_[i];
+          Vec2 end = points_[(i + 1) % points_.size()];
           renderer.drawLine(start, end, color_, lineWidth_);
         }
       }
@@ -310,41 +309,31 @@ void ShapeNode::onDraw(RenderBackend &renderer) {
     if (points_.size() >= 2) {
       float radius = points_[1].x;
       if (filled_) {
-        renderer.fillCircle(points_[0] + offset, radius, color_, segments_);
+        renderer.fillCircle(points_[0], radius, color_, segments_);
       } else {
-        renderer.drawCircle(points_[0] + offset, radius, color_, segments_,
-                            lineWidth_);
+        renderer.drawCircle(points_[0], radius, color_, segments_, lineWidth_);
       }
     }
     break;
 
   case ShapeType::Triangle:
     if (points_.size() >= 3) {
-      Vec2 p1 = points_[0] + offset;
-      Vec2 p2 = points_[1] + offset;
-      Vec2 p3 = points_[2] + offset;
       if (filled_) {
-        renderer.fillTriangle(p1, p2, p3, color_);
+        renderer.fillTriangle(points_[0], points_[1], points_[2], color_);
       } else {
-        renderer.drawLine(p1, p2, color_, lineWidth_);
-        renderer.drawLine(p2, p3, color_, lineWidth_);
-        renderer.drawLine(p3, p1, color_, lineWidth_);
+        renderer.drawLine(points_[0], points_[1], color_, lineWidth_);
+        renderer.drawLine(points_[1], points_[2], color_, lineWidth_);
+        renderer.drawLine(points_[2], points_[0], color_, lineWidth_);
       }
     }
     break;
 
   case ShapeType::Polygon:
     if (!points_.empty()) {
-      std::vector<Vec2> transformedPoints;
-      transformedPoints.reserve(points_.size());
-      for (const auto &p : points_) {
-        transformedPoints.push_back(p + offset);
-      }
-
       if (filled_) {
-        renderer.fillPolygon(transformedPoints, color_);
+        renderer.fillPolygon(points_, color_);
       } else {
-        renderer.drawPolygon(transformedPoints, color_, lineWidth_);
+        renderer.drawPolygon(points_, color_, lineWidth_);
       }
     }
     break;
