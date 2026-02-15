@@ -164,3 +164,29 @@ target("demo_basic")
     -- 构建后安装Shader文件
     after_build(install_shaders)
 target_end()
+
+-- Hello Module 示例 - 展示如何创建自定义模块
+target("demo_hello_module")
+    set_kind("binary")
+    set_default(false)
+    
+    add_deps("extra2d")
+    add_files("examples/hello_module/*.cpp")
+    add_includedirs("examples/hello_module")
+    
+    -- 平台配置
+    local plat = get_config("plat") or os.host()
+    if plat == "mingw" or plat == "windows" then
+        add_packages("glm", "nlohmann_json", "libsdl2")
+        add_syslinks("opengl32", "glu32", "winmm", "imm32", "version", "setupapi")
+    elseif plat == "linux" then
+        add_packages("glm", "nlohmann_json", "libsdl2")
+        add_syslinks("GL", "dl", "pthread")
+    elseif plat == "macosx" then
+        add_packages("glm", "nlohmann_json", "libsdl2")
+        add_frameworks("OpenGL", "Cocoa", "IOKit", "CoreVideo")
+    end
+    
+    -- 构建后安装Shader文件
+    after_build(install_shaders)
+target_end()

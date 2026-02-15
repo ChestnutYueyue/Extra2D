@@ -966,9 +966,222 @@ window_->onResize([this, cameraService](int width, int height) {
 ## 示例
 
 完整示例请参考：
+- [examples/hello_module/](../../examples/hello_module/) - **Hello World 自定义模块示例**
 - [examples/basic/main.cpp](../../examples/basic/main.cpp) - 基础示例（场景图、输入事件、视口适配）
 - [Extra2D/src/platform/window_module.cpp](../../Extra2D/src/platform/window_module.cpp) - Window 模块实现
 - [Extra2D/src/platform/input_module.cpp](../../Extra2D/src/platform/input_module.cpp) - Input 模块实现
 - [Extra2D/src/graphics/render_module.cpp](../../Extra2D/src/graphics/render_module.cpp) - Render 模块实现
 - [Extra2D/src/scene/node.cpp](../../Extra2D/src/scene/node.cpp) - Node 实现
 - [Extra2D/src/scene/shape_node.cpp](../../Extra2D/src/scene/shape_node.cpp) - ShapeNode 实现
+
+---
+
+## Hello World 自定义模块示例
+
+### 示例概述
+
+`examples/hello_module/` 目录包含一个完整的自定义模块示例，展示如何：
+
+1. 定义模块配置数据结构
+2. 实现 `IModuleConfig` 接口
+3. 实现 `IModuleInitializer` 接口
+4. 使用自动注册机制
+5. 支持 JSON 配置
+
+### 文件结构
+
+```
+examples/hello_module/
+├── hello_module.h      # 模块头文件（配置类 + 初始化器类）
+├── hello_module.cpp    # 模块实现
+├── main.cpp            # 示例入口
+└── config.json         # 配置文件示例
+```
+
+### 核心代码解析
+
+#### 1. 配置数据结构
+
+```cpp
+struct HelloModuleConfigData {
+    std::string greeting = "Hello, Extra2D!";
+    int repeatCount = 1;
+    bool enableLogging = true;
+};
+```
+
+#### 2. 配置类实现
+
+```cpp
+class HelloModuleConfig : public IModuleConfig {
+public:
+    HelloModuleConfigData config;
+
+    ModuleInfo getModuleInfo() const override {
+        ModuleInfo info;
+        info.name = "HelloModule";
+        info.version = "1.0.0";
+        info.priority = ModulePriority::User;  // 用户自定义模块
+        return info;
+    }
+
+    std::string getConfigSectionName() const override {
+        return "hello";  // 对应 config.json 中的 "hello" 节
+    }
+
+    bool validate() const override {
+        return !config.greeting.empty() && config.repeatCount > 0;
+    }
+};
+```
+
+#### 3. 初始化器实现
+
+```cpp
+class HelloModuleInitializer : public IModuleInitializer {
+public:
+    bool initialize(const IModuleConfig* config) override {
+        const HelloModuleConfig* cfg = dynamic_cast<const HelloModuleConfig*>(config);
+        if (!cfg || !cfg->validate()) {
+            return false;
+        }
+        
+        config_ = cfg->config;
+        initialized_ = true;
+        
+        // 执行模块初始化逻辑
+        E2D_LOG_INFO("HelloModule initialized: {}", config_.greeting);
+        return true;
+    }
+
+    void shutdown() override {
+        E2D_LOG_INFO("HelloModule shutdown");
+        initialized_ = false;
+    }
+};
+```
+
+#### 4. 自动注册机制
+
+```cpp
+namespace {
+    struct HelloModuleAutoRegister {
+        HelloModuleAutoRegister() {
+            register_hello_module();
+        }
+    };
+    
+    static HelloModuleAutoRegister s_autoRegister;  // 程序启动时自动执行
+}
+```
+
+### 配置文件示例
+
+```json
+{
+    "hello": {
+        "greeting": "Hello from custom module!",
+        "repeatCount": 3,
+        "enableLogging": true
+    }
+}
+```
+
+### 运行示例
+
+```bash
+xmake run demo_hello_module
+```
+
+### 预期输出
+
+```
+[INFO] HelloModule initialized
+[INFO]   Greeting: Hello, Extra2D!
+[INFO]   Repeat Count: 1
+[INFO]   Logging Enabled: true
+[INFO] [HelloModule] Hello, Extra2D!
+[INFO] HelloScene entered
+[INFO] [HelloModule] Hello, Extra2D!        # 场景 onEnter() 调用
+[INFO] Scene calling HelloModule from onUpdate...
+[INFO] [HelloModule] Hello, Extra2D!        # 场景每5秒调用
+[INFO] HelloModule shutdown - Goodbye!
+```
+
+### 在场景中使用模块
+
+模块初始化后，可以在场景中通过 `ModuleRegistry` 获取模块实例并调用其功能：
+
+```cpp
+class HelloScene : public Scene {
+public:
+    void onEnter() override {
+        Scene::onEnter();
+        
+        // 获取模块初始化器
+        ModuleId helloId = get_hello_module_id();
+        auto* initializer = ModuleRegistry::instance().getInitializer(helloId);
+        
+        if (initializer) {
+            // 转换为具体类型
+            auto* helloInit = dynamic_cast<HelloModuleInitializer*>(initializer);
+            if (helloInit) {
+                // 调用模块功能
+                helloInit->sayHello();
+            }
+        }
+    }
+
+    void onUpdate(float dt) override {
+        Scene::onUpdate(dt);
+        
+        time_ += dt;
+        
+        // 每5秒调用一次模块功能
+        if (time_ >= 5.0f) {
+            ModuleId helloId = get_hello_module_id();
+            auto* initializer = ModuleRegistry::instance().getInitializer(helloId);
+            if (initializer) {
+                auto* helloInit = dynamic_cast<HelloModuleInitializer*>(initializer);
+                if (helloInit) {
+                    helloInit->sayHello();
+                }
+            }
+            time_ = 0.0f;
+        }
+    }
+
+private:
+    float time_ = 0.0f;
+};
+```
+
+### 模块使用流程总结
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  1. 程序启动                                                  │
+│     └── 静态变量 HelloModuleAutoRegister 自动注册模块          │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  2. Application::init()                                      │
+│     └── 遍历 ModuleRegistry 中所有已注册模块                   │
+│     └── 按优先级顺序调用 initialize()                         │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  3. 场景/其他代码使用模块                                      │
+│     └── ModuleRegistry::getInitializer(moduleId)             │
+│     └── dynamic_cast 转换为具体类型                           │
+│     └── 调用模块方法                                          │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  4. Application::shutdown()                                  │
+│     └── 按逆序调用所有模块的 shutdown()                        │
+└─────────────────────────────────────────────────────────────┘
+```

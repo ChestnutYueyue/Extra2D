@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <extra2d/core/color.h>
 #include <extra2d/core/math_types.h>
 #include <extra2d/core/types.h>
@@ -7,7 +8,6 @@
 #include <extra2d/graphics/texture.h>
 #include <glm/mat4x4.hpp>
 #include <vector>
-#include <array>
 
 #include <glad/glad.h>
 
@@ -52,10 +52,11 @@ public:
   void end();
 
   // 批量绘制接口 - 用于自动批处理
-  void drawBatch(const Texture& texture, const std::vector<SpriteData>& sprites);
-  
+  void drawBatch(const Texture &texture,
+                 const std::vector<SpriteData> &sprites);
+
   // 立即绘制（不缓存）
-  void drawImmediate(const Texture& texture, const SpriteData& data);
+  void drawImmediate(const Texture &texture, const SpriteData &data);
 
   // 统计
   uint32_t getDrawCallCount() const { return drawCallCount_; }
@@ -63,7 +64,7 @@ public:
   uint32_t getBatchCount() const { return batchCount_; }
 
   // 检查是否需要刷新
-  bool needsFlush(const Texture& texture, bool isSDF) const;
+  bool needsFlush(const Texture &texture, bool isSDF) const;
 
 private:
   GLuint vao_;
@@ -78,7 +79,7 @@ private:
   const Texture *currentTexture_;
   bool currentIsSDF_;
   glm::mat4 viewProjection_;
-  
+
   // 缓存上一帧的 viewProjection，避免重复设置
   glm::mat4 cachedViewProjection_;
   bool viewProjectionDirty_ = true;
@@ -89,9 +90,9 @@ private:
 
   void flush();
   void setupShader();
-  
+
   // 添加顶点到缓冲区
-  void addVertices(const SpriteData& data);
+  void addVertices(const SpriteData &data);
 };
 
 } // namespace extra2d
