@@ -107,10 +107,18 @@ Ptr<ShaderCacheEntry> ShaderCache::loadCache(const std::string& name) {
  */
 bool ShaderCache::saveCache(const ShaderCacheEntry& entry) {
     if (!initialized_) {
+        E2D_LOG_WARN("ShaderCache not initialized, cannot save cache");
+        return false;
+    }
+
+    if (entry.binary.empty()) {
+        E2D_LOG_WARN("Shader binary is empty, skipping cache save for: {}", entry.name);
         return false;
     }
 
     std::string cachePath = getCachePath(entry.name);
+    E2D_LOG_DEBUG("Saving shader cache to: {} ({} bytes)", cachePath, entry.binary.size());
+    
     std::ofstream file(cachePath, std::ios::binary);
     if (!file.is_open()) {
         E2D_LOG_ERROR("Failed to create cache file: {}", cachePath);
@@ -123,7 +131,7 @@ bool ShaderCache::saveCache(const ShaderCacheEntry& entry) {
     cacheMap_[entry.name] = entry;
     saveCacheIndex();
 
-    E2D_LOG_DEBUG("Shader cache saved: {}", entry.name);
+    E2D_LOG_INFO("Shader cache saved: {} ({} bytes)", entry.name, entry.binary.size());
     return true;
 }
 

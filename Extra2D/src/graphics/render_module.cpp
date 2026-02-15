@@ -1,6 +1,6 @@
 #include <extra2d/graphics/render_module.h>
 #include <extra2d/config/module_registry.h>
-#include <extra2d/graphics/opengl/gl_shader_new.h>
+#include <extra2d/graphics/opengl/gl_shader.h>
 #include <extra2d/graphics/shader_manager.h>
 #include <extra2d/platform/iwindow.h>
 #include <extra2d/utils/logger.h>

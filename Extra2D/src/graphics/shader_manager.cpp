@@ -135,6 +135,7 @@ Ptr<IShader> ShaderManager::loadFromFiles(const std::string& name,
     Ptr<IShader> shader = loadFromCache(name, sourceHash, result.vertSource, result.fragSource);
 
     if (!shader) {
+        E2D_LOG_DEBUG("No valid cache found, compiling shader from source: {}", name);
         shader = factory_->createFromSource(name, result.vertSource, result.fragSource);
         if (!shader) {
             E2D_LOG_ERROR("Failed to create shader from source: {}", name);
@@ -143,12 +144,15 @@ Ptr<IShader> ShaderManager::loadFromFiles(const std::string& name,
 
         std::vector<uint8_t> binary;
         if (factory_->getShaderBinary(*shader, binary)) {
+            E2D_LOG_DEBUG("Got shader binary, size: {} bytes", binary.size());
             ShaderCacheEntry entry;
             entry.name = name;
             entry.sourceHash = sourceHash;
             entry.binary = binary;
             entry.dependencies = result.dependencies;
             ShaderCache::getInstance().saveCache(entry);
+        } else {
+            E2D_LOG_WARN("Failed to get shader binary for: {}", name);
         }
     }
 
@@ -205,6 +209,7 @@ Ptr<IShader> ShaderManager::loadFromCombinedFile(const std::string& path) {
     Ptr<IShader> shader = loadFromCache(name, sourceHash, result.vertSource, result.fragSource);
 
     if (!shader) {
+        E2D_LOG_DEBUG("No valid cache found, compiling shader from source: {}", name);
         shader = factory_->createFromSource(name, result.vertSource, result.fragSource);
         if (!shader) {
             E2D_LOG_ERROR("Failed to create shader from source: {}", name);
@@ -213,12 +218,15 @@ Ptr<IShader> ShaderManager::loadFromCombinedFile(const std::string& path) {
 
         std::vector<uint8_t> binary;
         if (factory_->getShaderBinary(*shader, binary)) {
+            E2D_LOG_DEBUG("Got shader binary, size: {} bytes", binary.size());
             ShaderCacheEntry entry;
             entry.name = name;
             entry.sourceHash = sourceHash;
             entry.binary = binary;
             entry.dependencies = result.dependencies;
             ShaderCache::getInstance().saveCache(entry);
+        } else {
+            E2D_LOG_WARN("Failed to get shader binary for: {}", name);
         }
     }
 
